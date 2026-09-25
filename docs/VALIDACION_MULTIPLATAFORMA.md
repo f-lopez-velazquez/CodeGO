@@ -17,10 +17,14 @@ Se comprobó además el paquete en una VM local Windows 11 x64. Esa imagen de pr
 
 ## Lo que cubren las pruebas
 
-Entrada `input()` con UTF-8, ejecuciones repetidas, geometría de la consola con diferentes tamaños/zoom, guardado, archivos, IPC, validación de rutas, comprobación del equipo y arranque del paquete nativo. El flujo de construcción verifica el programa empaquetado; no automatiza todos los asistentes gráficos de instalación.
+Entrada `input()` con UTF-8, ejecuciones repetidas, geometría de la consola con diferentes tamaños/zoom, guardado, archivos, IPC, validación de rutas, comprobación del equipo y arranque del paquete nativo. El flujo de construcción verifica además la instalación silenciosa NSIS de Windows, el AppImage con extracción y ejecución en Linux y el DMG montado, copiado y desmontado en macOS. Estas pruebas no reproducen las advertencias de descarga del navegador, SmartScreen ni la aprobación de Gatekeeper. No automatizan todos los asistentes gráficos.
 
 ## Límites
 
 Los runners no reproducen las políticas de cada escuela, tarjetas Wi-Fi, firmware, antivirus, audio, monitores múltiples ni ventanas de todas las librerías Python. Estos casos requieren aceptación en los equipos del aula. La compatibilidad corresponde a las versiones y arquitecturas indicadas; no existe una garantía universal para cualquier SO.
 
 Android, iOS, ChromeOS, Windows ARM y Linux ARM no tienen instaladores validados en esta versión.
+
+## Primera distribución pública
+
+[Consultar la ejecución de validación y empaquetado](https://github.com/f-lopez-velazquez/CodeGO/actions/runs/36097997904). Los instaladores indican su commit de origen en los archivos `provenance-*.json` de la Release.
