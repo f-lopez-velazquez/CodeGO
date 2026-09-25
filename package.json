@@ -1,0 +1,120 @@
+{
+  "name": "codego-examguard",
+  "version": "1.1.0",
+  "description": "Entorno Blindado de Exámenes y Editor Python Multiplataforma",
+  "homepage": "https://zolvek.com.mx/codego/",
+  "author": {
+    "name": "Francisco López Velázquez",
+    "url": "https://zolvek.com.mx"
+  },
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test-run": "npm test",
+    "build:linux": "electron-builder --linux AppImage tar.gz",
+    "build:win": "electron-builder --win nsis portable",
+    "build:mac": "electron-builder --mac dmg zip",
+    "build:all": "electron-builder -mwl",
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/check.cjs",
+    "test:electron": "node tests/run-electron.cjs",
+    "test:packaged": "node scripts/packaged-smoke.cjs",
+    "verify:submission": "node scripts/verify-submission.cjs",
+    "audit": "npm audit --audit-level=low",
+    "verify": "npm run check && npm test && npm run test:electron && npm run test:browser && npm run audit",
+    "build:dir": "electron-builder --dir --publish never",
+    "test:browser": "node scripts/browser-tests.cjs",
+    "build:release": "node scripts/build-release.cjs"
+  },
+  "keywords": [
+    "exam",
+    "kiosk",
+    "python",
+    "safe-browser",
+    "anti-cheat",
+    "ide",
+    "editor"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "adm-zip": "0.6.1"
+  },
+  "devDependencies": {
+    "electron": "44.4.5",
+    "electron-builder": "26.15.3",
+    "playwright": "1.63.0"
+  },
+  "build": {
+    "appId": "com.codego.examguard",
+    "productName": "CodeGO ExamGuard",
+    "copyright": "Copyright © 2026 Francisco López Velázquez · zolvek.com.mx",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "linux": {
+      "maintainer": "Francisco López Velázquez",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Education",
+      "synopsis": "Entorno blindado de exámenes y programación en Python",
+      "description": "Entorno seguro de evaluación práctica de Python con modo Kiosk, bloqueo anti-trampas, terminal interactiva y empaquetado de entregas.",
+      "icon": "build/icons",
+      "desktop": {
+        "entry": {
+          "Name": "CodeGO ExamGuard",
+          "Comment": "Entorno Seguro para Exámenes de Python",
+          "Categories": "Education;Development;IDE;"
+        }
+      },
+      "syncDesktopName": true
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "CodeGO ExamGuard",
+      "uninstallDisplayName": "Desinstalar CodeGO ExamGuard",
+      "artifactName": "${productName}-${version}-setup-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.education",
+      "icon": "build/icon.png",
+      "minimumSystemVersion": "13.0"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
+    }
+  },
+  "engines": {
+    "node": ">=22.12.0 <23"
+  },
+  "desktopName": "com.codego.examguard.desktop",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/f-lopez-velazquez/CodeGO.git"
+  },
+  "bugs": {
+    "url": "https://github.com/f-lopez-velazquez/CodeGO/issues"
+  }
+}

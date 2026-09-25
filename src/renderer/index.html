@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <meta name="author" content="Francisco López Velázquez · zolvek.com.mx">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CodeGO ExamGuard - Entorno de Examen Seguro y Editor Python">
+  <title>CodeGO ExamGuard | Entorno de Examen Seguro</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-obsidian">
+
+  <!-- ============================================================== -->
+  <!-- 1. VISTA DE LOBBY / PRE-VUELO DEL EXAMEN -->
+  <!-- ============================================================== -->
+  <section id="view-lobby" class="view-container active">
+    <div class="lobby-backdrop">
+      <div class="glow-orb orb-1"></div>
+      <div class="glow-orb orb-2"></div>
+      <div class="grid-overlay"></div>
+    </div>
+
+    <div class="lobby-card">
+      <div class="lobby-header">
+        <div class="lobby-logo-wrapper">
+          <img src="assets/logo.png" alt="CodeGO Logo" class="brand-app-logo">
+        </div>
+        <div class="brand-badge">
+          <span class="badge-dot"></span>
+          <span class="badge-text">SISTEMA BLINDADO V1.0 • KIOSK PRO</span>
+        </div>
+        <h1 class="lobby-title">Code<span class="highlight">GO</span> ExamGuard</h1>
+        <p class="lobby-subtitle">Entorno Seguro de Evaluación Práctica & Editor Python Multiplataforma</p>
+      </div>
+
+      <!-- Formulario de Identificación del Estudiante -->
+      <div class="lobby-form">
+        <!-- Banner de Validación no bloqueante (elimina bugs de foco causados por alert nativo) -->
+        <div id="lobby-validation-banner" class="lobby-validation-banner hidden">
+          <span class="val-icon">⚠️</span>
+          <span id="lobby-validation-text">Por favor, completa los campos requeridos antes de continuar.</span>
+        </div>
+
+        <div class="form-row">
+          <div class="input-group">
+            <label for="student-name">Nombre Completo del Alumno <span class="required">*</span></label>
+            <input type="text" id="student-name" placeholder="Ej. Carlos Mendoza Ramos" autocomplete="off" required>
+          </div>
+          <div class="input-group">
+            <label for="student-id">Matrícula / No. de Control <span class="required">*</span></label>
+            <input type="text" id="student-id" placeholder="Ej. 2026-CS-0941" autocomplete="off" required>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="exam-subject">Materia / Actividad <span class="required">*</span></label>
+          <input type="text" id="exam-subject" placeholder="Ej. Programación Avanzada en Python - Sesión 12" value="Examen de Programación en Python" required>
+        </div>
+
+        <!-- SELECTOR DE MODO: EXAMEN OFICIAL VS TAREA / ACTIVIDAD PRÁCTICA -->
+        <div class="mode-selector-wrapper">
+          <div class="mode-selector-label">SELECCIONA EL MODO DE SESIÓN:</div>
+          <div class="mode-cards-grid">
+            <!-- Opción 1: Modo Examen -->
+            <div class="mode-card active" id="mode-card-exam" data-mode="exam">
+              <div class="mode-card-top">
+                <span class="mode-pill exam">OFICIAL</span>
+                <span class="mode-icon">🛡️</span>
+              </div>
+              <div class="mode-card-title">Modo Examen Blindado</div>
+              <p class="mode-card-desc">Evaluación oficial con bloqueo Kiosk, pantalla completa exclusiva, cronómetro de precisión, entrega sellada y espacio de trabajo aislado.</p>
+              <div class="mode-card-specs">
+                <span class="spec-item ok">✓ Kiosk & Bloqueo Anti-trampas</span>
+                <span class="spec-item ok">✓ Cronómetro de Evaluación</span>
+                <span class="spec-item ok">✓ Entrega Sellada con Bloqueo de Copia</span>
+                <span class="spec-item restrict">✗ Sin acceso a carpetas externas</span>
+              </div>
+            </div>
+
+            <!-- Opción 2: Modo Actividad / Tarea -->
+            <div class="mode-card" id="mode-card-activity" data-mode="activity">
+              <div class="mode-card-top">
+                <span class="mode-pill activity">PRÁCTICA</span>
+                <span class="mode-icon">📘</span>
+              </div>
+              <div class="mode-card-title">Modo Actividad / Tarea</div>
+              <p class="mode-card-desc">Sesión libre de desarrollo para tareas y ejercicios. Permite abrir proyectos anteriores, crear carpetas en el disco y trabajar sin límite de tiempo.</p>
+              <div class="mode-card-specs">
+                <span class="spec-item ok">✓ Abrir y Crear Proyectos en Disco</span>
+                <span class="spec-item ok">✓ Sin Límite de Tiempo (Sin Contador)</span>
+                <span class="spec-item ok">✓ Navegación Libre y Apuntes</span>
+                <span class="spec-item neutral">✓ Ejecución Directa (F5)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Checklist de Diagnóstico del Sistema -->
+        <div class="system-diagnostics">
+          <div class="diag-header">
+            <span>VERIFICACIÓN PRE-EXAMEN</span>
+            <span id="system-status-indicator" class="status-pill ok">● Sistema Listo</span>
+          </div>
+
+          <!-- Banner Alerta de Prerrequisitos Faltantes con Auto-Reparación -->
+          <div id="lobby-prereq-alert" class="lobby-alert-banner hidden">
+            <div class="alert-content">
+              <span class="alert-icon">⚡</span>
+              <div class="alert-text">
+                <strong>Prerrequisitos pendientes detectados:</strong>
+                <span id="lobby-alert-missing-text">Visual C++, Python 3 o librerías faltantes</span>
+              </div>
+            </div>
+            <button type="button" id="btn-auto-repair-all" class="btn-alert-action">
+              ⚡ Descargar e Instalar Todo Automáticamente
+            </button>
+          </div>
+
+          <div class="diag-grid">
+            <!-- Diagnóstico Python -->
+            <div class="diag-item" id="diag-python">
+              <div class="diag-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="10"/></svg>
+              </div>
+              <div class="diag-info">
+                <span class="diag-label">Intérprete Python</span>
+                <span class="diag-val" id="python-ver-label">Detectando...</span>
+              </div>
+              <div class="diag-status ok" id="python-status-icon">✓</div>
+            </div>
+
+            <!-- Diagnóstico Visual C++ Runtime (Windows) -->
+            <div class="diag-item" id="diag-vcredist">
+              <div class="diag-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </div>
+              <div class="diag-info">
+                <span class="diag-label">Microsoft Visual C++</span>
+                <span class="diag-val" id="vcredist-status-label">Verificando...</span>
+              </div>
+              <div class="diag-status ok" id="vcredist-status-icon">✓</div>
+            </div>
+
+            <!-- Diagnóstico Librerías (11 recomendadas) -->
+            <div class="diag-item" id="diag-packages">
+              <div class="diag-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              </div>
+              <div class="diag-info">
+                <span class="diag-label">Librerías (11 Paquetes Recomendados)</span>
+                <div class="diag-packages-sub">
+                  <span class="diag-val" id="packages-count-label">Analizando...</span>
+                  <button type="button" id="btn-open-pkg-manager-lobby" class="btn-sm-ghost">Gestionar</button>
+                  <button type="button" id="btn-quick-install-all" class="btn-sm-action hidden">Instalar Faltantes</button>
+                </div>
+              </div>
+              <div class="diag-status ok" id="packages-status-icon">✓</div>
+            </div>
+
+            <!-- Diagnóstico Monitores -->
+            <div class="diag-item" id="diag-monitors">
+              <div class="diag-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </div>
+              <div class="diag-info">
+                <span class="diag-label">Monitores Conectados</span>
+                <span class="diag-val" id="monitors-label">Verificando...</span>
+              </div>
+              <div class="diag-status" id="monitors-status-icon">✓</div>
+            </div>
+
+            <!-- Diagnóstico Alarma Sonora -->
+            <div class="diag-item" id="diag-sound">
+              <div class="diag-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              </div>
+              <div class="diag-info">
+                <span class="diag-label">Alarma Acústica (No Mutable)</span>
+                <button type="button" id="btn-test-sound" class="btn-sm-ghost">Probar Sirena</button>
+              </div>
+              <div class="diag-status ok">✓</div>
+            </div>
+
+            <!-- Diagnóstico Wi-Fi Kiosk -->
+            <div class="diag-item" id="diag-wifi">
+              <div class="diag-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+              </div>
+              <div class="diag-info">
+                <span class="diag-label">Bloqueo Wi-Fi de Examen</span>
+                <span class="diag-val" id="lobby-wifi-label">Se desactivará al iniciar</span>
+              </div>
+              <div class="diag-status ok" id="lobby-wifi-icon">🛡️</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Normas de Seguridad / Directrices -->
+        <div class="security-rules-box" id="lobby-rules-box">
+          <div class="rules-title" id="lobby-rules-title">⚠️ DIRECTRICES DEL MODO EXAMEN BLINDADO:</div>
+          <ul class="rules-list" id="lobby-rules-list">
+            <li>Al iniciar, la aplicación entrará en <strong>Pantalla Completa Exclusiva (Kiosk)</strong>.</li>
+            <li><strong>Prohibido cambiar de aplicación o perder el foco</strong>: Se registrará la falta en el acta docente con marca de tiempo.</li>
+            <li><strong>Monitores externos bloqueados</strong>: Solo se permite 1 pantalla activa.</li>
+            <li><strong>Espacio Aislado</strong>: No se permite acceder a carpetas o proyectos externos durante el examen.</li>
+          </ul>
+        </div>
+
+        <div class="compatibility-check"><button type="button" class="btn-tool-option" data-self-test>Comprobar este equipo</button><output role="status" aria-live="polite">Verifica guardado, Python y respuestas a input() sin modificar Wi-Fi ni audio.</output></div>
+        <!-- Botón Gigante de Inicio -->
+        <div class="start-action-container">
+          <button id="btn-start-exam" class="btn-giant-start">
+            <span class="btn-text" id="start-btn-title">INICIAR EXAMEN BLINDADO</span>
+            <span class="btn-subtext" id="start-btn-subtitle">Activar Bloqueo Kiosk & Entrar al IDE</span>
+            <div class="btn-shine"></div>
+          </button>
+        </div>
+      </div>
+      <div class="app-credits"><strong>by zolvek.com.mx</strong><span>Programado por Francisco López Velázquez.</span></div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================== -->
+  <!-- 2. VISTA DE CUENTA REGRESIVA DE 10 SEGUNDOS -->
+  <!-- ============================================================== -->
+  <section id="view-countdown" class="view-container">
+    <div class="countdown-backdrop"></div>
+    <div class="countdown-card">
+      <div class="countdown-header">
+        <span class="countdown-badge">ENTRANDO EN MODO BLINDADO</span>
+        <h2 class="countdown-title">Iniciando Entorno de Examen</h2>
+      </div>
+
+      <!-- SVG Circular Radial Progress -->
+      <div class="radial-timer-box">
+        <svg class="radial-svg" viewBox="0 0 160 160">
+          <circle class="radial-bg" cx="80" cy="80" r="70"></circle>
+          <circle class="radial-progress" id="countdown-circle" cx="80" cy="80" r="70"></circle>
+        </svg>
+        <div class="radial-number" id="countdown-number">10</div>
+      </div>
+
+      <div class="countdown-steps">
+        <div class="step-item active" id="step-1">✓ Verificando integridad de archivos...</div>
+        <div class="step-item" id="step-2">⏳ Bloqueando atajos del sistema operativo...</div>
+        <div class="step-item" id="step-3">⏳ Desactivando salida de pantalla y cambio de foco...</div>
+        <div class="step-item" id="step-4">⏳ Abriendo editor de código y terminal interactiva...</div>
+      </div>
+
+      <p class="countdown-hint">Por favor, no toques el teclado ni el ratón durante la sincronización.</p>
+    </div>
+  </section>
+
+
+  <!-- ============================================================== -->
+  <!-- 3. VISTA PRINCIPAL DEL IDE DE EXAMEN (ESPACIO DE TRABAJO) -->
+  <!-- ============================================================== -->
+  <section id="view-ide" class="view-container">
+    <!-- Barra Superior / Header del IDE -->
+    <header class="ide-navbar">
+      <div class="nav-left">
+        <div class="nav-brand">
+          <img src="assets/logo.png" alt="Logo" class="nav-app-logo">
+          <span class="nav-brand-title">Code<span class="highlight">GO</span></span>
+        </div>
+
+        <button id="btn-toggle-sidebar" class="btn-nav-toggle" title="Mostrar/Ocultar Explorador (Ctrl+B)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </button>
+
+        <div class="nav-exam-details">
+          <span class="nav-subject" id="nav-subject-label">Examen de Programación</span>
+          <span class="nav-separator">/</span>
+          <span class="nav-student" id="nav-student-label">Alumno</span>
+        </div>
+      </div>
+
+      <div class="nav-center">
+        <!-- INDICADOR PROMINENTE DE MODO (PREVENCIÓN DE ENGAÑO DOCENTE) -->
+        <div id="nav-mode-indicator" class="nav-mode-indicator mode-exam" title="Modo de Operación de la Sesión">
+          <span class="mode-dot"></span>
+          <span id="nav-mode-text" class="mode-text">MODO EXAMEN BLINDADO</span>
+        </div>
+
+        <!-- BEACON PARPADEANTE POST-ENTREGA: ESPERANDO REVISIÓN DOCENTE -->
+        <div id="nav-waiting-review-badge" class="nav-waiting-review-badge hidden" title="Aviso para Supervisión del Profesor">
+          <span class="waiting-beacon-dot"></span>
+          <span class="waiting-beacon-text">⏳ ESPERANDO REVISIÓN DOCENTE • ENTREGADO</span>
+        </div>
+
+        <!-- Cronómetro de Examen Estético & Preciso (Solo Modo Examen) -->
+        <div class="exam-timer-pill" id="exam-timer" title="Tiempo Transcurrido de Examen">
+          <div class="timer-icon-wrap">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="timer-box">
+            <span class="timer-text" id="timer-display">00:00:00</span>
+            <span class="timer-sublabel">TRANSCURRIDO</span>
+          </div>
+        </div>
+
+        <!-- Indicador Prominente de Wi-Fi para Supervisión del Profesor -->
+        <div id="nav-wifi-badge" class="nav-wifi-badge wifi-off" title="Estado de Red: Supervisión de Conexión Wi-Fi">
+          <svg class="wifi-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+            <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+          </svg>
+          <span id="wifi-status-text">WIFI: BLOQUEADO</span>
+        </div>
+
+        <!-- Contador de Incidencias -->
+        <div class="incidents-pill clean" id="incidents-counter-pill">
+          <span class="inc-text" id="incidents-counter-text">0 Faltas</span>
+        </div>
+
+        <!-- Badge de Examen Entregado -->
+        <div id="exam-locked-badge" class="exam-locked-badge hidden">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>ENTREGADO (SOLO LECTURA)</span>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <!-- BOTÓN GESTOR DE LIBRERÍAS DE PYTHON -->
+        <button id="btn-open-pkg-manager-ide" class="btn-tool-option" title="Ver e instalar librerías de Python">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span>Librerías</span>
+        </button>
+
+        <!-- WIDGET DE ZOOM Y PERSONALIZACIÓN DE VISTA -->
+        <div class="zoom-controls-widget" title="Ajuste de Zoom de Pantalla (Ctrl + / Ctrl - / Ctrl 0)">
+          <button id="btn-zoom-out" class="btn-zoom" title="Alejar (Ctrl -)">−</button>
+          <span id="zoom-level-label" class="zoom-label">100%</span>
+          <button id="btn-zoom-in" class="btn-zoom" title="Acercar (Ctrl +)">+</button>
+          <button id="btn-zoom-reset" class="btn-zoom-reset" title="Restablecer (Ctrl 0)">↺</button>
+        </div>
+
+        <!-- SELECTOR DE TEMA Y APARIENCIA -->
+        <div class="theme-selector-dropdown">
+          <button id="btn-theme-menu" class="btn-icon-ghost" title="Tema de Interfaz">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20v-20z"/></svg>
+          </button>
+          <div class="theme-dropdown-menu hidden" id="theme-dropdown-menu">
+            <div class="theme-menu-header">TEMAS DE INTERFAZ</div>
+            <div class="theme-opt active" data-theme="theme-obsidian">
+              <span class="color-preview obsidian"></span> Cyber Obsidian
+            </div>
+            <div class="theme-opt" data-theme="theme-dracula">
+              <span class="color-preview dracula"></span> Midnight Nebula
+            </div>
+            <div class="theme-opt" data-theme="theme-nord">
+              <span class="color-preview nord"></span> Nordic Slate
+            </div>
+            <div class="theme-opt" data-theme="theme-monokai">
+              <span class="color-preview monokai"></span> Monokai Charcoal
+            </div>
+            <div class="theme-opt" data-theme="theme-paper">
+              <span class="color-preview paper"></span> Academic Paper (Claro)
+            </div>
+            <div class="theme-menu-divider"></div>
+            <div class="theme-menu-header">TAMAÑO DE FUENTE EDITOR</div>
+            <div class="font-size-row">
+              <button class="btn-font-size" data-size="12">12px</button>
+              <button class="btn-font-size active" data-size="14">14px</button>
+              <button class="btn-font-size" data-size="16">16px</button>
+              <button class="btn-font-size" data-size="18">18px</button>
+              <button class="btn-font-size" data-size="20">20px</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botón Atajos / Ayuda -->
+        <button id="btn-help-shortcuts" class="btn-icon-ghost" title="Atajos de Teclado (F1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+
+        <!-- Botón Desbloqueo Profesor -->
+        <button id="btn-teacher-unlock" class="btn-icon-ghost" title="Desbloqueo Profesor">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </button>
+
+        <div class="topbar-divider"></div>
+
+        <!-- Botones de Acción para Modo Actividad / Tarea (Abrir y Crear Proyectos) -->
+        <div id="activity-actions-toolbar" class="activity-actions-toolbar hidden">
+          <button id="btn-activity-open-folder" class="btn-action activity-btn" title="Abrir carpeta o proyecto de Python del equipo">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>Abrir Carpeta</span>
+          </button>
+          <button id="btn-activity-new-project" class="btn-action activity-btn" title="Crear un nuevo proyecto de Python preguntando ubicación">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Nuevo Proyecto</span>
+          </button>
+        </div>
+
+        <!-- Botón Ejecutar Código (Disponible en Ambos Modos) -->
+        <button id="btn-run-code" class="btn-action run" title="Ejecutar Código Python (F5)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span class="action-label">Ejecutar</span>
+        </button>
+
+        <!-- Botón Detener Ejecución -->
+        <button id="btn-stop-code" class="btn-action stop" title="Detener Ejecución" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+          <span class="action-label">Detener</span>
+        </button>
+
+        <!-- Botón Entregar Examen (Exclusivo en Modo Examen) -->
+        <button id="btn-finish-exam" class="btn-action submit exam-only-btn hidden" style="display: none !important;" title="Finalizar y entregar examen">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span class="action-label" id="finish-exam-label">Entregar</span>
+        </button>
+
+        <!-- Barra de Herramientas Post-Entrega de Examen -->
+        <div id="post-submission-toolbar" class="post-submission-toolbar hidden">
+          <button id="btn-open-workspace-folder" class="btn-action post-action" title="Abrir carpeta o proyecto de Python">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>Abrir Carpeta</span>
+          </button>
+          <button id="btn-create-new-project" class="btn-action post-action" title="Crear un nuevo proyecto de Python preguntando ubicación">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Nuevo Proyecto</span>
+          </button>
+          <button id="btn-view-receipt" class="btn-action post-action" title="Ver comprobante y sello de entrega">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>Comprobante</span>
+          </button>
+          <button id="btn-exit-exam-app" class="btn-action exit" title="Salir y cerrar la aplicación">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Salir</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Contenido Principal: Grid Dividido (Explorador | Splitter | Workspace) -->
+    <main class="ide-main-grid" id="ide-main-grid">
+      <!-- PANEL IZQUIERDO: Explorador de Archivos -->
+      <aside class="sidebar-explorer" id="sidebar-explorer">
+        <div class="sidebar-header">
+          <span class="sidebar-title" id="sidebar-title-label">ARCHIVOS DEL EXAMEN</span>
+          <div class="sidebar-actions">
+            <button id="btn-new-file" class="btn-icon-sm" title="Nuevo Archivo Python">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            </button>
+            <button id="btn-new-folder" class="btn-icon-sm" title="Nueva Carpeta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+            </button>
+            <button id="btn-refresh-files" class="btn-icon-sm" title="Actualizar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="file-tree" id="file-tree-container">
+          <!-- Renderizado dinámicamente -->
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="workspace-hint">
+            <span id="workspace-hint-label">Espacio de Trabajo Aislado</span>
+            <div class="app-credits"><strong>by zolvek.com.mx</strong><span>Programado por Francisco López Velázquez.</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- DIVISOR VERTICAL REDIMENSIONABLE (DRAG SPLITTER) -->
+      <div class="splitter-vertical" id="splitter-vertical" role="separator" aria-label="Ancho del explorador" aria-orientation="vertical" tabindex="0"></div>
+
+      <!-- ÁREA CENTRAL DERECHA: Editor y Terminal (Por Defecto Lado a Lado / División Vertical) -->
+      <section class="workspace-area term-layout-side" id="workspace-area">
+        <!-- PANEL IZQUIERDO: Editor de Código -->
+        <div class="editor-pane-box" id="editor-pane-box">
+          <!-- Pestañas de Archivos y Opciones del Editor -->
+          <div class="editor-header-bar">
+            <div class="editor-tabs-bar" id="editor-tabs-bar">
+              <!-- Renderizado dinámicamente -->
+            </div>
+            <div class="editor-quick-options">
+              <button id="btn-toggle-wrap" class="btn-tool-option" title="Ajuste automático de línea">
+                Ajuste
+              </button>
+              <button id="btn-toggle-term-layout" class="btn-tool-option" title="Cambiar Distribución (Lateral / Abajo)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+                <span id="term-layout-label">Abajo</span>
+              </button>
+              <button id="btn-toggle-term-view" class="btn-tool-option" title="Alternar Terminal">
+                Consola
+              </button>
+            </div>
+          </div>
+
+          <!-- Contenedor del Editor de Código con Resaltado de Sintaxis -->
+          <div class="editor-workspace" id="editor-workspace">
+            <div class="editor-line-numbers" id="editor-line-numbers"></div>
+            <div class="editor-canvas">
+              <pre id="editor-highlighting" aria-hidden="true"><code id="highlighting-content"></code></pre>
+              <textarea id="code-textarea" aria-label="Editor de código Python" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+            </div>
+          </div>
+
+          <!-- Barra de Estado Inferior del Editor -->
+          <div class="editor-statusbar">
+            <div class="status-left">
+              <span id="sb-cursor-pos">Lín 1, Col 1</span>
+              <span class="sb-sep">|</span>
+              <span id="sb-chars-count">0 caracteres</span>
+              <span class="sb-sep">|</span>
+              <span id="sb-save-status">Guardado automáticamente</span>
+            </div>
+            <div class="status-right">
+              <span id="sb-zoom-badge" class="sb-badge">Zoom: 100%</span>
+              <span class="sb-sep">|</span>
+              <span id="sb-pkg-status">Librerías: Verificadas</span>
+              <span class="sb-sep">|</span>
+              <span>Espacios: 4</span>
+              <span class="sb-sep">|</span>
+              <span>UTF-8</span>
+              <span class="sb-sep">|</span>
+              <span>Python 3.x</span>
+              <span class="sb-sep">|</span>
+              <span class="no-ai-badge">🛡️ IA Desactivada</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIVISOR REDIMENSIONABLE PARA LA TERMINAL -->
+        <div class="splitter-horizontal" id="splitter-horizontal" role="separator" aria-label="Tamaño de la consola" aria-orientation="vertical" tabindex="0"></div>
+
+        <!-- PANEL DE TERMINAL PROFESIONAL & CONSOLA -->
+        <section class="terminal-panel" id="terminal-panel">
+          <div class="terminal-header">
+            <div class="term-title-box">
+              <span class="term-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              </span>
+              <span class="term-title">Consola Python</span>
+              <span class="term-badge ready" id="term-status-badge" role="status">Listo</span>
+              <span class="term-exec-time" id="term-exec-time"></span>
+            </div>
+            <div class="term-actions">
+              <button id="btn-toggle-term-pos" class="btn-term-action" title="Mover Terminal (Abajo / Derecha)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+              </button>
+              <button id="btn-maximize-term" class="btn-term-action" title="Maximizar / Restaurar Terminal">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              </button>
+              <button id="btn-clear-term" class="btn-term-action" title="Limpiar salida">Limpiar</button>
+              <button id="btn-copy-term" class="btn-term-action" title="Copiar salida">Copiar</button>
+            </div>
+          </div>
+
+          <!-- Salida de la Terminal -->
+          <div class="terminal-output" id="terminal-output" tabindex="0" role="region" aria-label="Salida de Python">
+            <div class="term-line system-welcome">Tu programa, paso a paso.
+Ejecuta con F5. Si Python pide datos, escríbelos abajo.</div>
+          </div>
+          <p class="terminal-input-hint" id="terminal-input-hint">Entrada de Python · disponible durante la ejecución</p>
+          <div class="terminal-input-bar" id="terminal-input-bar">
+            <label class="input-prompt-label" for="terminal-stdin-input">input()</label>
+            <input type="text" id="terminal-stdin-input" maxlength="65536" aria-describedby="terminal-input-hint" placeholder="Ejecuta tu programa con F5" autocomplete="off" spellcheck="false" disabled>
+            <button id="btn-send-stdin" class="btn-term-send" title="Enviar a Python (Enter)" disabled>Enviar ↵</button>
+          </div>
+        </section>
+      </section>
+    </main>
+  </section>
+
+
+  <!-- ============================================================== -->
+  <!-- 3.5. MODAL DE AUTO-INSTALADOR / REPARADOR DE ENTORNO EN 1 CLIC -->
+  <!-- ============================================================== -->
+  <div id="modal-auto-installer" class="modal-overlay hidden">
+    <div class="dialog-card auto-installer-card">
+      <div class="dialog-header">
+        <span class="dialog-icon">⚡</span>
+        <div>
+          <h3>Instalador Automatizado de Entorno y Librerías</h3>
+          <p class="dialog-desc">Descarga, configura e instala automáticamente los componentes faltantes para que el examen funcione al 100%.</p>
+        </div>
+      </div>
+
+      <!-- Barra de progreso visual -->
+      <div class="installer-progress-container">
+        <div class="progress-info-row">
+          <span id="installer-current-step-label">Analizando requisitos del sistema...</span>
+          <strong id="installer-percent-label">0%</strong>
+        </div>
+        <div class="progress-track">
+          <div id="installer-progress-bar" class="progress-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Lista de etapas -->
+      <div class="installer-steps-list">
+        <div class="installer-step-item" id="step-item-vc">
+          <div class="step-num">1</div>
+          <div class="step-details">
+            <div class="step-title">Microsoft Visual C++ 2015-2022 (x64)</div>
+            <div class="step-sub">Descarga e instalación silenciosa oficial desde Microsoft (necesario para Pygame/NumPy)</div>
+          </div>
+          <div class="step-badge pending" id="step-badge-vc">Pendiente</div>
+        </div>
+
+        <div class="installer-step-item" id="step-item-py">
+          <div class="step-num">2</div>
+          <div class="step-details">
+            <div class="step-title">Intérprete Python 3.12 Oficial (64-bit)</div>
+            <div class="step-sub">Descarga de python.org, configuración de PATH y gestor pip</div>
+          </div>
+          <div class="step-badge pending" id="step-badge-py">Pendiente</div>
+        </div>
+
+        <div class="installer-step-item" id="step-item-venv">
+          <div class="step-num">3</div>
+          <div class="step-details">
+            <div class="step-title">Entorno Virtual Aislado (exam_env)</div>
+            <div class="step-sub">Espacio seguro de ejecución para el examen con herencia de librerías del sistema</div>
+          </div>
+          <div class="step-badge pending" id="step-badge-venv">Pendiente</div>
+        </div>
+
+        <div class="installer-step-item" id="step-item-libs">
+          <div class="step-num">4</div>
+          <div class="step-details">
+            <div class="step-title">11 Librerías de Nivel Básico a Intermedio</div>
+            <div class="step-sub">Pygame, NumPy, Matplotlib, Pandas, Requests, Pillow, SciPy, Seaborn, OpenPyXL, SymPy, Colorama</div>
+          </div>
+          <div class="step-badge pending" id="step-badge-libs">Pendiente</div>
+        </div>
+      </div>
+
+      <!-- Terminal de logs en vivo -->
+      <div class="pip-terminal-wrapper">
+        <div class="pip-term-header">
+          <span>SALIDA DE INSTALACIÓN EN TIEMPO REAL</span>
+          <button type="button" id="btn-clear-installer-log" class="btn-xs-ghost">Limpiar</button>
+        </div>
+        <div class="pip-terminal-output" id="installer-terminal-output">
+          <span class="pip-term-hint">Iniciando el proceso de descarga y configuración...</span>
+        </div>
+      </div>
+
+      <div class="dialog-buttons">
+        <button type="button" id="btn-close-auto-installer" class="btn-ghost">Cerrar</button>
+        <button type="button" id="btn-finish-auto-installer" class="btn-primary hidden">¡Todo Listo! Continuar al Examen</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- 4. MODAL GESTOR DE LIBRERÍAS DE PYTHON & DEPENDENCIAS -->
+  <!-- ============================================================== -->
+  <div id="modal-package-manager" class="modal-overlay hidden">
+    <div class="dialog-card pkg-manager-card">
+      <div class="dialog-header">
+        <span class="dialog-icon">📦</span>
+        <div>
+          <h3>Gestor de Librerías de Python & Entorno</h3>
+          <p class="dialog-desc">Verifica e instala la batería de 11 librerías recomendadas (Pygame, NumPy, SciPy, Pandas...) o agrega cualquier paquete de PyPI.</p>
+        </div>
+      </div>
+
+      <!-- Barra de Estado del Entorno -->
+      <div class="env-info-banner">
+        <div class="env-row">
+          <span>Intérprete activo:</span>
+          <strong id="env-python-path">Cargando...</strong>
+        </div>
+        <div class="env-row" id="env-vcredist-row">
+          <span>Microsoft Visual C++:</span>
+          <strong id="env-vcredist-status" class="ok">Verificando...</strong>
+        </div>
+      </div>
+
+      <!-- Botón de Instalación Masiva -->
+      <div class="batch-install-bar">
+        <button type="button" id="btn-install-all-recommended" class="btn-primary-glow">
+          ⚡ Instalar Todas las Librerías de Examen (11 Paquetes Recomendados)
+        </button>
+      </div>
+
+      <!-- Pestañas de Filtro de Categorías -->
+      <div class="pkg-category-filter">
+        <button type="button" class="filter-chip active" data-cat="all">Todas (13)</button>
+        <button type="button" class="filter-chip" data-cat="games">🎮 Juegos & Gráficos</button>
+        <button type="button" class="filter-chip" data-cat="math">🔢 Ciencia & Matemáticas</button>
+        <button type="button" class="filter-chip" data-cat="data">🐼 Datos & Excel</button>
+        <button type="button" class="filter-chip" data-cat="net">🌐 Redes & Utilidades</button>
+      </div>
+
+      <!-- Cuadrícula de Librerías -->
+      <div class="packages-grid" id="packages-grid-container">
+        <!-- Renderizado dinámicamente -->
+      </div>
+
+      <!-- Barra para Instalar Cualquier Otra Librería por Nombre y Chips Rápidos -->
+      <div class="custom-install-box">
+        <label for="custom-pkg-input">Instalar cualquier otra librería desde PyPI:</label>
+        <div class="custom-install-inputs">
+          <input type="text" id="custom-pkg-input" placeholder="Escribe el nombre del paquete (ej. scikit-learn, flask, beautifulsoup4)..." autocomplete="off">
+          <button type="button" id="btn-install-custom-pkg" class="btn-primary">
+            + Instalar con Pip
+          </button>
+        </div>
+
+        <div class="custom-quick-tags">
+          <span class="quick-tag-label">Librerías populares con 1 clic:</span>
+          <div class="quick-tag-list">
+            <button type="button" class="btn-quick-tag" data-tag="scikit-learn">+ scikit-learn</button>
+            <button type="button" class="btn-quick-tag" data-tag="beautifulsoup4">+ beautifulsoup4</button>
+            <button type="button" class="btn-quick-tag" data-tag="flask">+ flask</button>
+            <button type="button" class="btn-quick-tag" data-tag="networkx">+ networkx</button>
+            <button type="button" class="btn-quick-tag" data-tag="pygal">+ pygal</button>
+            <button type="button" class="btn-quick-tag" data-tag="pygame-menu">+ pygame-menu</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Terminal Pip Integrada (Log en tiempo real) -->
+      <div class="pip-terminal-wrapper">
+        <div class="pip-term-header">
+          <span>SALIDA DE INSTALACIÓN PIP</span>
+          <button id="btn-clear-pip-log" class="btn-xs-ghost">Limpiar</button>
+        </div>
+        <div class="pip-terminal-output" id="pip-terminal-output">
+          <span class="pip-term-hint">Listo para instalar paquetes. Los registros de descarga e instalación aparecerán aquí.</span>
+        </div>
+      </div>
+
+      <div class="dialog-buttons single">
+        <button type="button" id="btn-close-pkg-manager" class="btn-ghost">Cerrar Gestor de Librerías</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- 5. MODALES DE SEGURIDAD, ALARMA Y AYUDA -->
+  <!-- ============================================================== -->
+
+  <!-- MODAL DE ATAJOS DE TECLADO / AYUDA -->
+  <div id="modal-shortcuts" class="modal-overlay hidden">
+    <div class="dialog-card shortcuts-card">
+      <div class="dialog-header">
+        <span class="dialog-icon">⌨️</span>
+        <h3>Ayuda y comprobación del equipo</h3>
+      </div>
+      <div class="compatibility-check"><button type="button" class="btn-tool-option" data-self-test>Comprobar este equipo</button><output role="status" aria-live="polite">Verifica guardado, Python y respuestas a input() sin modificar Wi-Fi ni audio.</output></div>
+      <div class="shortcuts-grid">
+        <div class="shortcut-row"><kbd>F5</kbd><span>Ejecutar código actual</span></div>
+        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>S</kbd><span>Guardar archivo</span></div>
+        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>+</kbd><span>Acercar zoom (Zoom In)</span></div>
+        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>−</kbd><span>Alejar zoom (Zoom Out)</span></div>
+        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>0</kbd><span>Restablecer zoom a 100%</span></div>
+        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>B</kbd><span>Mostrar / Ocultar Explorador</span></div>
+        <div class="shortcut-row"><kbd>Tab</kbd><span>Indentar 4 espacios</span></div>
+      </div>
+      <div class="app-credits"><strong>by zolvek.com.mx</strong><span>Programado por Francisco López Velázquez.</span></div>
+      <div class="dialog-buttons single">
+        <button type="button" id="btn-close-shortcuts" class="btn-primary">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 1: AVISO INSTITUCIONAL DE SEGURIDAD POR PÉRDIDA DE FOCO -->
+  <div id="modal-focus-warning" class="modal-overlay hidden">
+    <div class="modal-academic-warning-box">
+      <div class="academic-warning-header">
+        <div class="academic-icon-shield">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div class="academic-header-text">
+          <h2 class="academic-title">Aviso de Integridad Académica</h2>
+          <p class="academic-subtitle">REGISTRO DE INCIDENCIA POR CAMBIO DE FOCO</p>
+        </div>
+      </div>
+
+      <div class="academic-body">
+        <p class="academic-desc">
+          Se ha detectado una salida o desenfoque de la ventana del examen. 
+          De acuerdo con las directrices de evaluación, este evento ha quedado asentado en la bitácora de auditoría con marca de tiempo precisa para su revisión docente.
+        </p>
+
+        <div class="academic-details-card">
+          <div class="academic-detail-row">
+            <span class="a-label">Hora del evento:</span>
+            <span class="a-val" id="hazard-time">--:--:--</span>
+          </div>
+          <div class="academic-detail-row">
+            <span class="a-label">Tiempo fuera del entorno:</span>
+            <span class="a-val highlight-red" id="hazard-duration">0.0 segundos</span>
+          </div>
+          <div class="academic-detail-row">
+            <span class="a-label">Incidencias acumuladas en acta:</span>
+            <span class="a-val highlight-red" id="hazard-total-incidents">1</span>
+          </div>
+        </div>
+
+        <div class="academic-notice-note">
+          Recuerda: Si estás ejecutando programas interactivos o gráficos (Pygame, Tkinter, Matplotlib), mantente enfocado en tu desarrollo para evitar registrar eventos involuntarios.
+        </div>
+      </div>
+
+      <div class="academic-actions">
+        <div class="hazard-countdown-pill" id="hazard-countdown-pill">
+          <span class="hazard-pulse-ring"></span>
+          <span id="hazard-countdown-text">Alerta de Integridad • Reanudando en 12s</span>
+        </div>
+        <button id="btn-dismiss-hazard" class="btn-academic-confirm waiting" disabled>
+          <span id="hazard-btn-label">⏳ Espera 12 segundos para poder reanudar...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL 2: BLOQUEO POR DETECCIÓN DE MONITORES MÚLTIPLES -->
+  <div id="modal-multimonitor" class="modal-overlay lock-screen hidden">
+    <div class="lock-card">
+      <div class="lock-icon-box">
+        <span class="lock-icon">🚫🖥️</span>
+      </div>
+      <h2 class="lock-title">PANTALLAS MÚLTIPLES DETECTADAS</h2>
+      <p class="lock-desc">
+        Se han detectado <strong id="lock-monitors-count" class="highlight-red">2 pantallas</strong> conectadas a este equipo. 
+        Para garantizar la equidad del examen, <strong>solo se permite 1 monitor</strong>.
+      </p>
+
+      <div class="lock-instruction-box">
+        <div class="inst-step">1. Desconecta cualquier monitor secundario, proyector o cable HDMI/DisplayPort/VGA.</div>
+        <div class="inst-step">2. En caso de laptops con pantalla externa, duplica o apaga una de las dos.</div>
+        <div class="inst-step">3. El examen se reanudará <strong>automáticamente</strong> en cuanto quede una sola pantalla activa.</div>
+      </div>
+
+      <div class="lock-scanning">
+        <div class="scanning-spinner"></div>
+        <span>Monitoreando puertos de video en tiempo real...</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL 3: DESBLOQUEO DE EMERGENCIA DEL PROFESOR -->
+  <div id="modal-teacher-unlock" class="modal-overlay hidden">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <span class="dialog-icon">🔑</span>
+        <h3>Desbloqueo de Emergencia (Profesor)</h3>
+      </div>
+      <p class="dialog-desc">Ingresa el PIN de autorización para salir del modo Kiosk o pausar el examen.</p>
+
+      <div class="input-group">
+        <label for="teacher-pin-input">PIN configurado por el docente:</label>
+        <input type="password" id="teacher-pin-input" placeholder="••••••••" autocomplete="off">
+        <span class="input-error-msg hidden" id="teacher-pin-error">PIN incorrecto.</span>
+      </div>
+
+      <div class="dialog-buttons">
+        <button type="button" id="btn-cancel-teacher" class="btn-ghost">Cancelar</button>
+        <button type="button" id="btn-confirm-teacher" class="btn-primary">Verificar y Salir de Kiosk</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL 4: CONFIRMACIÓN DE ENTREGA DE EXAMEN -->
+  <div id="modal-submit-exam" class="modal-overlay hidden">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <span class="dialog-icon">🔒</span>
+        <h3>Confirmar Entrega de Examen</h3>
+      </div>
+      <p class="dialog-desc">¿Estás seguro de que deseas entregar tu examen? Al confirmar, tu código será empaquetado y quedará sellado en <strong>modo solo lectura</strong>. Serás enviado directamente a tu código para que tú o tu profesor puedan revisarlo y ejecutarlo (F5).</p>
+
+      <div class="submit-summary-box">
+        <div class="summary-item">
+          <span>Tiempo invertido:</span>
+          <strong id="submit-total-time">00:00:00</strong>
+        </div>
+        <div class="summary-item">
+          <span>Archivos desarrollados:</span>
+          <strong id="submit-total-files">1</strong>
+        </div>
+        <div class="summary-item">
+          <span>Incidencias registradas:</span>
+          <strong id="submit-total-incidents" class="clean">0 (Limpio)</strong>
+        </div>
+      </div>
+
+      <div class="dialog-buttons">
+        <button type="button" id="btn-cancel-submit" class="btn-ghost">Continuar Programando</button>
+        <button type="button" id="btn-confirm-submit" class="btn-action submit">Confirmar Entrega y Bloquear Código</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL 5: RECIBO DE ENTREGA SELLADA -->
+  <div id="modal-submission-success" class="modal-overlay hidden">
+    <div class="dialog-card success-card">
+      <div class="success-icon-box">✓</div>
+      <h2 class="success-title">¡Examen Entregado con Éxito!</h2>
+      <p class="success-desc">Se ha generado un archivo comprimido sellado con criptografía y el registro de auditoría de tu evaluación.</p>
+
+      <div class="receipt-box">
+        <div class="receipt-row">
+          <span>Archivo generado:</span>
+          <strong id="receipt-filename">EXAMEN.zip</strong>
+        </div>
+        <div class="receipt-row">
+          <span>Ubicación guardada:</span>
+          <code id="receipt-path">/exam_submissions/</code>
+        </div>
+        <div class="receipt-row">
+          <span>Sello de auditoría:</span>
+          <span class="checksum-tag" id="receipt-checksum">a9b8c7...</span>
+        </div>
+      </div>
+
+      <div class="dialog-buttons">
+        <button type="button" id="btn-review-submitted-code" class="btn-ghost">Revisar y Ejecutar Código</button>
+        <button type="button" id="btn-close-app" class="btn-primary">Cerrar Aplicación</button>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="name-dialog" class="name-dialog" aria-labelledby="name-dialog-title">
+    <form method="dialog">
+      <h2 id="name-dialog-title">Nuevo archivo</h2>
+      <label for="name-dialog-input">Nombre</label>
+      <input id="name-dialog-input" type="text" required autocomplete="off" maxlength="180">
+      <div class="name-dialog-actions">
+        <button value="cancel" formnovalidate>Cancelar</button>
+        <button value="confirm">Crear</button>
+      </div>
+    </form>
+  </dialog>
+  <script src="app.js"></script>
+</body>
+</html>

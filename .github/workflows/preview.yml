@@ -1,0 +1,49 @@
+name: Build public preview installers
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+  package:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, target: linux }
+          - { os: windows-2022, target: win }
+          - { os: macos-14, target: mac }
+          - { os: macos-15-intel, target: mac }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      DEBUG: ''
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.13'
+      - run: npm ci
+      - name: Install Linux runtime libraries
+        if: runner.os == 'Linux'
+        run: npx playwright install-deps chromium
+      - name: Build preview without developer certificates
+        run: npm run build:${{ matrix.target }} -- --publish never
+      - run: npm run test:packaged
+      - name: Install or extract the deliverable and test it
+        run: node scripts/installer-smoke.cjs
+      - name: Assemble downloads, checksums and provenance
+        run: node scripts/prepare-downloads.cjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: downloads-${{ matrix.os }}
+          path: downloads/
+          if-no-files-found: error
+          retention-days: 30
