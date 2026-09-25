@@ -5,7 +5,7 @@
 
 **Python para aprender, practicar y evaluar.**
 
-[Descargar CodeGO](https://zolvek.com.mx/codego/) · [Versiones y SHA-256](https://github.com/f-lopez-velazquez/CodeGO/releases) · [Compatibilidad](docs/VALIDACION_MULTIPLATAFORMA.md)
+[Descargar CodeGO](https://zolvek.com.mx/productos/codego) · [Versiones y SHA-256](https://github.com/f-lopez-velazquez/CodeGO/releases) · [Compatibilidad](docs/VALIDACION_MULTIPLATAFORMA.md)
 
 **by zolvek.com.mx**  
 **Programado por Francisco López Velázquez.**

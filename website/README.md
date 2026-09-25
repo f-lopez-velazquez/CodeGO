@@ -2,7 +2,7 @@
 
 HTML y CSS nativos, sin compilación, dependencias de frontend, formularios ni credenciales. La captura corresponde a una ejecución de prueba con datos ficticios.
 
-La carpeta `codego/` se publica en `https://zolvek.com.mx/codego/` y `https://zolvek-mx.web.app/codego/`. El dominio canónico es zolvek.com.mx. El sitio corporativo conserva sus demás rutas.
+La carpeta `codego/` se publica en `https://zolvek.com.mx/productos/codego` y `https://zolvek-mx.web.app/codego/`. El dominio canónico es zolvek.com.mx. El sitio corporativo conserva sus demás rutas.
 
 Para verla localmente, desde esta carpeta:
 
