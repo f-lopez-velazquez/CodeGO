@@ -21,3 +21,7 @@ downloads/
 *.keystore
 *service-account*.json
 *credentials*.json
+
+CodeGO.AppImage
+docs/verification/
+docs/MEJORAS.md
