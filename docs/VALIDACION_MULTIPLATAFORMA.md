@@ -13,7 +13,7 @@ El flujo público [Verify CodeGO](https://github.com/f-lopez-velazquez/CodeGO/ac
 
 Cada trabajo ejecuta 15 pruebas unitarias/de integración, 32 combinaciones de navegador, Electron con Python real, auditoría de dependencias y 12 comprobaciones del paquete compilado. Los artefactos de Actions conservan reportes JSON y capturas durante 30 días. La Release conserva los checksums y la procedencia de los instaladores.
 
-Se comprobó además el paquete en una VM local Windows 11 x64. Esa imagen de pruebas no es una certificación de todas las ediciones de Windows. Los registros de la VM se conservan fuera del repositorio público para no exponer rutas del equipo local.
+Se comprobó además el paquete 1.1.0 en una VM local Windows 11 x64. La regresión 1.1.1 se verifica en los runners nativos indicados. Esa imagen de pruebas no es una certificación de todas las ediciones de Windows. Los registros de la VM se conservan fuera del repositorio público para no exponer rutas del equipo local.
 
 ## Lo que cubren las pruebas
 
@@ -34,3 +34,5 @@ Android, iOS, ChromeOS, Windows ARM y Linux ARM no tienen instaladores validados
 El mínimo anterior de 1024 × 700 píxeles lógicos podía exceder pantallas con escalado del SO. Ahora el tamaño inicial se limita al área útil y el mínimo se reduce. Se comprueban los límites de la ventana contra los de la pantalla, además del pie del editor y los créditos; no basta con medir la entrada contra `innerHeight`.
 
 La entrada se dibuja junto al prompt dentro de la salida y comparte su desplazamiento. Se comprueban respuestas consecutivas, vacías y con acentos, foco, limpiar durante la ejecución y escritura en la misma línea del prompt. El paquete Linux se ejecuta además con pantalla 1280 × 720 y escalado nativo 150 % (854 × 480 píxeles lógicos), con zoom de interfaz hasta 180 %.
+
+[Validación y nuevos instaladores 1.1.1](https://github.com/f-lopez-velazquez/CodeGO/actions/runs/36187008301).

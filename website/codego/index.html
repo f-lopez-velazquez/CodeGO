@@ -14,7 +14,7 @@
   <meta property="og:image" content="https://zolvek.com.mx/productos/codego/codego-input-1.1.1.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/productos/codego/icon.png" type="image/png">
-  <link rel="stylesheet" href="/productos/codego/site.css?v=1.2.1">
+  <link rel="stylesheet" href="/productos/codego/site.css?v=1.2.2">
 </head>
 <body>
   <div class="glow-top" aria-hidden="true"></div>
@@ -41,11 +41,12 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="badge-pill">
         <span class="dot" aria-hidden="true"></span>
-        <span>v1.1.1 · Windows · macOS · Linux</span>
+        <span>v1.1.1 · Vista previa · Windows · macOS · Linux</span>
       </div>
       <h1 id="hero-title">Aprende Python.<br><span class="accent-text">Sin complicaciones.</span></h1>
       <p class="hero-subtitle">Editor de escritorio ligero con consola interactiva en tiempo real y modo de evaluación supervisada.</p>
 
+      <p class="release-note"><strong>Vista previa pública.</strong> Windows y macOS aún no tienen certificado de desarrollador; macOS no está notarizado. El sistema puede advertir o bloquear su apertura. <a href="https://github.com/f-lopez-velazquez/CodeGO/blob/main/docs/PRODUCCION.md">Estado de distribución y guía de instalación ↗</a></p>
       <!-- Direct Downloads Hub -->
       <div class="downloads-hub" id="descargar" aria-label="Descargas por sistema">
         <!-- Windows -->
@@ -81,7 +82,8 @@
           <div class="download-options">
             <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-x64.dmg">Mac Intel (.dmg)</a>
             <span class="sep">·</span>
-            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-arm64.zip">ZIP</a>
+            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-arm64.zip">ZIP Apple Silicon</a>
+            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-x64.zip">ZIP Intel</a>
           </div>
         </article>
 
@@ -121,7 +123,7 @@
         </div>
         <img src="/productos/codego/codego-input-1.1.1.png" width="1280" height="800" alt="Interfaz real de CodeGO con editor de código y terminal interactiva con soporte para input()" loading="lazy">
       </div>
-      <p class="preview-caption">El código a un lado, la terminal al otro. Cuando Python ejecuta <code>input()</code>, tu respuesta siempre tiene su lugar.</p>
+      <p class="preview-caption">El código a un lado, la terminal al otro. Escribe la respuesta directamente junto al prompt de <code>input()</code>, dentro de la misma terminal.</p>
     </section>
 
     <!-- Two Modes Section -->
@@ -146,7 +148,7 @@
           <h2>Modo Examen Blindado</h2>
           <p>Para evaluaciones académicas con integridad. Elimina distracciones y sella el trabajo final del alumno.</p>
           <ul class="mode-list">
-            <li>Ventana en pantalla completa fija (modo kiosk anti-alt-tab)</li>
+            <li>Pantalla completa en modo kiosk para evaluación supervisada</li>
             <li>Desconexión Wi-Fi automática (restaurable al entregar o con PIN)</li>
             <li>Watchdog de audio anti-silencio y alerta visual de 12 segundos</li>
             <li>Entrega sellada empaquetada en ZIP auditado con SHA-256</li>
@@ -158,10 +160,11 @@
     <!-- Requirements Info -->
     <section class="quick-info-box" aria-label="Requisitos del sistema">
       <div class="quick-info-text">
-        <strong>Requisito de Python:</strong> CodeGO ejecuta el motor de Python instalado en tu sistema. Requiere <strong>Python 3.12 o 3.13</strong> con pip.
+        <strong>Requisito de Python:</strong> CodeGO ejecuta el motor de Python instalado en tu sistema. Requiere <strong>Python 3.12 o 3.13</strong> con pip y venv. Usa <strong>Comprobar este equipo</strong> antes de trabajar.
       </div>
       <a class="quick-info-link" href="https://www.python.org/downloads/" target="_blank" rel="noopener noreferrer">Descargar Python ↗</a>
     </section>
+    <p class="compatibility-note">Pruebas nativas: Ubuntu 22.04/24.04 x64, Windows Server 2022/2025 x64, macOS 14 Apple Silicon y macOS 15 Intel. <a href="https://github.com/f-lopez-velazquez/CodeGO/actions/runs/36187008301">Ver comprobaciones ↗</a>. Para un examen real, valida Wi-Fi, audio y bloqueo en los equipos del aula. Python ejecuta con los permisos del usuario; kiosk no sustituye las políticas del sistema.</p>
   </main>
 
   <footer class="site-footer">

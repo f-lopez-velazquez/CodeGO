@@ -506,3 +506,8 @@ body {
     align-items: flex-start;
   }
 }
+
+.release-note { max-width:850px; margin:0 auto 24px; padding:14px 18px; border-left:2px solid #dcc18e; background:#dcc18e08; color:#b5bfce; font-size:13px; line-height:1.7; text-align:left; }
+.release-note strong { color:#dcc18e; }
+.release-note a, .compatibility-note a { color:#7cc7fd; text-decoration:underline; text-underline-offset:3px; }
+.compatibility-note { color:#a0adbf; font-size:12px; line-height:1.8; margin:0 0 48px; }
