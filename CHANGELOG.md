@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.1.1 · Terminal integrada y pantallas con escalado
+
+- Escritura directamente junto al prompt de Python, sin campo ni botón de envío separado.
+- Ventana limitada al área útil del monitor; elimina el mínimo que recortaba el pie en pantallas escaladas.
+- Pie del editor y créditos incluidos en las pruebas; comprobación del paquete con pantalla 1280 × 720 al 150 % y zoom hasta 180 %.
+- 32 combinaciones de navegador y pruebas nativas con dos respuestas consecutivas.
+
 ## 1.1.0 · Vista previa pública
 
 - Consola interactiva con entrada visible al cambiar tamaño y zoom; soporte de acentos y respuestas vacías.

@@ -12,18 +12,18 @@
 
 Editor educativo de Python para escritorio, desarrollado con Electron y JavaScript nativo. Incluye ejecución interactiva, archivos y proyectos, modo actividad y evaluación supervisada.
 
-La entrada de `input()` permanece visible al redimensionar y usar zoom. La consola conserva texto UTF-8, permite respuestas vacías y ejecuciones consecutivas. El guardado conserva los cambios pendientes cuando ocurre un error y se completa antes de ejecutar, entregar o cerrar normalmente.
+La respuesta a `input()` se escribe directamente junto al prompt de Python dentro de la terminal, sin barra ni cuadro separado. La ventana se adapta al área de pantalla disponible y al escalado del sistema; conserva visibles el pie del editor y los créditos. La consola conserva texto UTF-8, permite respuestas vacías y ejecuciones consecutivas. El guardado conserva los cambios pendientes cuando ocurre un error y se completa antes de ejecutar, entregar o cerrar normalmente.
 
 ![CodeGO ejecutando un programa con input y la entrada de consola visible](docs/images/codego-input.png)
 
 ## Descargar
 
-| Sistema | Descarga directa 1.1.0 | Alternativa |
+| Sistema | Descarga directa 1.1.1 | Alternativa |
 | --- | --- | --- |
-| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.0-preview.1/CodeGO-1.1.0-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.0-preview.1/CodeGO-1.1.0-portable-x64.exe) |
-| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.0-preview.1/CodeGO-1.1.0-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.0-preview.1/CodeGO-1.1.0-linux-x64.tar.gz) |
-| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.0-preview.1/CodeGO-1.1.0-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.0-preview.1/CodeGO-1.1.0-mac-arm64.zip) |
-| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.0-preview.1/CodeGO-1.1.0-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.0-preview.1/CodeGO-1.1.0-mac-x64.zip) |
+| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-portable-x64.exe) |
+| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-linux-x64.tar.gz) |
+| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-arm64.zip) |
+| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-x64.zip) |
 
 **Vista previa pública:** Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado. Los sistemas pueden advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones. Python se instala por separado.
 
@@ -32,9 +32,9 @@ La entrada de `input()` permanece visible al redimensionar y usar zoom. La conso
 1. Instala Python 3 con `pip` y `venv`. La matriz de comprobación contempla Python 3.12 y 3.13; usa un parche actualizado. Python y las librerías científicas **no vienen dentro del ejecutable**.
 2. Abre CodeGO y pulsa **Comprobar este equipo**. La prueba crea y lee un archivo temporal, ejecuta Python, responde a `input()` con acentos y elimina sus archivos.
 3. Elige **Actividad / Tarea** para programar libremente. No aparece el botón Entregar y no se modifican Wi-Fi ni audio.
-4. Abre un proyecto, escribe código y pulsa **F5 / Ejecutar**. Responde en la entrada de la consola con Enter. El botón Detener termina el proceso Python principal.
+4. Abre un proyecto, escribe código y pulsa **F5 / Ejecutar**. Escribe directamente en la consola y envía con Enter. El botón Detener termina el proceso Python principal.
 
-En Linux, da permiso de ejecución al AppImage (`chmod +x CodeGO-1.1.0-linux-x64.AppImage`) y ábrelo. Si tu sistema no admite AppImage, extrae el paquete `tar.gz`. Los binarios no requieren Node.js instalado.
+En Linux, da permiso de ejecución al AppImage (`chmod +x CodeGO-1.1.1-linux-x64.AppImage`) y ábrelo. Si tu sistema no admite AppImage, extrae el paquete `tar.gz`. Los binarios no requieren Node.js instalado.
 
 La herramienta de librerías instala dentro de `exam_env`; si no puede crear o verificar ese entorno, muestra el error y no usa pip global. La instalación de componentes requiere conexión y puede requerir permisos del administrador. En distribuciones sin `apt-get` y en macOS, prepara Python con las herramientas de tu sistema.
 

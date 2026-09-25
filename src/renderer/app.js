@@ -276,9 +276,8 @@ const DOM = {
   btnMaximizeTerm: document.getElementById('btn-maximize-term'),
   btnClearTerm: document.getElementById('btn-clear-term'),
   btnCopyTerm: document.getElementById('btn-copy-term'),
-  terminalInputBar: document.getElementById('terminal-input-bar'),
+  terminalTranscript: document.getElementById('terminal-transcript'),
   terminalStdinInput: document.getElementById('terminal-stdin-input'),
-  btnSendStdin: document.getElementById('btn-send-stdin'),
 
   // Package Manager Modal
   modalPackageManager: document.getElementById('modal-package-manager'),
@@ -351,10 +350,10 @@ const DOM = {
 function autoFitScreenLayout() {
   const w = window.innerWidth;
   const h = window.innerHeight;
-  if (!window.electronAPI?.setZoomFactor) {
-    document.body.style.width = `${w / state.zoomFactor}px`;
-    document.body.style.height = `${h / state.zoomFactor}px`;
-  }
+  // Native zoom already changes innerWidth/innerHeight. CSS preview zoom does not.
+  const cssZoom = window.electronAPI?.setZoomFactor ? 1 : state.zoomFactor;
+  document.body.style.width = `${w / cssZoom}px`;
+  document.body.style.height = `${h / cssZoom}px`;
   if (w < 1366 || h < 768) {
     document.body.classList.add('screen-compact');
   } else {
@@ -420,7 +419,10 @@ function setAppZoom(factor) {
   DOM.sbZoomBadge.textContent = `Zoom: ${percentage}%`;
 
   if (window.electronAPI && window.electronAPI.setZoomFactor) {
+    document.body.style.removeProperty('zoom');
     window.electronAPI.setZoomFactor(state.zoomFactor);
+    autoFitScreenLayout();
+    requestAnimationFrame(autoFitScreenLayout);
   } else {
     document.body.style.zoom = state.zoomFactor;
     autoFitScreenLayout();
@@ -1164,13 +1166,13 @@ function setupEventListeners() {
   // Terminal Actions
   DOM.btnClearTerm.addEventListener('click', clearTerminal);
   DOM.btnCopyTerm.addEventListener('click', copyTerminalOutput);
-  DOM.btnSendStdin.addEventListener('click', sendTerminalStdin);
+  DOM.terminalStdinInput.addEventListener('input', resizeTerminalInput);
   DOM.terminalStdinInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); sendTerminalStdin(); }
   });
   DOM.terminalOutput.addEventListener('click', () => {
     if (state.isRunning && !window.getSelection().toString()) {
-      DOM.terminalStdinInput.focus({ preventScroll: true });
+      focusTerminalInput();
     }
   });
 
@@ -1179,8 +1181,9 @@ function setupEventListeners() {
     if (state.isRunning && !e.isComposing && !e.target.closest('input, textarea, select, button, [contenteditable], .modal-overlay')) {
       if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
-        DOM.terminalStdinInput.focus({ preventScroll: true });
+        focusTerminalInput();
         DOM.terminalStdinInput.setRangeText(e.key, DOM.terminalStdinInput.selectionStart, DOM.terminalStdinInput.selectionEnd, 'end');
+        resizeTerminalInput();
       }
     }
   });
@@ -2204,13 +2207,10 @@ async function runCurrentPythonCode() {
     DOM.termStatusBadge.className = 'term-badge running';
     DOM.termStatusBadge.textContent = 'Ejecutando';
     DOM.termExecTime.textContent = '';
-    DOM.terminalInputBar.classList.add('executing');
     DOM.terminalStdinInput.disabled = false;
-    DOM.btnSendStdin.disabled = false;
     DOM.terminalStdinInput.value = '';
-    DOM.terminalStdinInput.placeholder = 'Escribe tu respuesta…';
-    document.getElementById('terminal-input-hint').textContent = 'Si el programa pide datos, responde aquí y pulsa Enter.';
-    DOM.terminalStdinInput.focus({ preventScroll: true });
+    resizeTerminalInput();
+    focusTerminalInput();
     appendTerminalOutput(`Ejecutando ${state.activeFilePath}\n`, 'system');
     const result = await window.electronAPI.runPython({ relativePath: state.activeFilePath });
     if (!result.success) throw new Error(result.error);
@@ -2248,12 +2248,10 @@ function handleExecutionFinished(result) {
   DOM.btnRunCode.disabled = false;
   DOM.btnStopCode.disabled = true;
   DOM.btnStopCode.classList.remove('active');
-  DOM.terminalInputBar.classList.remove('executing');
   const hadFocus = document.activeElement === DOM.terminalStdinInput;
   DOM.terminalStdinInput.disabled = true;
-  DOM.btnSendStdin.disabled = true;
-  DOM.terminalStdinInput.placeholder = 'Ejecuta de nuevo con F5';
-  document.getElementById('terminal-input-hint').textContent = 'Entrada de Python · disponible durante la ejecución';
+  DOM.terminalStdinInput.value = '';
+  resizeTerminalInput();
   const success = result.exitCode === 0;
   DOM.termStatusBadge.className = `term-badge ${stopped ? 'stopped' : success ? 'success' : 'error'}`;
   DOM.termStatusBadge.textContent = stopped ? 'Detenido' : success ? 'Finalizado' : 'Error';
@@ -2264,10 +2262,21 @@ function handleExecutionFinished(result) {
 
 // Keep chunk boundaries invisible and cap the transcript so a print loop cannot grow the DOM forever.
 const TERMINAL_LIMIT = 200000;
-let terminalCharacters = DOM.terminalOutput.textContent.length;
+let terminalCharacters = DOM.terminalTranscript.textContent.length;
+
+function resizeTerminalInput() {
+  DOM.terminalStdinInput.style.width = `${Math.max(2, Array.from(DOM.terminalStdinInput.value).length + 1)}ch`;
+}
+
+function focusTerminalInput() {
+  DOM.terminalOutput.scrollTop = DOM.terminalOutput.scrollHeight;
+  DOM.terminalStdinInput.focus({ preventScroll: true });
+}
+
 function appendTerminalOutput(text, type = 'stdout') {
-  const output = DOM.terminalOutput;
-  const atBottom = output.scrollHeight - output.scrollTop - output.clientHeight < 40;
+  const output = DOM.terminalTranscript;
+  const scroller = DOM.terminalOutput;
+  const atBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 40;
   let value = String(text);
   if (value.length > TERMINAL_LIMIT) value = value.slice(-TERMINAL_LIMIT);
   const last = output.lastElementChild;
@@ -2275,7 +2284,7 @@ function appendTerminalOutput(text, type = 'stdout') {
     last.appendChild(document.createTextNode(value));
     last.normalize();
   } else {
-    const line = document.createElement(type === 'stdout' || type === 'stderr' ? 'span' : 'div');
+    const line = document.createElement(['stdout', 'stderr', 'user-stdin'].includes(type) ? 'span' : 'div');
     line.className = `term-line ${type}`;
     line.dataset.stream = type;
     line.textContent = value;
@@ -2286,38 +2295,37 @@ function appendTerminalOutput(text, type = 'stdout') {
     terminalCharacters -= output.firstElementChild.textContent.length;
     output.firstElementChild.remove();
   }
-  if (atBottom) output.scrollTop = output.scrollHeight;
+  if (atBottom) scroller.scrollTop = scroller.scrollHeight;
 }
 
 async function sendTerminalStdin() {
   if (!state.isRunning || state.isSendingInput) return;
   const value = DOM.terminalStdinInput.value;
   state.isSendingInput = true;
-  DOM.btnSendStdin.disabled = true;
   // Echo the user's action before Python can emit its next prompt.
-  appendTerminalOutput(`❯ ${value}\n`, 'user-stdin');
+  appendTerminalOutput(`${value}\n`, 'user-stdin');
   try {
     const result = await window.electronAPI.sendPythonStdin(value);
     if (!result.success) throw new Error(result.error);
     if (DOM.terminalStdinInput.value === value) DOM.terminalStdinInput.value = '';
+    resizeTerminalInput();
     DOM.terminalOutput.scrollTop = DOM.terminalOutput.scrollHeight;
-    if (state.isRunning) DOM.terminalStdinInput.focus({ preventScroll: true });
+    if (state.isRunning) focusTerminalInput();
   } catch (error) {
     appendTerminalOutput(`No se pudo enviar: ${error.message}\n`, 'stderr');
   } finally {
     state.isSendingInput = false;
-    DOM.btnSendStdin.disabled = !state.isRunning;
   }
 }
 
 function clearTerminal() {
-  DOM.terminalOutput.replaceChildren();
+  DOM.terminalTranscript.replaceChildren();
   terminalCharacters = 0;
 }
 
 async function copyTerminalOutput() {
   try {
-    await navigator.clipboard.writeText(DOM.terminalOutput.innerText);
+    await navigator.clipboard.writeText(DOM.terminalTranscript.innerText);
     DOM.btnCopyTerm.textContent = 'Copiado';
   } catch (_) {
     DOM.btnCopyTerm.textContent = 'Sin permiso';

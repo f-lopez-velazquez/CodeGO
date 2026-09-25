@@ -73,16 +73,12 @@ Todos los canales IPC se comunican de forma segura a través de `window.electron
 
 ## 4. Consola y Terminal Interactiva (`input()`)
 
-Para garantizar que `input()` de Python funcione sin importar el tamaño de pantalla:
+La petición del usuario de septiembre de 2026 sustituye la barra separada anterior: la respuesta se escribe **dentro de la terminal, junto al prompt de Python**.
 
-1. **Diseño Flexbox con `min-height: 0`**:
-   - `.terminal-panel` tiene `height: 100%; display: flex; flex-direction: column; overflow: hidden;`
-   - `.terminal-output` tiene `flex: 1 1 0px !important; min-height: 0 !important; overflow-y: auto !important;`
-   - `.terminal-input-bar` tiene `height: 48px !important; min-height: 48px !important; flex-shrink: 0 !important;`
-   > **Nota crítica**: Si quitas `min-height: 0` a `.terminal-output`, la salida de texto empujará a `.terminal-input-bar` fuera de la pantalla.
-2. **Keyboard Passthrough**:
-   - Cuando el programa está en ejecución (`state.isRunning`), cualquier tecla presionada en la consola o fuera del editor enfoca automáticamente `terminalStdinInput`.
-   - Al pulsar Enter, el valor se dibuja con prompt `❯` y se envía por `python:stdin`.
+1. `.terminal-panel` mantiene flex vertical, `min-height: 0` y overflow oculto. `.terminal-output` es la única superficie desplazable, con `flex: 1 1 0` y `min-height: 0`.
+2. `#terminal-transcript` contiene la salida; `#terminal-stdin-input` es un control nativo sin borde ni fondo, dibujado inmediatamente después en la misma línea. No agregar una barra inferior ni botón de envío separado.
+3. Enter envía stdin y conserva el eco junto al prompt. Limpiar borra únicamente la transcripción, nunca el control activo. Al terminar, el cursor de entrada se oculta.
+4. El tamaño inicial y mínimo de BrowserWindow deben caber en las dimensiones lógicas del monitor. Probar escalado del SO además de zoom de la aplicación, y verificar también los créditos y el pie del editor.
 
 ---
 

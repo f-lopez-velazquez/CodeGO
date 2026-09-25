@@ -11,7 +11,8 @@ const report = path.resolve(`reports/packaged-${platform}-${process.arch}.json`)
 const env = {...process.env, DEBUG:''};
 delete env.ELECTRON_RUN_AS_NODE;
 const args = [`--self-test-report=${report}`, '--disable-gpu'];
-if (platform === 'linux') args.push('--ozone-platform=headless', '--ozone-override-screen-size=1440,900', '--no-sandbox');
+if (platform === 'linux') args.push('--ozone-platform=headless', `--ozone-override-screen-size=${process.env.CODEGO_TEST_SCREEN || '1440,900'}`, '--no-sandbox');
+if (process.env.CODEGO_TEST_SCALE) args.push(`--force-device-scale-factor=${process.env.CODEGO_TEST_SCALE}`);
 fs.mkdirSync(path.dirname(report),{recursive:true});
 fs.rmSync(report,{force:true});
 const result = spawnSync(executable,args,{env,stdio:'inherit',timeout:90000});

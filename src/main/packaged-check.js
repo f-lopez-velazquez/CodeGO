@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { screen } = require('electron');
 const { runSelfTest } = require('./self-test');
 
 async function runPackagedCheck({ window, command, directory, version, reportPath, packaged }) {
@@ -33,17 +34,22 @@ async function runPackagedCheck({ window, command, directory, version, reportPat
     await waitFor("state.activeFilePath === 'main.py'");
     const checks = await evaluate(`({credits: document.body.textContent.includes('by zolvek.com.mx') && document.body.textContent.includes('Programado por Francisco López Velázquez.'), isolated: !window.require, activity: getComputedStyle(DOM.btnFinishExam).display === 'none' && DOM.btnFinishExam.disabled})`);
     report.checks.push({ name: 'Créditos y aislamiento del renderer', success: checks.credits && checks.isolated && checks.activity });
+    const bounds = window.getBounds();
+    const display = screen.getDisplayMatching(bounds);
+    report.checks.push({name: 'Ventana dentro de la pantalla con escalado del sistema', success: bounds.width <= display.bounds.width && bounds.height <= display.bounds.height, bounds, screen: display.bounds, scaleFactor: display.scaleFactor});
+    await evaluate("DOM.terminalStdinInput.disabled=false; appendTerminalOutput('línea\\n'.repeat(150));");
     for (const zoom of [1, 1.4, 1.8]) {
       await evaluate(`setAppZoom(${zoom})`);
       await new Promise(resolve => setTimeout(resolve, 120));
       for (const layout of ['side', 'bottom']) {
         await evaluate(`state.termLayout='${layout}'; updateTerminalLayout();`);
-        const visible = await evaluate(`(()=>{const r=DOM.terminalStdinInput.getBoundingClientRect();return r.bottom<=innerHeight+1 && r.width>=35;})()`);
+        await evaluate('focusTerminalInput()');
+        const visible = await evaluate(`(()=>{const r=DOM.terminalStdinInput.getBoundingClientRect();return r.bottom<=innerHeight+1 && r.width>=10 && document.querySelector('.editor-statusbar').getBoundingClientRect().bottom<=innerHeight+1 && document.querySelector('.sidebar-footer').getBoundingClientRect().bottom<=innerHeight+1;})()`);
         report.checks.push({ name: `Entrada visible: ${layout}, zoom ${zoom}`, success: visible });
       }
     }
     console.info('CodeGO: geometrías comprobadas.');
-    await evaluate("setAppZoom(1); state.termLayout='side'; updateTerminalLayout(); runCurrentPythonCode();");
+    await evaluate("clearTerminal(); setAppZoom(1); state.termLayout='side'; updateTerminalLayout(); runCurrentPythonCode();");
     await waitFor("DOM.terminalOutput.textContent.includes('Ingresa tu nombre:')");
     await evaluate("DOM.terminalStdinInput.value='José Muñoz'; sendTerminalStdin();");
     await waitFor("!state.isRunning");

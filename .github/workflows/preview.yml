@@ -37,6 +37,12 @@ jobs:
       - name: Build preview without developer certificates
         run: npm run build:${{ matrix.target }} -- --publish never
       - run: npm run test:packaged
+      - name: Check smaller display with OS scaling
+        if: runner.os == 'Linux'
+        env:
+          CODEGO_TEST_SCREEN: '1280,720'
+          CODEGO_TEST_SCALE: '1.5'
+        run: npm run test:packaged
       - name: Install or extract the deliverable and test it
         run: node scripts/installer-smoke.cjs
       - name: Assemble downloads, checksums and provenance

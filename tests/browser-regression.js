@@ -9,6 +9,8 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.waitForTimeout(100);
   // Use a deterministic bridge for renderer behavior; runtime.test.js exercises real Python.
   await page.evaluate(() => {
+    DOM.terminalStdinInput.disabled = false;
+    appendTerminalOutput('línea\n'.repeat(150));
     window.testWrites = [];
     window.testInputs = [];
     window.electronAPI = {
@@ -19,19 +21,23 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     };
   });
   const results = [];
-  for (const size of [{width:1440,height:900}, {width:1024,height:700}, {width:768,height:600}, {width:390,height:844}]) {
+  for (const size of [{width:1440,height:900}, {width:1024,height:700}, {width:768,height:600}, {width:390,height:844}, {width:1280,height:600}, {width:1024,height:480}]) {
     await page.setViewportSize(size);
     for (const zoom of size.width < 600 ? [1] : [1,1.4,1.8]) {
       await page.evaluate(value => setAppZoom(value), zoom);
       for (const layout of ['side', 'bottom']) {
         await page.evaluate(value => { state.termLayout = value; DOM.terminalPanel.style.removeProperty('--terminal-size'); updateTerminalLayout(); }, layout);
+        await page.evaluate(() => focusTerminalInput());
         const geometry = await page.evaluate(() => {
           const input = DOM.terminalStdinInput.getBoundingClientRect();
-          const send = DOM.btnSendStdin.getBoundingClientRect();
+          const status = document.querySelector('.editor-statusbar').getBoundingClientRect();
+          const footer = document.querySelector('.sidebar-footer').getBoundingClientRect();
+          const output = DOM.terminalOutput.getBoundingClientRect();
           const run = DOM.btnRunCode.getBoundingClientRect();
-          return { width: input.width, top: input.top, bottom: input.bottom, right: send.right, runRight: run.right, height: innerHeight, viewport: innerWidth };
+          return { width: input.width, top: input.top, bottom: input.bottom, right: input.right, statusBottom: status.bottom, footerBottom: footer.bottom, outputBottom: output.bottom, runRight: run.right, height: innerHeight, viewport: innerWidth };
         });
-        assert(geometry.bottom <= geometry.height + 1 && geometry.top >= 0 && geometry.right <= geometry.viewport + 1 && geometry.width >= 35, `stdin clipped: ${JSON.stringify({size,zoom,layout,geometry})}`);
+        assert(geometry.bottom <= geometry.height + 1 && geometry.top >= 0 && geometry.right <= geometry.viewport + 1 && geometry.width >= 10, `stdin clipped: ${JSON.stringify({size,zoom,layout,geometry})}`);
+        assert(Math.max(geometry.statusBottom, geometry.footerBottom, geometry.outputBottom) <= geometry.height + 1, `Footer clipped: ${JSON.stringify({size,zoom,layout,geometry})}`);
         assert(geometry.runRight <= geometry.viewport + 1, 'Run control clipped');
         results.push({ ...size, zoom, layout, result: 'pass' });
       }
@@ -45,7 +51,10 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   assert(await page.locator('#terminal-panel').isHidden(), 'Collapse failed');
   await page.locator('#btn-run-code').click();
   assert(await page.locator('#terminal-stdin-input').isVisible(), 'Run did not reopen terminal');
+  await page.evaluate(() => { clearTerminal(); appendTerminalOutput('¿Cómo te llamas? '); });
   await page.locator('#terminal-stdin-input').fill('José Muñoz');
+  const inline = await page.evaluate(() => { const range = document.createRange(); range.selectNodeContents(DOM.terminalTranscript.lastChild); const prompt = range.getBoundingClientRect(); const input = DOM.terminalStdinInput.getBoundingClientRect(); return Math.abs(prompt.top - input.top) < 6 && input.left >= prompt.right - 2 && DOM.terminalOutput.contains(DOM.terminalStdinInput); });
+  assert(inline, 'Input is not on the Python prompt line');
   await page.locator('#terminal-stdin-input').press('Enter');
   await page.locator('#terminal-stdin-input').press('Enter');
   assert(await page.evaluate(() => JSON.stringify(testInputs) === '["José Muñoz",""]'), 'stdin content lost');
@@ -98,7 +107,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   const bounded = await page.evaluate(() => {
     clearTerminal();
     for (let i=0;i<2000;i++) appendTerminalOutput('x'.repeat(1000) + '\n');
-    return {chars:DOM.terminalOutput.textContent.length,nodes:DOM.terminalOutput.childElementCount};
+    return {chars:DOM.terminalTranscript.textContent.length,nodes:DOM.terminalTranscript.childElementCount};
   });
   assert(bounded.chars <= 200000 && bounded.nodes <= 1000, 'Unbounded terminal output');
   await page.locator('#btn-new-file').click();

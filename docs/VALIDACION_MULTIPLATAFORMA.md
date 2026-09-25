@@ -11,7 +11,7 @@ El flujo público [Verify CodeGO](https://github.com/f-lopez-velazquez/CodeGO/ac
 | macOS 14 | Apple Silicon / ARM64 | 3.12 |
 | macOS 15 | Intel / x64 | 3.13 |
 
-Cada trabajo ejecuta 15 pruebas unitarias/de integración, 20 casos de navegador, Electron con Python real, auditoría de dependencias y 11 comprobaciones del paquete compilado. Los artefactos de Actions conservan reportes JSON y capturas durante 30 días. La Release conserva los checksums y la procedencia de los instaladores.
+Cada trabajo ejecuta 15 pruebas unitarias/de integración, 32 combinaciones de navegador, Electron con Python real, auditoría de dependencias y 12 comprobaciones del paquete compilado. Los artefactos de Actions conservan reportes JSON y capturas durante 30 días. La Release conserva los checksums y la procedencia de los instaladores.
 
 Se comprobó además el paquete en una VM local Windows 11 x64. Esa imagen de pruebas no es una certificación de todas las ediciones de Windows. Los registros de la VM se conservan fuera del repositorio público para no exponer rutas del equipo local.
 
@@ -28,3 +28,9 @@ Android, iOS, ChromeOS, Windows ARM y Linux ARM no tienen instaladores validados
 ## Primera distribución pública
 
 [Consultar la ejecución de validación y empaquetado](https://github.com/f-lopez-velazquez/CodeGO/actions/runs/36097997904). Los instaladores indican su commit de origen en los archivos `provenance-*.json` de la Release.
+
+## Regresión 1.1.1: pantalla e input integrado
+
+El mínimo anterior de 1024 × 700 píxeles lógicos podía exceder pantallas con escalado del SO. Ahora el tamaño inicial se limita al área útil y el mínimo se reduce. Se comprueban los límites de la ventana contra los de la pantalla, además del pie del editor y los créditos; no basta con medir la entrada contra `innerHeight`.
+
+La entrada se dibuja junto al prompt dentro de la salida y comparte su desplazamiento. Se comprueban respuestas consecutivas, vacías y con acentos, foco, limpiar durante la ejecución y escritura en la misma línea del prompt. El paquete Linux se ejecuta además con pantalla 1280 × 720 y escalado nativo 150 % (854 × 480 píxeles lógicos), con zoom de interfaz hasta 180 %.

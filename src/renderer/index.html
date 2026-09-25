@@ -558,17 +558,10 @@
             </div>
           </div>
 
-          <!-- Salida de la Terminal -->
-          <div class="terminal-output" id="terminal-output" tabindex="0" role="region" aria-label="Salida de Python">
-            <div class="term-line system-welcome">Tu programa, paso a paso.
-Ejecuta con F5. Si Python pide datos, escríbelos abajo.</div>
-          </div>
-          <p class="terminal-input-hint" id="terminal-input-hint">Entrada de Python · disponible durante la ejecución</p>
-          <div class="terminal-input-bar" id="terminal-input-bar">
-            <label class="input-prompt-label" for="terminal-stdin-input">input()</label>
-            <input type="text" id="terminal-stdin-input" maxlength="65536" aria-describedby="terminal-input-hint" placeholder="Ejecuta tu programa con F5" autocomplete="off" spellcheck="false" disabled>
-            <button id="btn-send-stdin" class="btn-term-send" title="Enviar a Python (Enter)" disabled>Enviar ↵</button>
-          </div>
+          <!-- Una única superficie: stdout y la respuesta comparten la misma línea. -->
+          <div class="terminal-output" id="terminal-output" tabindex="0" role="region" aria-label="Terminal interactiva de Python"><span id="terminal-transcript"><span class="term-line system-welcome">Tu programa, paso a paso.
+Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
+</span></span><input type="text" id="terminal-stdin-input" maxlength="65536" aria-label="Respuesta para Python. Pulsa Enter para enviar." autocomplete="off" autocapitalize="off" spellcheck="false" disabled></div>
         </section>
       </section>
     </main>

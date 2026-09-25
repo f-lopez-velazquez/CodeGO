@@ -44,18 +44,20 @@ app.whenReady().then(async () => {
     assert.equal(await evaluate('Boolean(window.electronAPI && !window.require)'), true);
     assert.equal(await evaluate("document.body.textContent.includes('Programado por Francisco López Velázquez.')"), true);
     assert.equal((await evaluate('window.electronAPI.runSelfTest()')).success, true);
+    await evaluate("DOM.terminalStdinInput.disabled=false; appendTerminalOutput('línea\\n'.repeat(150));");
     const geometry = [];
     for (const zoom of [1,1.4,1.8]) {
       await evaluate(`setAppZoom(${zoom})`);
       await sleep(100);
       for (const layout of ['side','bottom']) {
         await evaluate(`state.termLayout='${layout}'; updateTerminalLayout();`);
-        const result = await evaluate(`(()=>{const r=DOM.terminalStdinInput.getBoundingClientRect();return {zoom:${zoom},layout:'${layout}',bottom:r.bottom,width:r.width,viewport:innerHeight};})()`);
-        assert(result.bottom <= result.viewport + 1 && result.width >= 35, JSON.stringify(result));
+        await evaluate('focusTerminalInput()');
+        const result = await evaluate(`(()=>{const r=DOM.terminalStdinInput.getBoundingClientRect();return {zoom:${zoom},layout:'${layout}',bottom:r.bottom,width:r.width,footer:document.querySelector('.sidebar-footer').getBoundingClientRect().bottom,status:document.querySelector('.editor-statusbar').getBoundingClientRect().bottom,viewport:innerHeight};})()`);
+        assert(result.bottom <= result.viewport + 1 && result.width >= 10 && Math.max(result.footer,result.status) <= result.viewport + 1, JSON.stringify(result));
         geometry.push(result);
       }
     }
-    await evaluate("setAppZoom(1);state.termLayout='side';updateTerminalLayout();runCurrentPythonCode();");
+    await evaluate("clearTerminal();setAppZoom(1);state.termLayout='side';updateTerminalLayout();runCurrentPythonCode();");
     await waitFor("DOM.terminalOutput.textContent.includes('¿Cómo te llamas?')");
     assert.equal(await evaluate('document.activeElement === DOM.terminalStdinInput'), true);
     await evaluate("DOM.terminalStdinInput.value='José Muñoz';sendTerminalStdin();");
@@ -73,7 +75,7 @@ app.whenReady().then(async () => {
     await sleep(100);
     fs.writeFileSync(path.join(screenshotDir,'electron-finished.png'),(await window.webContents.capturePage()).toPNG());
     console.log(JSON.stringify({result:'PASS',checks:'Real Electron preload + Python input/output + native zoom + activity restrictions',geometry},null,2));
-    assert.equal(await evaluate("DOM.terminalOutput.textContent.indexOf('❯ José Muñoz') < DOM.terminalOutput.textContent.indexOf('Hola, José Muñoz.')"), true);
+    assert.equal(await evaluate("DOM.terminalOutput.textContent.indexOf('José Muñoz\\n') < DOM.terminalOutput.textContent.indexOf('Hola, José Muñoz.')"), true);
   } catch (error) {
     console.error(error);
     runner?.kill();

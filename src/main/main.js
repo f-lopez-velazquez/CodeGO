@@ -422,11 +422,13 @@ function logSecurityIncident(type, details) {
 }
 
 function createMainWindow() {
+  // Screen metrics are in device-independent pixels, including OS display scaling.
+  const { workAreaSize } = screen.getPrimaryDisplay();
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 1024,
-    minHeight: 700,
+    width: Math.min(1440, workAreaSize.width),
+    height: Math.min(900, workAreaSize.height),
+    minWidth: Math.min(640, workAreaSize.width),
+    minHeight: Math.min(360, workAreaSize.height),
     fullscreen: !diagnosticMode, // La sesión normal siempre inicia en pantalla completa
     show: !diagnosticMode,
     frame: !diagnosticMode,

@@ -140,7 +140,7 @@ body {
 }
 
 /* Allow text selection in code editor and terminal */
-#code-textarea, #terminal-output, .terminal-input-bar input, .receipt-box code, .pip-terminal-output {
+#code-textarea, #terminal-output, #terminal-stdin-input, .receipt-box code, .pip-terminal-output {
   user-select: text;
 }
 
@@ -2385,86 +2385,32 @@ body.theme-paper #code-textarea::selection {
   font-weight: 600;
 }
 
-.stdin-prompt {
-  color: #00f2fe;
-  font-weight: 800;
-  margin-right: 4px;
-}
-
-/* Interactive Input Prompt Bar - Siempre visible, anclada y de tamaño fijo garantizado */
-.terminal-input-bar {
-  height: 48px !important;
-  min-height: 48px !important;
-  max-height: 48px !important;
-  flex-shrink: 0 !important;
-  display: flex !important;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-secondary);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 6px 12px;
-  box-sizing: border-box;
-  z-index: 10;
-  transition: all 0.2s ease;
-}
-
-.terminal-input-bar.executing {
-  border-top-color: var(--accent-cyan);
-}
-
-.input-prompt-label {
-  font-family: var(--font-mono);
-  font-size: 0.88rem;
-  font-weight: 800;
-  color: #00f2fe;
-  flex-shrink: 0;
-}
-
-.terminal-input-bar input {
-  flex: 1;
-  min-width: 0;
-  background: var(--bg-primary);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: var(--radius-sm);
-  padding: 6px 12px;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.84rem;
-  font-weight: 500;
+/* Native editing behavior, drawn inline with stdout rather than in a separate form. */
+#terminal-stdin-input {
+  display: inline-block;
+  width: 2ch;
+  max-width: 100%;
+  min-width: 2ch;
+  height: 1.5em;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   outline: none;
-  height: 32px;
-  box-sizing: border-box;
-  transition: all 0.15s ease;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-highlight);
+  caret-color: var(--accent-cyan);
+  font: inherit;
+  line-height: inherit;
+  user-select: text;
 }
-
-.terminal-input-bar input:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-cyan) 20%, transparent);
-}
-
-.btn-term-send {
-  background: linear-gradient(135deg, #0284c7 0%, #00f2fe 100%);
-  border: none;
-  color: #ffffff;
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  font-weight: 700;
-  border-radius: var(--radius-sm);
-  padding: 0 12px;
-  height: 32px;
-  cursor: pointer;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.15s ease;
-  box-shadow: 0 2px 8px rgba(0, 242, 254, 0.25);
-}
-
-.btn-term-send:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 242, 254, 0.45);
-}
+#terminal-stdin-input:focus-visible { outline: none; }
+#terminal-stdin-input:disabled { display: none; }
+#terminal-transcript, #terminal-transcript * { user-select: text; }
+.terminal-output:focus-within { box-shadow: inset 2px 0 var(--border-focus); }
+.term-line.user-stdin { padding: 0; margin: 0; border: 0; background: transparent; font-weight: inherit; }
 
 /* Code Editor Locked State (Post-Submission) */
 #code-textarea.code-locked {
@@ -3546,14 +3492,6 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
 .term-badge { border-radius: 4px; }
 .term-badge.running { animation: none; }
 .term-badge.stopped { color: var(--text-secondary); background: var(--bg-surface); }
-.terminal-input-hint {
-  flex: 0 0 auto; margin: 0; padding: 6px 12px;
-  font-size: 11px; color: var(--text-secondary); background: var(--bg-secondary);
-  border-top: 1px solid var(--border-subtle);
-}
-.input-prompt-label { color: var(--text-highlight); font-size: 11px; }
-.btn-term-send { background: #087c60; color: #fff; box-shadow: none; padding: 0 10px; }
-.btn-term-send:hover { box-shadow: none; transform: none; background: #096c54; }
 .sidebar-title { letter-spacing: .4px; color: var(--text-secondary); }
 .sidebar-header { gap: 8px; padding: 10px; }
 .sidebar-footer { line-height: 1.5; }
@@ -3570,8 +3508,6 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
 @container (max-width: 420px) {
   .term-title, .term-exec-time { display: none; }
   .terminal-header { padding: 0 6px; gap: 4px; }
-  .terminal-input-bar { padding: 6px; gap: 4px; }
-  .input-prompt-label { display: none; }
   #btn-toggle-wrap { display: none; }
 }
 @media (max-width: 1400px) {
@@ -3598,7 +3534,6 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
   #btn-open-pkg-manager-ide, #btn-help-shortcuts, .topbar-divider { display: none; }
   .term-actions { gap: 2px; }
   .btn-term-action { padding: 3px; }
-  .terminal-input-hint { font-size: 10px; padding: 4px 6px; }
   #btn-toggle-term-view { font-size: 10px; }
   .editor-tab { padding: 0 6px; gap: 4px; }
   .tab-icon { display: none; }
@@ -3640,3 +3575,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
 .compatibility-check { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 8px; }
 .compatibility-check button { justify-self: start; padding: 8px 12px; }
 .compatibility-check output { white-space: pre-line; font-size: 12px; line-height: 1.5; color: var(--text-secondary); user-select: text; }
+
+/* Shrinking the viewport must never move the footer beyond the content area. */
+.sidebar-explorer, .file-tree { min-height: 0; }
+.sidebar-footer { flex-shrink: 0; }
+@media (max-height: 480px) { .sidebar-footer > p { display: none; } .sidebar-footer { padding: 4px 8px; } .sidebar-footer .app-credits { margin-top: 0; padding-top: 0; border: 0; } }
