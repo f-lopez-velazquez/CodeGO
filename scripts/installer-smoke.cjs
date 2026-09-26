@@ -5,7 +5,7 @@ const {spawnSync} = require('node:child_process');
 const platform = process.platform;
 const version = require('../package.json').version;
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-install-'));
-const files = fs.readdirSync('dist').filter(name => name.startsWith(`CodeGO ExamGuard-${version}-`));
+const files = fs.readdirSync('dist').filter(name => name.startsWith(`CodeGO-${version}-`) || name.startsWith(`CodeGO ExamGuard-${version}-`));
 function run(command, args, extraEnv = {}) {
   const result = spawnSync(command, args, {stdio: 'inherit', timeout: 180000, env: {...process.env, DEBUG: '', ...extraEnv}});
   if (result.error) throw result.error;
