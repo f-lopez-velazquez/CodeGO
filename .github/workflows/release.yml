@@ -54,22 +54,21 @@ jobs:
       # ---------- Linux ----------
       - name: Build Linux (AppImage + tar.gz)
         if: matrix.platform == 'linux'
-        run: npx electron-builder --linux AppImage tar.gz --x64
+        run: npx electron-builder --linux AppImage tar.gz --x64 --publish never
 
       # ---------- Windows ----------
       - name: Build Windows (NSIS Setup + Portable)
         if: matrix.platform == 'win32'
-        run: npx electron-builder --win nsis portable --x64
+        run: npx electron-builder --win nsis portable --x64 --publish never
 
       # ---------- macOS (ARM / Intel) ----------
       - name: Build macOS (DMG + ZIP)
         if: matrix.platform == 'darwin'
         env:
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
           ARCH=$([[ "${{ matrix.artifact }}" == "mac-arm64" ]] && echo "arm64" || echo "x64")
-          npx electron-builder --mac dmg zip --$ARCH
+          npx electron-builder --mac dmg zip --$ARCH --publish never
 
       - name: Test packaged application
         run: npm run test:packaged
