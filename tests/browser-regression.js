@@ -4,6 +4,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.route(baseUrl + '/**', route => route.continue());
+  await page.clock.install();
   await page.goto(baseUrl);
   await page.evaluate(() => { setSessionMode('activity'); enterIdeWorkspace(); });
   await page.waitForTimeout(100);
@@ -117,6 +118,8 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.evaluate(() => { setTheme('theme-paper'); clearTerminal(); appendTerminalOutput('Nombre: José\n'); });
   const colors = await page.evaluate(() => ({output:getComputedStyle(DOM.terminalOutput).backgroundColor,text:getComputedStyle(DOM.terminalOutput.querySelector('.stdout')).color}));
   assert(colors.output === 'rgb(248, 250, 252)' && colors.text === 'rgb(15, 23, 42)', 'Light terminal theme broken');
+  // Freeze browser time so runner load cannot move the 11,999 ms assertion past 12 s.
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
   await page.evaluate(() => {
     setTheme('theme-obsidian');
     setSessionMode('exam');
@@ -126,10 +129,11 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     handleSecurityViolation({type:'TEST',durationSeconds:2});
   });
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm can be dismissed immediately');
-  await page.waitForTimeout(11000);
+  await page.clock.runFor(11999);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm unlocks before 12 seconds');
-  await page.waitForTimeout(1100);
+  await page.clock.runFor(1);
   assert(await page.locator('#btn-dismiss-hazard').isEnabled(), 'Alarm does not unlock after 12 seconds');
+  await page.clock.resume();
   await page.locator('#btn-dismiss-hazard').click();
   const submission = await page.evaluate(async () => {
     window.alert = () => {};

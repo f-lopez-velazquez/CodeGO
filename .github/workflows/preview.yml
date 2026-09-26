@@ -2,7 +2,7 @@ name: Build public preview installers
 on:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   verify:
     uses: ./.github/workflows/verify.yml
@@ -53,3 +53,31 @@ jobs:
           path: downloads/
           if-no-files-found: error
           retention-days: 30
+
+  publish:
+    name: Publish GitHub Release
+    needs: package
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: downloads-*
+          path: all-downloads
+          merge-multiple: true
+      - name: Create or update GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}-preview.1"
+          echo "Publicando release $TAG..."
+          cd all-downloads
+          cat SHA256SUMS-*.txt > SHA256SUMS.txt
+          gh release create "$TAG" * \
+            --title "CodeGO $VERSION · Vista previa pública" \
+            --notes "CodeGO $VERSION ofrece un entorno educativo de programación en Python con soporte de hardware (Arduino, ESP32, Raspberry Pi con PySerial), terminal interactiva con input(), alerta estroboscópica docente de 12 segundos y modo examen blindado. Desarrollado por Francisco López Velázquez · zolvek.com.mx" \
+            --prerelease || \
+          gh release upload "$TAG" * --clobber

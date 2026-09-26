@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Exam Finalization
   submitExam: (studentData) => ipcRenderer.invoke('exam:submit', studentData),
 
+  // Hardware & Microcontrollers (Arduino, ESP32, Raspberry Pi, etc.)
+  listSerialPorts: () => ipcRenderer.invoke('hardware:list-serial-ports'),
+
   // Event Listeners from Main Process
   onMonitorStatus: (callback) => {
     const handler = (event, data) => callback(data);

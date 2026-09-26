@@ -141,7 +141,8 @@ const state = {
   isExamSubmitted: false,
   termLayout: 'side', // 'side' (Default: Side-by-side vertical split) | 'bottom'
   appMode: 'exam', // 'exam' | 'activity'
-  examSessionActive: false // Strictly true only when in an active, unsubmitted exam session
+  examSessionActive: false, // Strictly true only when in an active, unsubmitted exam session
+  workspaceSessionActive: false // True during an active IDE workspace session (Exam or Activity)
 };
 
 // DOM Elements
@@ -297,6 +298,7 @@ const DOM = {
   btnCloseShortcuts: document.getElementById('btn-close-shortcuts'),
 
   modalFocusWarning: document.getElementById('modal-focus-warning'),
+  hazardStrobeText: document.getElementById('hazard-strobe-text'),
   hazardTime: document.getElementById('hazard-time'),
   hazardDuration: document.getElementById('hazard-duration'),
   hazardTotalIncidents: document.getElementById('hazard-total-incidents'),
@@ -350,10 +352,13 @@ const DOM = {
 function autoFitScreenLayout() {
   const w = window.innerWidth;
   const h = window.innerHeight;
-  // Native zoom already changes innerWidth/innerHeight. CSS preview zoom does not.
-  const cssZoom = window.electronAPI?.setZoomFactor ? 1 : state.zoomFactor;
-  document.body.style.width = `${w / cssZoom}px`;
-  document.body.style.height = `${h / cssZoom}px`;
+  if (!window.electronAPI?.setZoomFactor && state.zoomFactor !== 1) {
+    document.body.style.width = `${w / state.zoomFactor}px`;
+    document.body.style.height = `${h / state.zoomFactor}px`;
+  } else {
+    document.body.style.removeProperty('width');
+    document.body.style.removeProperty('height');
+  }
   if (w < 1366 || h < 768) {
     document.body.classList.add('screen-compact');
   } else {
@@ -584,6 +589,7 @@ const PKG_CONFIG = {
   openpyxl: { icon: '📑', name: 'OpenPyXL (Excel)', cat: 'data' },
   sympy: { icon: '📐', name: 'SymPy (Álgebra)', cat: 'math' },
   colorama: { icon: '🎨', name: 'Colorama (Consola)', cat: 'net' },
+  serial: { icon: '🔌', name: 'PySerial (Arduino / ESP32)', cat: 'hardware' },
   sqlite3: { icon: '🗄️', name: 'SQLite3 (SQL)', cat: 'data' },
   tkinter: { icon: '🖥️', name: 'Tkinter (GUI)', cat: 'games' }
 };
@@ -630,19 +636,19 @@ async function loadEnvironmentDiagnostics() {
         DOM.envVcredistRow.style.display = 'none';
       }
 
-      // Update Lobby Packages label (11 recommended packages)
-      const totalRecommended = 11;
+      // Update Lobby Packages label (12 recommended packages with hardware)
+      const totalRecommended = data.essentialKeys ? data.essentialKeys.length : 12;
       const missingCount = data.missingCount || 0;
-      const installedCount = totalRecommended - missingCount;
+      const installedCount = Math.max(0, totalRecommended - missingCount);
 
       if (missingCount === 0) {
-        DOM.packagesCountLabel.textContent = `11/11 Listas (Pygame, NumPy, SciPy...)`;
+        DOM.packagesCountLabel.textContent = `${totalRecommended}/${totalRecommended} Listas (Pygame, NumPy, SciPy, PySerial...)`;
         DOM.packagesStatusIcon.textContent = '✓';
         DOM.packagesStatusIcon.className = 'diag-status ok';
         DOM.btnQuickInstallAll.classList.add('hidden');
-        DOM.sbPkgStatus.textContent = 'Librerías: 11/11 Listas ✓';
+        DOM.sbPkgStatus.textContent = `Librerías: ${totalRecommended}/${totalRecommended} Listas ✓`;
       } else {
-        DOM.packagesCountLabel.textContent = `⚠️ ${missingCount} Faltantes (${installedCount}/11)`;
+        DOM.packagesCountLabel.textContent = `⚠️ ${missingCount} Faltantes (${installedCount}/${totalRecommended})`;
         DOM.packagesStatusIcon.textContent = '!';
         DOM.packagesStatusIcon.className = 'diag-status warn';
         DOM.btnQuickInstallAll.classList.remove('hidden');
@@ -702,7 +708,7 @@ function renderPackagesGrid(packages, category = 'all') {
     const isInstalled = info.installed;
     const pillClass = isInstalled ? 'installed' : 'missing';
     const pillText = isInstalled ? `● Instalado (${info.version || 'OK'})` : '○ No instalado';
-    const installParam = key === 'PIL' ? 'pillow' : key;
+    const installParam = key === 'PIL' ? 'pillow' : (key === 'serial' ? 'pyserial' : key);
 
     card.innerHTML = `
       <div class="pkg-card-top">
@@ -745,18 +751,18 @@ async function installSinglePackage(pkgName) {
 
 async function installAllRecommendedPackages() {
   if (!window.electronAPI) {
-    appendPipLog('[Simulador] Paquete completo de 11 librerías instalado con éxito!\n');
+    appendPipLog('[Simulador] Paquete completo de 12 librerías instalado con éxito!\n');
     return;
   }
   DOM.modalPackageManager.classList.remove('hidden');
   DOM.btnInstallAllRecommended.disabled = true;
-  DOM.btnInstallAllRecommended.textContent = '⏳ Instalando 11 librerías recomendadas...';
+  DOM.btnInstallAllRecommended.textContent = '⏳ Instalando 12 librerías recomendadas (incluye PySerial)...';
 
   await window.electronAPI.installAllRecommended();
   await loadEnvironmentDiagnostics();
 
   DOM.btnInstallAllRecommended.disabled = false;
-  DOM.btnInstallAllRecommended.textContent = '⚡ Instalar Todas las Librerías de Examen (11 Paquetes Recomendados)';
+  DOM.btnInstallAllRecommended.textContent = '⚡ Instalar Todas las Librerías de Examen y Hardware (12 Paquetes)';
 }
 
 function appendPipLog(text) {
@@ -904,15 +910,15 @@ function setSessionMode(mode) {
     document.body.classList.add('mode-exam-active');
     if (DOM.modeCardExam) DOM.modeCardExam.classList.add('active');
     if (DOM.modeCardActivity) DOM.modeCardActivity.classList.remove('active');
-    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'COMENZAR EXAMEN AHORA';
-    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Conteo regresivo de 10 segundos y bloqueo de seguridad Kiosk';
-    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = '⚠️ NORMAS OBLIGATORIAS DE SEGURIDAD ACADÉMICA (EXAMEN)';
+    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR EXAMEN';
+    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo seguro';
+    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = 'DIRECTRICES DEL MODO EXAMEN:';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
-        <li><strong>Entorno Aislado:</strong> No hay acceso a proyectos previos ni carpetas del sistema.</li>
-        <li><strong>Modo Kiosk & Pantalla Completa:</strong> Bloqueo estricto del sistema y desconexión de Wi-Fi.</li>
-        <li><strong>Monitores:</strong> Prohibido el uso de monitores secundarios o proyectores.</li>
-        <li><strong>Entrega Final:</strong> Al entregar, el código se sellará contra copia/edición y se generará el paquete ZIP cifrado.</li>
+        <li><strong>Entorno Aislado:</strong> No hay acceso a proyectos previos ni carpetas externas del sistema.</li>
+        <li><strong>Modo Kiosk & Pantalla Completa:</strong> Bloqueo del entorno y supervisión de conectividad.</li>
+        <li><strong>Supervisión de Ventana:</strong> El cambio de aplicación o pérdida de foco registra aviso de 12 segundos.</li>
+        <li><strong>Entrega Final:</strong> Al entregar, el código queda sellado contra modificación y se genera el archivo auditado.</li>
       `;
     }
     if (DOM.btnFinishExam) {
@@ -929,15 +935,15 @@ function setSessionMode(mode) {
     document.body.classList.add('mode-activity-active');
     if (DOM.modeCardActivity) DOM.modeCardActivity.classList.add('active');
     if (DOM.modeCardExam) DOM.modeCardExam.classList.remove('active');
-    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR ACTIVIDAD / TAREA';
-    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Acceso libre a carpetas, creación de proyectos y ejecución continua';
-    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = '📘 GUÍA DE USO - MODO ACTIVIDAD Y TAREAS';
+    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR ACTIVIDAD';
+    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo libre';
+    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = 'DIRECTRICES DEL MODO ACTIVIDAD:';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
-        <li><strong>Libertad de Proyectos:</strong> Puedes abrir cualquier carpeta en tu equipo o crear nuevos proyectos Python.</li>
-        <li><strong>Sin Bloqueos:</strong> No se desconecta la red Wi-Fi ni se bloquea la pantalla completa.</li>
-        <li><strong>Ejecución Libre:</strong> Ejecuta tu código las veces que sea necesario (F5 o botón ▶ Ejecutar).</li>
-        <li><strong>Sin Límite de Tiempo:</strong> Sin cronómetro de examen ni alarmas de integridad.</li>
+        <li><strong>Gestión de Archivos:</strong> Puedes abrir cualquier carpeta en tu equipo o crear nuevos proyectos en Python.</li>
+        <li><strong>Conectividad Libre:</strong> La conexión a red permanece habilitada durante la sesión.</li>
+        <li><strong>Supervisión Académica:</strong> Se mantiene supervisión activa; al cambiar de programa se mostrará el aviso correspondiente.</li>
+        <li><strong>Ejecución Directa:</strong> Ejecuta tu código las veces que sea necesario (F5 o botón ▶ Ejecutar).</li>
       `;
     }
     if (DOM.btnFinishExam) {
@@ -1279,18 +1285,16 @@ function setupEventListeners() {
     }
   }, { passive: false });
 
-  // Window Focus / Blur fallback in browser context (ONLY if electronAPI is NOT present)
-  if (!window.electronAPI) {
-    window.addEventListener('blur', () => {
-      if (state.examSessionActive && state.appMode === 'exam' && !state.isExamSubmitted && !state.isRunning && !state.pythonGuiActive) {
-        handleSecurityViolation({
-          type: 'WINDOW_BLUR',
-          timestamp: new Date().toLocaleTimeString(),
-          durationSeconds: 1.0
-        });
-      }
-    });
-  }
+  // Window Focus / Blur: Immediate detection in active sessions (Exam or Activity)
+  window.addEventListener('blur', () => {
+    if (state.workspaceSessionActive && !state.isExamSubmitted && !state.isRunning && !state.pythonGuiActive) {
+      handleSecurityViolation({
+        type: 'WINDOW_BLUR',
+        timestamp: new Date().toLocaleTimeString(),
+        durationSeconds: 1.0
+      });
+    }
+  });
 }
 
 function setupElectronListeners() {
@@ -1352,24 +1356,27 @@ function setupElectronListeners() {
     }
   });
 
-  // Blur detected
+  // Blur detected (student switched away to another application)
   window.electronAPI.onBlurDetected((data) => {
-    if (!state.examSessionActive || state.appMode !== 'exam' || state.isExamSubmitted) return;
-    state.incidentsCount = data.totalIncidents;
+    if (!state.workspaceSessionActive || state.isExamSubmitted) return;
+    if (data && data.totalIncidents) state.incidentsCount = data.totalIncidents;
     updateIncidentsDisplay();
+    handleSecurityViolation(data || {});
   });
 
-  // Focus regained (trigger dazzling alert & sound)
+  // Focus regained (student returned to the window)
   window.electronAPI.onFocusRegained((data) => {
-    if (!state.examSessionActive || state.appMode !== 'exam' || state.isExamSubmitted) return;
-    handleSecurityViolation(data);
+    if (!state.workspaceSessionActive || state.isExamSubmitted) return;
+    if (data && data.totalIncidents) state.incidentsCount = data.totalIncidents;
+    updateIncidentsDisplay();
+    handleSecurityViolation(data || {});
   });
 
   // Python GUI window active (Pygame, Tkinter, Matplotlib, Turtle, OpenCV)
   if (window.electronAPI.onPythonGuiActive) {
     window.electronAPI.onPythonGuiActive((data) => {
       state.pythonGuiActive = true;
-      appendTerminalOutput(`\n[Entorno Gráfico Activo]: Ventana externa de Python (Pygame/GUI) abierta. Examen blindado.\n`, 'system');
+      appendTerminalOutput(`\n[Entorno Gráfico]: Ventana externa de Python activa legítimamente.\n`, 'system');
     });
   }
 
@@ -1514,6 +1521,7 @@ async function startCountdownSequence() {
 
 function enterIdeWorkspace() {
   switchView('ide');
+  state.workspaceSessionActive = true;
 
   if (state.appMode === 'exam') {
     document.body.classList.remove('mode-activity-active');
@@ -1525,7 +1533,7 @@ function enterIdeWorkspace() {
       DOM.navModeIndicator.title = 'Sesión de Examen Supervisada con Auditoría de Integridad Activa';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = 'EXAMEN BLINDADO';
+      DOM.navModeText.textContent = 'MODO EXAMEN SUPERVISADO';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.remove('hidden');
@@ -1559,7 +1567,7 @@ function enterIdeWorkspace() {
       DOM.navModeIndicator.title = 'Modo Práctica Libre: Sin bloqueos, proyectos y carpetas habilitados';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = 'ACTIVIDAD / TAREA';
+      DOM.navModeText.textContent = 'MODO ACTIVIDAD';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.add('hidden'); // Sin contador
@@ -1625,24 +1633,56 @@ function switchView(viewName) {
 // ==============================================================
 // 9. ANTI-CHEAT & SECURITY VIOLATION ENGINE
 // ==============================================================
-function handleSecurityViolation(incidentData) {
-  // CRITICAL: Alarms, penalties and sirens ONLY exist during active, unsubmitted EXAMS
-  if (!state.examSessionActive || state.appMode !== 'exam' || state.isExamSubmitted) {
+function handleSecurityViolation(incidentData = {}) {
+  // Trigger during any active workspace session (Exam or Activity) before final submission
+  if (!state.workspaceSessionActive || state.isExamSubmitted) {
     return;
   }
 
   // If Python process is actively running or GUI window (Pygame/Tkinter/Turtle) is active, do NOT alarm!
   if (state.isRunning || state.pythonGuiActive) {
-    console.log('[Anti-Cheat]: Omitiendo alarma porque Python o ventana gráfica está en ejecución.');
+    console.log('[Supervisión]: Omitiendo aviso porque Python o ventana gráfica está en ejecución.');
+    return;
+  }
+
+  // If already counting down and modal is visible, update duration without resetting the 12s countdown
+  if (state.hazardCountdownInterval && !DOM.modalFocusWarning.classList.contains('hidden')) {
+    if (incidentData && incidentData.durationSeconds) {
+      DOM.hazardDuration.textContent = `${incidentData.durationSeconds} segundos`;
+    }
     return;
   }
 
   state.incidentsCount++;
   updateIncidentsDisplay();
 
+  const isActivity = state.appMode === 'activity';
+  const titleEl = DOM.modalFocusWarning.querySelector('.academic-title');
+  const subtitleEl = DOM.modalFocusWarning.querySelector('.academic-subtitle');
+  const descEl = DOM.modalFocusWarning.querySelector('.academic-desc');
+
+  if (titleEl) {
+    titleEl.textContent = isActivity
+      ? 'Aviso de Supervisión'
+      : 'Aviso de Integridad';
+  }
+  if (subtitleEl) {
+    subtitleEl.textContent = isActivity
+      ? 'CAMBIO DE PROGRAMA DETECTADO'
+      : 'CAMBIO DE VENTANA DETECTADO';
+  }
+  if (descEl) {
+    descEl.textContent = 'Se ha detectado una salida del entorno de trabajo. La acción queda registrada.';
+  }
+  if (DOM.hazardStrobeText) {
+    DOM.hazardStrobeText.textContent = isActivity
+      ? 'AVISO DE SUPERVISIÓN'
+      : 'ALERTA DE EVALUACIÓN';
+  }
+
   // Display Academic Integrity Incident Modal
-  DOM.hazardTime.textContent = new Date().toLocaleTimeString();
-  DOM.hazardDuration.textContent = `${incidentData.durationSeconds || 1.0} segundos`;
+  DOM.hazardTime.textContent = incidentData.timestamp || new Date().toLocaleTimeString();
+  DOM.hazardDuration.textContent = `${incidentData.durationSeconds || 1.0}s`;
   DOM.hazardTotalIncidents.textContent = state.incidentsCount;
 
   // Preparar temporizador lumínico de 12 segundos para poder reanudar
@@ -1653,16 +1693,22 @@ function handleSecurityViolation(incidentData) {
     DOM.btnDismissHazard.classList.add('waiting');
   }
   if (DOM.hazardBtnLabel) {
-    DOM.hazardBtnLabel.textContent = `⏳ Espera ${remainingSeconds} segundos para poder reanudar...`;
+    DOM.hazardBtnLabel.textContent = `Espera ${remainingSeconds}s para reanudar...`;
   }
   if (DOM.hazardCountdownText) {
-    DOM.hazardCountdownText.textContent = `Alerta de Integridad • Reanudando en ${remainingSeconds}s`;
+    DOM.hazardCountdownText.textContent = `${remainingSeconds}s`;
   }
 
   DOM.modalFocusWarning.classList.remove('hidden');
   DOM.modalFocusWarning.classList.add('hazard-luminescent');
   const box = DOM.modalFocusWarning.querySelector('.modal-academic-warning-box');
   if (box) box.classList.add('luminescent-box');
+
+  // Ensure system audio is active and unmuted
+  try {
+    if (window.electronAPI && window.electronAPI.enforceAudio) window.electronAPI.enforceAudio();
+    if (window.electronAPI && window.electronAPI.beep) window.electronAPI.beep();
+  } catch (_) {}
 
   // Trigger warning sound (armónico, suave, no estridente)
   sounds.startAlarmSiren();
@@ -1675,10 +1721,10 @@ function handleSecurityViolation(incidentData) {
     remainingSeconds--;
     if (remainingSeconds > 0) {
       if (DOM.hazardCountdownText) {
-        DOM.hazardCountdownText.textContent = `Alerta de Integridad • Reanudando en ${remainingSeconds}s`;
+        DOM.hazardCountdownText.textContent = `${remainingSeconds}s`;
       }
       if (DOM.hazardBtnLabel) {
-        DOM.hazardBtnLabel.textContent = `⏳ Espera ${remainingSeconds} segundos para poder reanudar...`;
+        DOM.hazardBtnLabel.textContent = `Espera ${remainingSeconds}s para reanudar...`;
       }
     } else {
       clearInterval(state.hazardCountdownInterval);
@@ -1696,10 +1742,12 @@ function handleSecurityViolation(incidentData) {
         DOM.btnDismissHazard.classList.add('ready-to-resume');
       }
       if (DOM.hazardCountdownText) {
-        DOM.hazardCountdownText.textContent = '✓ Tiempo cumplido • Puedes reanudar tu examen';
+        DOM.hazardCountdownText.textContent = '0s';
       }
       if (DOM.hazardBtnLabel) {
-        DOM.hazardBtnLabel.textContent = '✓ Reconocer Incidencia y Reanudar Examen';
+        DOM.hazardBtnLabel.textContent = isActivity
+          ? '✓ Continuar Actividad'
+          : '✓ Reanudar Examen';
       }
     }
   }, 1000);

@@ -8,3 +8,4 @@ Consulta el documento principal de arquitectura técnica y reglas para asistente
 3. **Pantalla Completa**: Siempre activa por defecto.
 4. **Alerta**: Duración estricta de 12 segundos lumínica parpadeante con audio suave.
 5. **Verificación**: Siempre ejecutar `node -c src/main/main.js && node -c src/preload/preload.js && node -c src/renderer/app.js` antes de compilar.
+6. **Diseño Minimalista**: Cero saturación visual, sin muros de texto, paleta oscura sobria (#0f131d), lobby compacto en una sola pantalla y watchdog anti-mute en ambos modos.

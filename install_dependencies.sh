@@ -133,19 +133,21 @@ EXAM_PY="./exam_env/bin/python3"
 $EXAM_PIP install --upgrade pip --quiet
 
 # --------------------------------------------------------------------
-# 4. INSTALAR BATERÍA DE LIBRERÍAS DE NIVEL BÁSICO A INTERMEDIO (11 PAQUETES)
+# 4. INSTALAR BATERÍA DE LIBRERÍAS (BÁSICO, AVANZADO Y HARDWARE: 12 PAQUETES)
 # --------------------------------------------------------------------
-echo -e "\n${YELLOW}[4/5] Analizando e instalando 11 librerías recomendadas para exámenes...${NC}"
+echo -e "\n${YELLOW}[4/5] Analizando e instalando 12 librerías para exámenes y hardware...${NC}"
 echo -e "      (pygame, numpy, matplotlib, pandas, requests, pillow,"
-echo -e "       scipy, seaborn, openpyxl, sympy, colorama)\n"
+echo -e "       scipy, seaborn, openpyxl, sympy, colorama, pyserial)\n"
 
-PACKAGES=("pygame" "numpy" "matplotlib" "pandas" "requests" "pillow" "scipy" "seaborn" "openpyxl" "sympy" "colorama")
+PACKAGES=("pygame" "numpy" "matplotlib" "pandas" "requests" "pillow" "scipy" "seaborn" "openpyxl" "sympy" "colorama" "pyserial")
 
 for pkg in "${PACKAGES[@]}"; do
     echo -n "  * Verificando ${pkg}... "
     check_name="$pkg"
     if [ "$pkg" == "pillow" ]; then
         check_name="PIL"
+    elif [ "$pkg" == "pyserial" ]; then
+        check_name="serial"
     fi
 
     if $EXAM_PY -c "import ${check_name}" &> /dev/null; then
@@ -156,6 +158,19 @@ for pkg in "${PACKAGES[@]}"; do
         echo -e "${GREEN}    ✓ ${pkg} instalado con éxito.${NC}"
     fi
 done
+
+# Configurar permisos de hardware para Arduino, ESP32 y periféricos (Linux)
+if [ "$PKG_MGR" != "brew" ] && [ "$(id -u)" -ne 0 ]; then
+    echo -e "\n${YELLOW}[+] Configurando permisos de hardware para Arduino, ESP32 y periféricos...${NC}"
+    sudo usermod -a -G dialout,uucp,tty "$USER" 2>/dev/null || true
+    if [ -d "/etc/udev/rules.d" ]; then
+        echo 'KERNEL=="ttyUSB*", MODE="0666", GROUP="dialout"' | sudo tee /etc/udev/rules.d/99-codego-serial.rules >/dev/null 2>&1 || true
+        echo 'KERNEL=="ttyACM*", MODE="0666", GROUP="dialout"' | sudo tee -a /etc/udev/rules.d/99-codego-serial.rules >/dev/null 2>&1 || true
+        sudo udevadm control --reload-rules 2>/dev/null || true
+        sudo udevadm trigger 2>/dev/null || true
+    fi
+    echo -e "${GREEN}  ✓ Permisos de hardware (dialout/udev) listos para microcontroladores y sensores.${NC}"
+fi
 
 # --------------------------------------------------------------------
 # 5. INSTALAR DEPENDENCIAS INTERNAS & CREAR ACCESO DIRECTO

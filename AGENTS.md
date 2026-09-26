@@ -15,15 +15,21 @@ La aplicación opera bajo **dos modalidades totalmente diferenciadas**:
    - **Modo Kiosk**: La ventana se fija en pantalla completa y primer plano absoluto (`setKiosk(true)`, `setAlwaysOnTop(true)`).
    - **Desconexión Wi-Fi**: Deshabilita automáticamente las interfaces de red al iniciar y las restaura al entregar o con PIN de docente.
    - **Watchdog de Audio Anti-Mute**: Impide que el estudiante silencie el equipo para ocultar alarmas.
-   - **Alerta Lumínica de 12 Segundos**: Si el estudiante cambia de ventana o pierde el foco, se registra una incidencia, se activa un halo lumínico parpadeante y un aviso auditivo armónico que dura **12 segundos exactos** antes de permitir reanudar.
+   - **Alerta Lumínica Estroboscópica de 12 Segundos ("Flashazo Docente")**: Si el estudiante cambia de ventana o pierde el foco, se registra una incidencia, se activa un flash estroboscópico de alta intensidad (`hazard-teacher-beacon`) visible a través del aula para alertar al docente inmediatamente, junto a un aviso sonoro armónico que dura **12 segundos exactos** antes de permitir reanudar.
    - **Excepciones legítimas**: NO se alarma si se abren ventanas gráficas de Python (Pygame, Tkinter, Turtle, Matplotlib).
    - **Entrega Sellada**: Al presionar "Entregar", el código se bloquea contra modificación, copia y pegado, y se empaqueta en un archivo ZIP auditado.
 
 2. **📘 MODO ACTIVIDAD / TAREA**:
-   - **Objetivo**: Práctica libre en clase o casa, sin restricciones de seguridad.
+   - **Objetivo**: Práctica educativa en clase o casa con gestión libre de proyectos locales.
    - **Regla Inviolable**: **EL BOTÓN DE ENTREGAR EXAMEN NUNCA DEBE APARECER** (ni visible ni habilitado). Solo debe mostrarse el botón `▶ Ejecutar`.
    - **Gestión de Archivos**: Permite abrir carpetas del equipo (`Abrir Carpeta`) y crear nuevos proyectos (`Nuevo Proyecto`).
-   - **Conectividad Libre**: El Wi-Fi permanece activo y no se ejecutan alarmas de cambio de ventana.
+   - **Conectividad Libre**: El Wi-Fi permanece habilitado.
+   - **Supervisión y Anti-Mute**: Se mantiene activa la supervisión de cambio de ventana (aviso de 12 segundos) y el watchdog de audio para impedir silenciar el equipo.
+
+3. **✨ DIRECTRICES DE DISEÑO MINIMALISTA**:
+   - **Cero saturación visual**: Prohibidos los muros de texto, explicaciones redundantes y componentes sobrecargados.
+   - **Paleta sobria y contrastes nítidos**: Superficies oscuras mate (`#0f131d`), bordes sutiles de 1px y halos perimétricos limpios (sin difuminados pardos ni amarillentos).
+   - **Lobby y modales compactos**: El lobby cabe en una sola pantalla sin necesidad de scroll vertical. Los avisos constan de título conciso, 1 línea explicativa, métricas limpias y un único botón de cuenta regresiva/reanudación.
 
 ---
 
@@ -68,6 +74,7 @@ Todos los canales IPC se comunican de forma segura a través de `window.electron
 | `fs:list-workspace` | Renderer ➔ Main | Lista recursivamente los archivos del workspace activo. |
 | `fs:save-file` | Renderer ➔ Main | Guarda el contenido del archivo abierto en disco. |
 | `exam:submit` | Renderer ➔ Main | Empaqueta el código y bitácora en ZIP con sello SHA-256. |
+| `hardware:list-serial-ports` | Renderer ➔ Main | Detecta puertos COM/USB seriales conectados (Arduino, ESP32, microcontroladores). |
 
 ---
 

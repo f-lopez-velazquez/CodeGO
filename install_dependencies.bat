@@ -129,15 +129,15 @@ echo   [+] Actualizando gestor de paquetes pip...
 "!EXAM_PIP!" install --upgrade pip --quiet
 
 REM --------------------------------------------------------------------
-REM 5. INSTALAR BATERÍA COMPLETA DE LIBRERÍAS (BÁSICO A INTERMEDIO)
+REM 5. INSTALAR BATERÍA COMPLETA DE LIBRERÍAS (BÁSICO, AVANZADO Y HARDWARE: 12 PAQUETES)
 REM --------------------------------------------------------------------
 echo.
-echo [5/5] Analizando e instalando librerías para exámenes (11 paquetes)...
+echo [5/5] Analizando e instalando librerías para exámenes y hardware (12 paquetes)...
 echo       (pygame, numpy, matplotlib, pandas, requests, pillow,
-echo        scipy, seaborn, openpyxl, sympy, colorama)
+echo        scipy, seaborn, openpyxl, sympy, colorama, pyserial)
 echo.
 
-set PACKAGES=pygame numpy matplotlib pandas requests pillow scipy seaborn openpyxl sympy colorama
+set PACKAGES=pygame numpy matplotlib pandas requests pillow scipy seaborn openpyxl sympy colorama pyserial
 
 for %%p in (!PACKAGES!) do (
     <nul set /p="  * Verificando %%p... "
@@ -149,6 +149,15 @@ for %%p in (!PACKAGES!) do (
             "!EXAM_PY!" -c "import PIL" >nul 2>nul
             if !errorlevel! equ 0 (
                 echo [OK] PIL ya instalada.
+            ) else (
+                echo [DESCARGANDO]
+                "!EXAM_PIP!" install %%p --quiet
+                echo     ✓ %%p instalada correctamente.
+            )
+        ) else if "%%p"=="pyserial" (
+            "!EXAM_PY!" -c "import serial" >nul 2>nul
+            if !errorlevel! equ 0 (
+                echo [OK] serial ya instalada.
             ) else (
                 echo [DESCARGANDO]
                 "!EXAM_PIP!" install %%p --quiet

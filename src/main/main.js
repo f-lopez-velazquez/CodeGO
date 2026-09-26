@@ -89,6 +89,7 @@ const pythonRunner = new PythonRunner({
 let activePipProcess = null;
 let installationBusy = false;
 let isKioskActive = false;
+let activeSessionMode = null; // 'exam', 'activity', or null
 let blurStartTime = null;
 let securityAuditLog = [];
 let monitorWatchdogTimer = null;
@@ -130,10 +131,10 @@ function startAudioWatchdog() {
   stopAudioWatchdog();
   enforceSystemAudioUnmute(0.85);
   audioWatchdogInterval = setInterval(() => {
-    if (isKioskActive) {
+    if (activeSessionMode) {
       enforceSystemAudioUnmute(0.85);
     }
-  }, 1500);
+  }, 1000);
 }
 
 function stopAudioWatchdog() {
@@ -338,6 +339,7 @@ packages = {
     "openpyxl": "Lectura y escritura de hojas Excel",
     "sympy": "Matemáticas simbólicas y álgebra",
     "colorama": "Colores y estilos de terminal",
+    "serial": "Comunicación serial con Arduino, ESP32 y periféricos (pyserial)",
     "sqlite3": "Base de datos SQL estándar",
     "tkinter": "Interfaces gráficas de usuario (GUI)"
 }
@@ -404,6 +406,7 @@ print("___CODEGO_PACKAGES_END___")
     openpyxl: { installed: false, version: null, desc: 'Lectura y escritura de hojas Excel' },
     sympy: { installed: false, version: null, desc: 'Matemáticas simbólicas y álgebra' },
     colorama: { installed: false, version: null, desc: 'Colores y estilos de terminal' },
+    serial: { installed: false, version: null, desc: 'Comunicación serial con Arduino, ESP32 y periféricos' },
     sqlite3: { installed: false, version: null, desc: 'Base de datos SQL estándar' },
     tkinter: { installed: false, version: null, desc: 'Interfaces gráficas de usuario' }
   };
@@ -454,12 +457,12 @@ function createMainWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
-  // Handle window focus and blur for anti-cheat (strictly only when exam kiosk is active)
+  // Handle window focus and blur for supervision (active in both Exam and Activity sessions)
   let blurWhilePythonRunning = false;
 
   mainWindow.on('blur', () => {
-    // Under no circumstances trigger blur detection if exam kiosk is not running
-    if (!isKioskActive) return;
+    // Only detect blur when a session is active in the workspace (Exam or Activity)
+    if (!activeSessionMode) return;
 
     // Check if Python child process is actively running (e.g. Pygame, Tkinter, Matplotlib, Turtle, OpenCV window)
     if (activeProcess && !activeProcess.killed) {
@@ -474,11 +477,29 @@ function createMainWindow() {
 
     blurWhilePythonRunning = false;
     blurStartTime = Date.now();
+    enforceSystemAudioUnmute(0.95);
+
+    const incident = logSecurityIncident('WINDOW_BLUR', {
+      mode: activeSessionMode,
+      message: activeSessionMode === 'exam'
+        ? 'Se detectó cambio de ventana durante el examen.'
+        : 'Se detectó cambio de ventana durante la actividad.',
+      timestamp: new Date().toLocaleTimeString()
+    });
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('security:blur-detected', {
+        incident,
+        mode: activeSessionMode,
+        totalIncidents: securityAuditLog.length,
+        durationSeconds: 1.0
+      });
+    }
   });
 
   mainWindow.on('focus', () => {
-    // Under no circumstances trigger focus penalty if exam kiosk is not running
-    if (!isKioskActive) return;
+    // Only handle refocus when a session is active
+    if (!activeSessionMode) return;
 
     // If focus was lost to a Python GUI window and returned, ignore penalty
     if (blurWhilePythonRunning) {
@@ -486,21 +507,19 @@ function createMainWindow() {
       return;
     }
 
-    if (!blurStartTime) return;
-
-    const durationSeconds = ((Date.now() - blurStartTime) / 1000).toFixed(1);
+    const durationSeconds = blurStartTime
+      ? ((Date.now() - blurStartTime) / 1000).toFixed(1)
+      : '1.0';
     blurStartTime = null;
-
-    // Filter out micro-blurs (falsos positivos transitorios del compositor de ventanas o del OS < 1.2s)
-    if (parseFloat(durationSeconds) < 1.2) {
-      return;
-    }
 
     enforceSystemAudioUnmute(0.95);
     try { shell.beep(); } catch (_) {}
 
     const incident = logSecurityIncident('WINDOW_REFOCUS', {
-      message: `El estudiante regresó al examen tras ${durationSeconds} segundos fuera.`,
+      mode: activeSessionMode,
+      message: activeSessionMode === 'exam'
+        ? `El estudiante regresó al examen tras ${durationSeconds} segundos fuera.`
+        : `El estudiante regresó a la actividad tras ${durationSeconds} segundos fuera.`,
       durationSeconds: parseFloat(durationSeconds)
     });
 
@@ -508,7 +527,8 @@ function createMainWindow() {
       mainWindow.webContents.send('security:focus-regained', {
         incident,
         durationSeconds: parseFloat(durationSeconds),
-        totalIncidents: securityAuditLog.length
+        totalIncidents: securityAuditLog.length,
+        mode: activeSessionMode
       });
     }
   });
@@ -652,7 +672,7 @@ function setupIpcHandlers() {
 
     const essentialKeys = [
       'pygame', 'numpy', 'matplotlib', 'pandas', 'requests', 'PIL',
-      'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama'
+      'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama', 'serial'
     ];
     const missingKeys = essentialKeys.filter((k) => !packages[k] || !packages[k].installed);
 
@@ -792,14 +812,14 @@ function setupIpcHandlers() {
       emitProgress(3, 4, 'Entorno virtual configurado ✓', 70, `>>> [3/4] Entorno virtual listo en: ${targetVenv}\n`);
 
       // ---------------------------------------------------------------
-      // ETAPA 4: Instalar las 11 Librerías de Nivel Básico a Intermedio
+      // ETAPA 4: Instalar las 12 Librerías de Nivel Básico a Avanzado y Hardware
       // ---------------------------------------------------------------
       const allPackages = [
         'pygame', 'numpy', 'matplotlib', 'pandas', 'requests', 'pillow',
-        'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama'
+        'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama', 'pyserial'
       ];
 
-      emitProgress(4, 4, 'Instalando 11 librerías para exámenes...', 75, `>>> [4/4] Instalando paquete completo:\n    ${allPackages.join(', ')}\n\n`);
+      emitProgress(4, 4, 'Instalando 12 librerías para exámenes y hardware...', 75, `>>> [4/4] Instalando paquete completo:\n    ${allPackages.join(', ')}\n\n`);
 
       const pipArgs = ['-m', 'pip', 'install', '--upgrade', ...allPackages];
 
@@ -821,7 +841,7 @@ function setupIpcHandlers() {
       });
 
       if (pipExitCode !== 0) throw new Error(`pip terminó con código ${pipExitCode}. Revisa el registro y vuelve a intentarlo.`);
-      emitProgress(4, 4, '¡Entorno y Librerías 100% Configurados! ✓', 100, '\n======================================================\n>>> ¡ÉXITO! Visual C++, Python 3 y las 11 librerías están listas para el examen.\n======================================================\n');
+      emitProgress(4, 4, '¡Entorno y Librerías 100% Configurados! ✓', 100, '\n======================================================\n>>> ¡ÉXITO! Visual C++, Python 3 y las 12 librerías (incluyendo Arduino/PySerial) están listas para el examen.\n======================================================\n');
 
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('setup:finished', { success: true });
@@ -846,7 +866,7 @@ function setupIpcHandlers() {
     }
 
     if (typeof packageName !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*(?:==[a-zA-Z0-9.+_-]+)?$/.test(packageName)) return { success: false, error: 'Indica un nombre de paquete válido, opcionalmente con ==versión.' };
-    const pkgToInstall = packageName === 'PIL' ? 'pillow' : packageName;
+    const pkgToInstall = packageName === 'PIL' ? 'pillow' : (packageName === 'serial' ? 'pyserial' : packageName);
     const pythonInfo = resolvePythonBinary();
     const isWin = process.platform === 'win32';
     const targetVenv = resolveVenvDirectory();
@@ -902,7 +922,7 @@ function setupIpcHandlers() {
     });
   });
 
-  // Batch install all 11 recommended intermediate libraries
+  // Batch install all 12 recommended libraries (including hardware pyserial)
   handle('system:install-all-recommended', async () => {
     if (isKioskActive || workspaceSealed) return { success: false, error: 'Las instalaciones se realizan fuera del examen.' };
     if (activePipProcess) {
@@ -911,11 +931,11 @@ function setupIpcHandlers() {
 
     const recommended = [
       'pygame', 'numpy', 'matplotlib', 'pandas', 'requests', 'pillow',
-      'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama'
+      'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama', 'pyserial'
     ];
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('pip:log', `\n======================================================\n`);
-      mainWindow.webContents.send('pip:log', `>>> Instalando paquete completo de 11 librerías para exámenes...\n`);
+      mainWindow.webContents.send('pip:log', `>>> Instalando paquete completo de 12 librerías para exámenes y hardware...\n`);
       mainWindow.webContents.send('pip:log', `    (${recommended.join(', ')})\n`);
       mainWindow.webContents.send('pip:log', `======================================================\n`);
     }
@@ -949,7 +969,7 @@ function setupIpcHandlers() {
           activePipProcess = null;
           const success = code === 0;
           if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('pip:log', success ? `\n>>> ¡Todas las 11 librerías se instalaron exitosamente! ✓\n` : `\n>>> Finalizado con código de salida: ${code}\n`);
+            mainWindow.webContents.send('pip:log', success ? `\n>>> ¡Todas las 12 librerías se instalaron exitosamente! ✓\n` : `\n>>> Finalizado con código de salida: ${code}\n`);
             mainWindow.webContents.send('pip:finished', {
               packageName: 'all',
               success,
@@ -973,6 +993,102 @@ function setupIpcHandlers() {
     });
   });
 
+  // Enumerar puertos de hardware y microcontroladores (Arduino, ESP32, Raspberry Pi, etc.)
+  handle('hardware:list-serial-ports', async () => {
+    const ports = [];
+    // 1. Intentar vía Python con pyserial si está disponible
+    try {
+      const pythonInfo = resolvePythonBinary();
+      if (pythonInfo.installed) {
+        const targetVenv = resolveVenvDirectory();
+        const execPy = ensurePythonEnvironment({ command: pythonInfo.command, directory: targetVenv });
+        const pyCode = `import json, sys
+try:
+    import serial.tools.list_ports
+    comports = serial.tools.list_ports.comports()
+    data = []
+    for p in comports:
+        data.append({
+            "path": p.device,
+            "name": p.name or p.device,
+            "description": p.description or "",
+            "hwid": p.hwid or "",
+            "manufacturer": getattr(p, "manufacturer", "") or "",
+            "vendorId": getattr(p, "vid", None),
+            "productId": getattr(p, "pid", None)
+        })
+    print("___SERIAL_DATA_START___" + json.dumps(data) + "___SERIAL_DATA_END___")
+except Exception:
+    print("___SERIAL_DATA_START___[]___SERIAL_DATA_END___")
+`;
+        const raw = execFileSync(execPy, ['-c', pyCode], {
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+          timeout: 4000
+        });
+        const s = raw.indexOf('___SERIAL_DATA_START___');
+        const e = raw.indexOf('___SERIAL_DATA_END___');
+        if (s !== -1 && e !== -1) {
+          const jsonStr = raw.substring(s + '___SERIAL_DATA_START___'.length, e).trim();
+          const parsed = JSON.parse(jsonStr);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return { success: true, ports: parsed };
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 2. Fallback nativo según el Sistema Operativo
+    try {
+      if (process.platform === 'linux') {
+        const devFiles = fs.readdirSync('/dev');
+        devFiles.forEach(file => {
+          if (file.startsWith('ttyUSB') || file.startsWith('ttyACM') || file.startsWith('ttyAMA') || file.startsWith('rfcomm')) {
+            ports.push({
+              path: `/dev/${file}`,
+              name: file,
+              description: file.startsWith('ttyUSB') ? 'Dispositivo Serial USB (Arduino / ESP32)' : 'Puerto Serial / Microcontrolador',
+              hwid: `/dev/${file}`,
+              manufacturer: 'USB-Serial Controller'
+            });
+          }
+        });
+      } else if (process.platform === 'darwin') {
+        const devFiles = fs.readdirSync('/dev');
+        devFiles.forEach(file => {
+          if (file.startsWith('cu.usb') || file.startsWith('tty.usb') || file.startsWith('cu.wch') || file.startsWith('cu.SLAB')) {
+            ports.push({
+              path: `/dev/${file}`,
+              name: file,
+              description: 'Dispositivo Serial USB / Placa de desarrollo',
+              hwid: `/dev/${file}`,
+              manufacturer: 'USB-Serial'
+            });
+          }
+        });
+      } else if (process.platform === 'win32') {
+        try {
+          const output = execSync('powershell -NoProfile -Command "[System.IO.Ports.SerialPort]::GetPortNames()"', {
+            encoding: 'utf-8',
+            timeout: 3000
+          });
+          const lines = output.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          lines.forEach(com => {
+            ports.push({
+              path: com,
+              name: com,
+              description: `Puerto Serial (${com})`,
+              hwid: com,
+              manufacturer: 'COM Port'
+            });
+          });
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    return { success: true, ports };
+  });
+
   // Start Kiosk Lockdown or Activity Mode
   handle('security:start-kiosk', async (event, studentData) => {
     if (isKioskActive) return { success: false, error: 'El examen ya está activo.' };
@@ -981,7 +1097,8 @@ function setupIpcHandlers() {
 
     if (isActivity) {
       isKioskActive = false;
-      stopAudioWatchdog();
+      activeSessionMode = 'activity';
+      startAudioWatchdog();
       logSecurityIncident('ACTIVITY_MODE_STARTED', {
         student: studentData,
         startTime: new Date().toISOString()
@@ -991,6 +1108,11 @@ function setupIpcHandlers() {
         mainWindow.setKiosk(false);
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
+        try {
+          globalShortcut.registerAll(['VolumeMute', 'VolumeDown'], () => {
+            enforceSystemAudioUnmute(0.95);
+          });
+        } catch (_) {}
       }
 
       return { success: true, mode: 'activity' };
@@ -1010,6 +1132,7 @@ function setupIpcHandlers() {
       return { success: false, error: `No se inició el examen: ${wifiResult.error}` };
     }
     isKioskActive = true;
+    activeSessionMode = 'exam';
     securityAuditLog = []; // Reset for this student session
 
     // Wi-Fi was verified before activating the protected session.
@@ -1047,6 +1170,7 @@ function setupIpcHandlers() {
   handle('security:exit-kiosk', async (event, enteredPin) => {
     if (enteredPin === teacherPin) {
       isKioskActive = false;
+      activeSessionMode = null;
       stopAudioWatchdog();
       enableSystemWifi();
 
@@ -1302,6 +1426,7 @@ function setupIpcHandlers() {
 
       // Release kiosk mode and re-enable Wi-Fi after submission
       isKioskActive = false;
+      activeSessionMode = null;
       stopAudioWatchdog();
       enableSystemWifi();
 
