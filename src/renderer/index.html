@@ -565,13 +565,13 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
   <!-- ============================================================== -->
   <!-- 3.5. MODAL DE AUTO-INSTALADOR / REPARADOR DE ENTORNO EN 1 CLIC -->
   <!-- ============================================================== -->
-  <div id="modal-auto-installer" class="modal-overlay hidden">
+  <div id="modal-auto-installer" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="environment-setup-title">
     <div class="dialog-card auto-installer-card">
       <div class="dialog-header">
         <span class="dialog-icon">⚡</span>
         <div>
-          <h3>Instalador Automatizado de Entorno y Librerías</h3>
-          <p class="dialog-desc">Descarga, configura e instala automáticamente los componentes faltantes para que el examen funcione al 100%.</p>
+          <h3 id="environment-setup-title">Preparando CodeGO en este equipo</h3>
+          <p class="dialog-desc">La primera apertura prepara un Python compatible, instala las librerías y ejecuta micropruebas. CodeGO se habilita únicamente al llegar al 100 %.</p>
         </div>
       </div>
 
@@ -591,8 +591,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <div class="installer-step-item" id="step-item-vc">
           <div class="step-num">1</div>
           <div class="step-details">
-            <div class="step-title">Microsoft Visual C++ 2015-2022 (x64)</div>
-            <div class="step-sub">Descarga e instalación silenciosa oficial desde Microsoft (necesario para Pygame/NumPy)</div>
+            <div class="step-title">Requisitos del sistema</div>
+            <div class="step-sub">Arquitectura de 64 bits y Microsoft Visual C++ en Windows</div>
           </div>
           <div class="step-badge pending" id="step-badge-vc">Pendiente</div>
         </div>
@@ -600,8 +600,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <div class="installer-step-item" id="step-item-py">
           <div class="step-num">2</div>
           <div class="step-details">
-            <div class="step-title">Intérprete Python 3.12 Oficial (64-bit)</div>
-            <div class="step-sub">Descarga de python.org, configuración de PATH y gestor pip</div>
+            <div class="step-title">Python compatible y entorno aislado</div>
+            <div class="step-sub">Python 3.12 o 3.13 de 64 bits; Python 3.14 no se usa para Pygame</div>
           </div>
           <div class="step-badge pending" id="step-badge-py">Pendiente</div>
         </div>
@@ -609,8 +609,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <div class="installer-step-item" id="step-item-venv">
           <div class="step-num">3</div>
           <div class="step-details">
-            <div class="step-title">Entorno Virtual Aislado (exam_env)</div>
-            <div class="step-sub">Espacio seguro de ejecución para el examen con herencia de librerías del sistema</div>
+            <div class="step-title">Librerías educativas</div>
+            <div class="step-sub">Paquetes precompilados y versionados, uno por uno, sin compilaciones incompletas</div>
           </div>
           <div class="step-badge pending" id="step-badge-venv">Pendiente</div>
         </div>
@@ -618,8 +618,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <div class="installer-step-item" id="step-item-libs">
           <div class="step-num">4</div>
           <div class="step-details">
-            <div class="step-title">12 Librerías de Nivel Básico a Avanzado y Hardware</div>
-            <div class="step-sub">Pygame, NumPy, Matplotlib, Pandas, Requests, Pillow, SciPy, Seaborn, OpenPyXL, SymPy, Colorama, PySerial</div>
+            <div class="step-title">Micropruebas del equipo</div>
+            <div class="step-sub">Importaciones, Pygame, cálculo, gráficas, archivos, serial virtual, HTTP y entrada UTF-8</div>
           </div>
           <div class="step-badge pending" id="step-badge-libs">Pendiente</div>
         </div>
@@ -637,9 +637,10 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       </div>
 
       <div class="dialog-buttons">
-        <button type="button" id="btn-close-auto-installer" class="btn-ghost">Cerrar</button>
-        <button type="button" id="btn-finish-auto-installer" class="btn-primary hidden">¡Todo Listo! Continuar al Examen</button>
+        <button type="button" id="btn-close-auto-installer" class="btn-ghost hidden">Reintentar preparación</button>
+        <button type="button" id="btn-finish-auto-installer" class="btn-primary hidden">Entrar a CodeGO</button>
       </div>
+      <p class="setup-credits">by zolvek.com.mx · Programado por Francisco López Velázquez.</p>
     </div>
   </div>
 
@@ -653,7 +654,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <span class="dialog-icon">📦</span>
         <div>
           <h3>Gestor de Librerías de Python & Entorno</h3>
-          <p class="dialog-desc">Verifica e instala la batería completa de 12 librerías recomendadas (Pygame, NumPy, SciPy, PySerial...) o agrega cualquier paquete de PyPI.</p>
+          <p class="dialog-desc">Verifica y repara el entorno aislado con 25 librerías versionadas, micropruebas reales y paquetes precompilados compatibles.</p>
         </div>
       </div>
 
@@ -672,7 +673,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <!-- Botón de Instalación Masiva -->
       <div class="batch-install-bar">
         <button type="button" id="btn-install-all-recommended" class="btn-primary-glow">
-          ⚡ Instalar Batería Completa de Librerías (12 Paquetes con Hardware)
+          ⚡ Verificar y reparar las 25 librerías
         </button>
       </div>
 

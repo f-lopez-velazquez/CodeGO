@@ -1,4 +1,4 @@
-name: Build & Release v1.0.0
+name: Build & Release CodeGO
 
 on:
   push:
@@ -17,7 +17,11 @@ permissions:
   contents: write
 
 jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+
   build:
+    needs: verify
     name: Build — ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -26,7 +30,7 @@ jobs:
           - { os: ubuntu-22.04,    platform: linux,  artifact: linux }
           - { os: windows-2022,    platform: win32,  artifact: win }
           - { os: macos-14,        platform: darwin, artifact: mac-arm64 }
-          - { os: macos-13,        platform: darwin, artifact: mac-x64 }
+          - { os: macos-15-intel,  platform: darwin, artifact: mac-x64 }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -42,6 +46,10 @@ jobs:
           python-version: '3.12'
 
       - run: npm ci
+
+      - name: Install Linux runtime libraries
+        if: matrix.platform == 'linux'
+        run: npx playwright install-deps chromium
 
       # ---------- Linux ----------
       - name: Build Linux (AppImage + tar.gz)
@@ -63,16 +71,19 @@ jobs:
           ARCH=$([[ "${{ matrix.artifact }}" == "mac-arm64" ]] && echo "arm64" || echo "x64")
           npx electron-builder --mac dmg zip --$ARCH
 
-      # ---------- Upload artifacts ----------
+      - name: Test packaged application
+        run: npm run test:packaged
+
+      - name: Install or extract deliverable and test it
+        run: node scripts/installer-smoke.cjs
+
+      - name: Assemble normalized downloads and checksums
+        run: node scripts/prepare-downloads.cjs
+
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.artifact }}
-          path: |
-            dist/*.AppImage
-            dist/*.tar.gz
-            dist/*.exe
-            dist/*.dmg
-            dist/*.zip
+          path: downloads/
           if-no-files-found: error
           retention-days: 7
 
@@ -93,7 +104,7 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           cd release-assets
-          sha256sum *.AppImage *.tar.gz *.exe *.dmg *.zip 2>/dev/null > SHA256SUMS.txt || true
+          cat SHA256SUMS-*.txt > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Create GitHub Release
@@ -119,7 +130,7 @@ jobs:
           | Windows portable | \`CodeGO-${VERSION}-portable-x64.exe\` | Sin instalación |
           | macOS Apple Silicon | \`CodeGO-${VERSION}-mac-arm64.dmg\` | macOS 13+ |
           | macOS Intel | \`CodeGO-${VERSION}-mac-x64.dmg\` | macOS 13+ |
-          | Linux | \`CodeGO-${VERSION}-linux-x86_64.AppImage\` | Cualquier distro |
+          | Linux | \`CodeGO-${VERSION}-linux-x64.AppImage\` | Linux x64 compatible |
 
           Ver \`SHA256SUMS.txt\` para verificar integridad.
 

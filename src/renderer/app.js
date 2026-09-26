@@ -131,6 +131,8 @@ const state = {
   pythonGuiActive: false,
   pythonInfo: null,
   environmentInfo: null,
+  environmentReady: false,
+  environmentSetupRequired: false,
   monitorsCount: 1,
   autoSaveTimeout: null,
   zoomFactor: 1.0,
@@ -844,30 +846,20 @@ function renderPackagesGrid(packages, category = 'all') {
 
 async function installSinglePackage(pkgName) {
   if (!window.electronAPI) {
-    appendPipLog(`[Simulador] Instalando ${pkgName}... Listo!\n`);
+    appendPipLog(`[Simulador] Reparando ${pkgName} y verificando el entorno completo... Listo.\n`);
     return;
   }
-  appendPipLog(`\n>>> Iniciando instalación de ${pkgName}...\n`);
-  DOM.modalPackageManager.classList.remove('hidden');
-
-  await window.electronAPI.installPackage(pkgName);
-  await loadEnvironmentDiagnostics();
+  DOM.modalPackageManager.classList.add('hidden');
+  await startAutoRepairProcess();
 }
 
 async function installAllRecommendedPackages() {
   if (!window.electronAPI) {
-    appendPipLog('[Simulador] Paquete completo de 12 librerías instalado con éxito!\n');
+    appendPipLog('[Simulador] Entorno completo de 25 librerías verificado con éxito.\n');
     return;
   }
-  DOM.modalPackageManager.classList.remove('hidden');
-  DOM.btnInstallAllRecommended.disabled = true;
-  DOM.btnInstallAllRecommended.textContent = '⏳ Instalando 12 librerías recomendadas (incluye PySerial)...';
-
-  await window.electronAPI.installAllRecommended();
-  await loadEnvironmentDiagnostics();
-
-  DOM.btnInstallAllRecommended.disabled = false;
-  DOM.btnInstallAllRecommended.textContent = '⚡ Instalar Todas las Librerías de Examen y Hardware (12 Paquetes)';
+  DOM.modalPackageManager.classList.add('hidden');
+  await startAutoRepairProcess();
 }
 
 function appendPipLog(text) {
@@ -883,8 +875,12 @@ function appendPipLog(text) {
 // Auto-Installer Pipeline Helpers
 async function startAutoRepairProcess() {
   state.isInternalModalOpen = true;
+  state.environmentSetupRequired = true;
+  state.environmentReady = false;
+  document.body.classList.add('environment-setup-required');
   DOM.modalAutoInstaller.classList.remove('hidden');
   DOM.btnFinishAutoInstaller.classList.add('hidden');
+  DOM.btnCloseAutoInstaller.classList.add('hidden');
   DOM.installerProgressBar.style.width = '5%';
   DOM.installerPercentLabel.textContent = '5%';
   DOM.installerCurrentStepLabel.textContent = 'Iniciando análisis del sistema y descarga de dependencias...';
@@ -892,11 +888,18 @@ async function startAutoRepairProcess() {
 
   resetAutoInstallerSteps();
 
-  if (window.electronAPI && window.electronAPI.autoInstallAllPrerequisites) {
+  if (window.electronAPI?.prepareEnvironment) {
     try {
-      await window.electronAPI.autoInstallAllPrerequisites();
+      const result = await window.electronAPI.prepareEnvironment();
+      if (!result.success) {
+        DOM.btnCloseAutoInstaller.textContent = 'Reintentar preparación';
+        DOM.btnCloseAutoInstaller.classList.remove('hidden');
+      }
     } catch (e) {
       appendInstallerLog(`\nError en auto-instalador: ${e.message}\n`);
+      DOM.installerCurrentStepLabel.textContent = 'No se completó la preparación';
+      DOM.btnCloseAutoInstaller.textContent = 'Reintentar preparación';
+      DOM.btnCloseAutoInstaller.classList.remove('hidden');
     }
   } else {
     // Simulator fallback
@@ -1001,6 +1004,17 @@ async function initApp() {
     try {
       await window.electronAPI.setFullScreen(true);
     } catch (_) {}
+  }
+
+  if (window.electronAPI?.getEnvironmentStatus) {
+    const status = await window.electronAPI.getEnvironmentStatus();
+    state.environmentReady = status.ready === true;
+    if (!state.environmentReady) {
+      await startAutoRepairProcess();
+      return;
+    }
+  } else {
+    state.environmentReady = true;
   }
 
   await loadEnvironmentDiagnostics();
@@ -1227,16 +1241,18 @@ function setupEventListeners() {
     DOM.btnAutoRepairAll.addEventListener('click', startAutoRepairProcess);
   }
   if (DOM.btnCloseAutoInstaller) {
-    DOM.btnCloseAutoInstaller.addEventListener('click', () => {
-      DOM.modalAutoInstaller.classList.add('hidden');
-      state.isInternalModalOpen = false;
-    });
+    DOM.btnCloseAutoInstaller.addEventListener('click', () => startAutoRepairProcess());
   }
   if (DOM.btnFinishAutoInstaller) {
     DOM.btnFinishAutoInstaller.addEventListener('click', async () => {
       DOM.modalAutoInstaller.classList.add('hidden');
       state.isInternalModalOpen = false;
+      state.environmentSetupRequired = false;
+      state.environmentReady = true;
+      document.body.classList.remove('environment-setup-required');
       await loadEnvironmentDiagnostics();
+      startWifiMonitoring();
+      checkUpdatesSilently();
     });
   }
   if (DOM.btnClearInstallerLog) {
@@ -1579,8 +1595,10 @@ function setupEventListeners() {
         state.isInternalModalOpen = false;
       }
       if (DOM.modalAutoInstaller && !DOM.modalAutoInstaller.classList.contains('hidden')) {
-        DOM.modalAutoInstaller.classList.add('hidden');
-        state.isInternalModalOpen = false;
+        if (!state.environmentSetupRequired) {
+          DOM.modalAutoInstaller.classList.add('hidden');
+          state.isInternalModalOpen = false;
+        }
       }
     }
   });
@@ -1624,12 +1642,17 @@ function setupElectronListeners() {
       DOM.installerProgressBar.style.width = '100%';
       DOM.installerPercentLabel.textContent = '100%';
       DOM.installerCurrentStepLabel.textContent = '¡Entorno 100% Configurado y Validado!';
-      updateAutoInstallerStep(5, DOM.stepItemLibs, DOM.stepBadgeLibs, 5);
+      updateAutoInstallerStep(4, DOM.stepItemLibs, DOM.stepBadgeLibs, 5);
+      DOM.btnCloseAutoInstaller.classList.add('hidden');
       DOM.btnFinishAutoInstaller.classList.remove('hidden');
+      state.environmentReady = true;
       await loadEnvironmentDiagnostics();
     } else {
+      state.environmentReady = false;
       DOM.installerCurrentStepLabel.textContent = `Error: ${result.error || 'Fallo en la instalación'}`;
       appendInstallerLog(`\n>>> Error en el proceso: ${result.error}\n`);
+      DOM.btnCloseAutoInstaller.textContent = 'Reintentar preparación';
+      DOM.btnCloseAutoInstaller.classList.remove('hidden');
     }
   });
 
@@ -1693,6 +1716,10 @@ function setupElectronListeners() {
 // 8. EXAM & ACTIVITY FLOW: START & TRANSITION
 // ==============================================================
 async function handleStartExamClick() {
+  if (!state.environmentReady && window.electronAPI?.getEnvironmentStatus) {
+    await startAutoRepairProcess();
+    return;
+  }
   const name = DOM.studentNameInput.value.trim();
   const id = DOM.studentIdInput.value.trim();
   const subject = DOM.examSubjectInput.value.trim() || (state.appMode === 'exam' ? 'Examen de Programación' : 'Actividad Práctica');

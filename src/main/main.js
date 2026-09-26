@@ -12,6 +12,7 @@ const { createSubmission } = require('./submission');
 const { runSelfTest } = require('./self-test');
 const { createWifiControl } = require('./wifi-control');
 const { ensurePythonEnvironment } = require('./python-environment');
+const environmentSetup = require('./environment-setup');
 const updater = require('./updater');
 const wifiControl = createWifiControl();
 
@@ -108,6 +109,8 @@ const pythonRunner = new PythonRunner({
 });
 let activePipProcess = null;
 let installationBusy = false;
+const preparedEnvironmentDirectory = path.join(app.getPath('userData'), 'codego-runtime');
+let environmentReady = diagnosticMode || environmentSetup.environmentStatus(preparedEnvironmentDirectory).ready;
 let isKioskActive = false;
 let activeSessionMode = null; // 'exam', 'activity', or null
 let blurStartTime = null;
@@ -215,6 +218,21 @@ function resolvePythonBinary() {
   const isWin = process.platform === 'win32';
   const venvBinaryName = isWin ? 'Scripts/python.exe' : 'bin/python3';
   const pipBinaryName = isWin ? 'Scripts/pip.exe' : 'bin/pip';
+
+  // The verified CodeGO runtime always wins over PATH and old project venvs.
+  const prepared = environmentSetup.environmentStatus(preparedEnvironmentDirectory);
+  if (prepared.ready) {
+    const venvDir = path.dirname(path.dirname(prepared.command));
+    return {
+      installed: true,
+      command: prepared.command,
+      version: prepared.report.python.version,
+      pip: path.join(venvDir, pipBinaryName),
+      isVenv: true,
+      venvDir,
+      verified: true
+    };
+  }
 
   // 1. Check resolved venv directory
   const venvDir = resolveVenvDirectory();
@@ -342,6 +360,18 @@ function checkWindowsVCRedist() {
 
 // Inspect installed packages in Python
 function inspectPythonPackages(pythonCmd) {
+  try {
+    const raw = execFileSync(pythonCmd, ['-I', '-'], {
+      input: environmentSetup.inspectScript(),
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 180000,
+      env: { ...process.env, PYTHONNOUSERSITE: '1', PYGAME_HIDE_SUPPORT_PROMPT: '1' }
+    });
+    return environmentSetup.parseResult(raw);
+  } catch (error) {
+    console.warn('No se pudo inspeccionar el manifiesto completo:', error.message);
+  }
   const code = `
 import os, sys, warnings, json
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
@@ -661,6 +691,137 @@ function startMonitorWatchdog() {
   monitorWatchdogTimer = setInterval(check, 2000);
 }
 
+function sendSetupEvent(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
+}
+
+const PORTABLE_PYTHON_RELEASE = '20260924';
+const PORTABLE_PYTHON = {
+  'darwin-arm64': {
+    file: 'cpython-3.13.15+20260924-aarch64-apple-darwin-install_only_stripped.tar.gz',
+    sha256: '064afb7c2fc0bbf511d886288adf98696af5105e36c138cdf2c199c0146fcf68'
+  },
+  'darwin-x64': {
+    file: 'cpython-3.13.15+20260924-x86_64-apple-darwin-install_only_stripped.tar.gz',
+    sha256: '327814efd865a0b6a99c149b12a261e9d0ad409183515c745d41bda2d07282e9'
+  },
+  'linux-arm64': {
+    file: 'cpython-3.13.15+20260924-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz',
+    sha256: '5ad58156cbec94e5643c13caa792e92df72a23f33d3a6425d4cbff5c4b7a040c'
+  },
+  'linux-x64': {
+    file: 'cpython-3.13.15+20260924-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz',
+    sha256: 'd0b640eed27fbdd6f5f2bd33444aee53df2c8863f8b2a96f4094717411e3de9c'
+  }
+};
+
+async function installPortablePython(onProgress) {
+  const artifact = PORTABLE_PYTHON[`${process.platform}-${process.arch}`];
+  if (!artifact) throw new Error(`No existe un runtime automático para ${process.platform} ${process.arch}.`);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-python-'));
+  try {
+    const archive = path.join(directory, artifact.file);
+    const extractDirectory = path.join(directory, 'extract');
+    fs.mkdirSync(extractDirectory);
+    const url = `https://github.com/astral-sh/python-build-standalone/releases/download/${PORTABLE_PYTHON_RELEASE}/${encodeURIComponent(artifact.file)}`;
+    onProgress(8, 'Descargando Python 3.13.15 portátil…', 'No se encontró Python 3.12/3.13 compatible; CodeGO preparará su propio runtime aislado.\n');
+    await downloadFileWithRedirects(url, archive, percent => onProgress(8 + Math.round(percent * 0.08), `Descargando Python compatible (${percent} %)…`));
+    const actual = crypto.createHash('sha256').update(fs.readFileSync(archive)).digest('hex');
+    if (actual !== artifact.sha256) throw new Error('El runtime portátil de Python no coincide con el SHA-256 publicado.');
+    onProgress(18, 'Instalando Python compatible para CodeGO…');
+    await executeFile(process.platform === 'win32' ? 'tar.exe' : 'tar', ['-xzf', archive, '-C', extractDirectory], { timeout: 180000, windowsHide: true });
+    const extracted = path.join(extractDirectory, 'python');
+    const executable = path.join(extracted, process.platform === 'win32' ? 'python.exe' : 'bin/python3');
+    const selected = await environmentSetup.selectPython([executable]);
+    if (!selected) throw new Error('El runtime se descargó, pero no superó la validación de Python 3.13 de 64 bits.');
+    const target = path.join(app.getPath('userData'), 'python313');
+    fs.rmSync(target, { recursive: true, force: true, maxRetries: 3 });
+    fs.renameSync(extracted, target);
+    return environmentSetup.selectPython([path.join(target, process.platform === 'win32' ? 'python.exe' : 'bin/python3')]);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true, maxRetries: 3 });
+  }
+}
+
+async function findCompatiblePython(onProgress) {
+  const managed = path.join(app.getPath('userData'), 'python313', process.platform === 'win32' ? 'python.exe' : 'bin/python3');
+  const candidates = process.platform === 'win32'
+    ? [managed, { command: 'py.exe', args: ['-3.13'] }, { command: 'py.exe', args: ['-3.12'] }, 'python3.13.exe', 'python3.12.exe', 'python.exe']
+    : [managed, 'python3.13', 'python3.12', 'python3'];
+  let selected = await environmentSetup.selectPython(candidates);
+  if (selected) return selected;
+  if (process.platform !== 'win32') return installPortablePython(onProgress);
+
+  const installerDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-python-'));
+  try {
+    const installer = path.join(installerDirectory, 'python-3.13.15-amd64.exe');
+    onProgress(8, 'Descargando Python 3.13.15 de 64 bits…', 'Python 3.14 detectado: se instalará un entorno 3.13 compatible sin modificarlo.\n');
+    await downloadFileWithRedirects('https://www.python.org/ftp/python/3.13.15/python-3.13.15-amd64.exe', installer, percent => {
+      onProgress(8 + Math.round(percent * 0.08), `Descargando Python compatible (${percent} %)…`);
+    });
+    const expected = 'edec09c4853aeae9ac36efb8c9f95b6b8e2fee65eee56d9767a8b7c69c574403';
+    const actual = crypto.createHash('sha256').update(fs.readFileSync(installer)).digest('hex');
+    if (actual !== expected) throw new Error('El instalador de Python no coincide con el SHA-256 oficial.');
+    const signatureScript = '$s=Get-AuthenticodeSignature -LiteralPath $env:CODEGO_INSTALLER; if ($s.Status -ne "Valid" -or $s.SignerCertificate.Subject -notmatch "Python Software Foundation") { throw "Firma de Python no válida" }';
+    await executeFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', signatureScript], { timeout: 60000, windowsHide: true, env: { ...process.env, CODEGO_INSTALLER: installer } });
+    onProgress(18, 'Instalando Python compatible para CodeGO…');
+    const target = path.join(app.getPath('userData'), 'python313');
+    await executeFile(installer, ['/quiet', 'InstallAllUsers=0', 'PrependPath=0', 'Include_test=0', 'Include_pip=1', 'Include_tcltk=1', 'Include_launcher=0', `TargetDir=${target}`], { timeout: 600000, windowsHide: true });
+    selected = await environmentSetup.selectPython([path.join(target, 'python.exe')]);
+    if (!selected) throw new Error('Python terminó de instalarse, pero CodeGO no pudo validar Python 3.13 de 64 bits.');
+    return selected;
+  } finally {
+    fs.rmSync(installerDirectory, { recursive: true, force: true, maxRetries: 3 });
+  }
+}
+
+async function prepareAppEnvironment() {
+  if (isKioskActive || workspaceSealed) return { success: false, error: 'La preparación se realiza antes de iniciar una sesión.' };
+  environmentReady = false;
+  let lastPercent = 0;
+  let lastTitle = 'Preparando el entorno…';
+  const progress = (percent, title, log = '') => {
+    if (percent !== null && percent !== undefined && Number.isFinite(Number(percent))) {
+      lastPercent = Math.max(0, Math.min(100, Number(percent)));
+    }
+    if (title) lastTitle = title;
+    const value = lastPercent;
+    const step = value < 18 ? 1 : value < 30 ? 2 : value < 91 ? 3 : 4;
+    sendSetupEvent('setup:progress', { step, totalSteps: 4, title: lastTitle, percent: value, log });
+  };
+  try {
+    if (process.platform === 'win32') {
+      const vc = checkWindowsVCRedist();
+      if (!vc.installed) {
+        progress(2, 'Preparando Microsoft Visual C++…');
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-vc-'));
+        try {
+          const installer = path.join(directory, 'vc_redist.x64.exe');
+          await downloadFileWithRedirects('https://aka.ms/vs/17/release/vc_redist.x64.exe', installer, percent => progress(2 + Math.round(percent * 0.04), `Descargando Visual C++ (${percent} %)…`));
+          const signatureScript = '$s=Get-AuthenticodeSignature -LiteralPath $env:CODEGO_INSTALLER; if ($s.Status -ne "Valid" -or $s.SignerCertificate.Subject -notmatch "Microsoft Corporation") { throw "Firma Microsoft no válida" }';
+          await executeFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', signatureScript], { timeout: 60000, windowsHide: true, env: { ...process.env, CODEGO_INSTALLER: installer } });
+          try { await executeFile(installer, ['/install', '/quiet', '/norestart'], { timeout: 600000, windowsHide: true }); }
+          catch (error) { if (error.code !== 3010) throw error; }
+          if (!checkWindowsVCRedist().installed) throw new Error('Visual C++ no pudo verificarse después de instalarlo.');
+        } finally {
+          fs.rmSync(directory, { recursive: true, force: true, maxRetries: 3 });
+        }
+      }
+    }
+    const result = await environmentSetup.prepareEnvironment({
+      directory: preparedEnvironmentDirectory,
+      selectInterpreter: () => findCompatiblePython(progress),
+      onProgress: progress
+    });
+    environmentReady = true;
+    sendSetupEvent('setup:finished', { success: true, report: result });
+    return result;
+  } catch (error) {
+    sendSetupEvent('setup:finished', { success: false, error: error.message });
+    return { success: false, error: error.message };
+  }
+}
+
 // IPC Handlers
 function setupIpcHandlers() {
   const handle = (channel, callback) => ipcMain.handle(channel, async (event, ...args) => {
@@ -668,7 +829,7 @@ function setupIpcHandlers() {
       return { success: false, error: 'Origen IPC no autorizado.' };
     }
     if (diagnosticMode && /^(security:|wifi:(enable|disable)|system:(beep|enforce-audio|install|auto-install)|exam:)/.test(channel)) return { success: false, error: 'Acción excluida de la comprobación no destructiva.' };
-    if (/^system:(install|auto-install)/.test(channel)) {
+    if (/^system:(install|auto-install|prepare-environment)/.test(channel)) {
       if (installationBusy) return { success: false, error: 'Ya hay una instalación en progreso.' };
       installationBusy = true;
       try { return await callback(event, ...args); }
@@ -689,6 +850,12 @@ function setupIpcHandlers() {
     if (isKioskActive || activeProcess) return { success: false, checks: [{ name: 'Disponibilidad', success: false, detail: 'Detén Python y termina el examen antes de comprobar el equipo.' }] };
     return runSelfTest({ command: resolvePythonBinary().command, directory: app.getPath('userData'), version: app.getVersion() });
   });
+  handle('system:environment-status', async () => {
+    const status = environmentSetup.environmentStatus(preparedEnvironmentDirectory);
+    environmentReady = diagnosticMode || status.ready;
+    return { success: true, ready: environmentReady, command: status.command, report: status.report };
+  });
+  handle('system:prepare-environment', async () => prepareAppEnvironment());
   // Comprehensive Python & Environment Diagnostics
   handle('system:check-full-environment', async () => {
     const pythonInfo = resolvePythonBinary();
@@ -696,28 +863,14 @@ function setupIpcHandlers() {
     const vcRedist = checkWindowsVCRedist();
     const packages = inspectPythonPackages(pythonInfo.command);
 
-    const essentialKeys = [
-      // Fundamentales
-      'pygame', 'numpy', 'matplotlib', 'pandas', 'requests', 'PIL',
-      'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama',
-      // Hardware: Arduino / ESP32 / Microcontroladores
-      'serial', 'esptool', 'pyfirmata2', 'usb',
-      // Raspberry Pi / SBC
-      'smbus2', 'gpiozero', 'board',
-      // Machine Learning y Visión
-      'sklearn', 'cv2',
-      // Web y Redes
-      'websockets', 'flask', 'httpx',
-      // Utilities educativas
-      'tqdm', 'rich', 'qrcode', 'cryptography', 'pydantic',
-    ];
+    const essentialKeys = environmentSetup.PACKAGES.map(item => item.module);
     const missingKeys = essentialKeys.filter((k) => !packages[k] || !packages[k].installed);
 
     const hasPython = Boolean(pythonInfo.installed && !pythonInfo.version.includes('No detectado'));
     const hasVCRedist = Boolean(vcRedist.installed);
     const hasAllLibraries = missingKeys.length === 0;
     const isSingleMonitor = displays.length === 1;
-    const isSystemReady = hasPython && hasVCRedist && hasAllLibraries && isSingleMonitor;
+    const isSystemReady = hasPython && hasVCRedist && hasAllLibraries && environmentReady;
 
     const missingComponents = [];
     if (!hasVCRedist) missingComponents.push('Microsoft Visual C++ 2015-2022');
@@ -759,7 +912,7 @@ function setupIpcHandlers() {
   });
 
   // Automated All-in-One Installer & Repair Pipeline
-  handle('system:auto-install-all-prerequisites', async () => {
+  handle('system:legacy-auto-install-all-prerequisites', async () => {
     if (isKioskActive || workspaceSealed) return { success: false, error: 'Las instalaciones se realizan fuera del examen.' };
     function emitProgress(step, totalSteps, title, percent, log) {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1151,6 +1304,7 @@ except Exception:
 
   // Start Kiosk Lockdown or Activity Mode
   handle('security:start-kiosk', async (event, studentData) => {
+    if (!environmentReady && !diagnosticMode) return { success: false, error: 'Termina la preparación y las micropruebas del equipo antes de iniciar.' };
     if (isKioskActive) return { success: false, error: 'El examen ya está activo.' };
     workspaceSealed = false;
     const isActivity = studentData && studentData.mode === 'activity';
@@ -1507,6 +1661,7 @@ except Exception:
 
   // Python Code Execution
   handle('python:run', async (event, { relativePath }) => {
+    if (!environmentReady && !diagnosticMode) return { success: false, error: 'El entorno de Python todavía no está preparado o verificado.' };
     try {
       const filePath = resolveWorkspacePath(currentWorkspace, relativePath);
       if (path.extname(filePath).toLowerCase() !== '.py') throw new Error('Selecciona un archivo Python (.py).');
@@ -1690,43 +1845,9 @@ except Exception:
   });
 }
 
-async function autoEnsureLibrariesInstalled() {
-  if (diagnosticMode) return;
-  try {
-    const pythonInfo = resolvePythonBinary();
-    if (!pythonInfo.installed) return;
-    const targetVenv = resolveVenvDirectory();
-    const execPy = ensurePythonEnvironment({ command: pythonInfo.command, directory: targetVenv });
-    const packages = inspectPythonPackages(execPy);
-    const missing = [
-      'pygame', 'numpy', 'scipy', 'matplotlib', 'pandas', 'pillow',
-      'seaborn', 'openpyxl', 'sympy', 'colorama', 'pyserial', 'requests'
-    ].filter(k => {
-      const checkKey = k === 'pyserial' ? 'serial' : (k === 'pillow' ? 'PIL' : k);
-      return !packages[checkKey] || !packages[checkKey].installed;
-    });
-    if (missing.length > 0) {
-      installationBusy = true;
-      const proc = spawn(execPy, ['-m', 'pip', 'install', '--upgrade', ...missing], { windowsHide: true });
-      proc.on('close', (code) => {
-        installationBusy = false;
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('pip:finished');
-        }
-      });
-      proc.on('error', () => {
-        installationBusy = false;
-      });
-    }
-  } catch (err) {
-    installationBusy = false;
-  }
-}
-
 app.whenReady().then(async () => {
   setupIpcHandlers();
   createMainWindow();
-  setTimeout(autoEnsureLibrariesInstalled, 1500);
   if (diagnosticMode) {
     console.info('CodeGO: iniciando comprobación del paquete.');
     const watchdog = setTimeout(() => { console.error('La comprobación del paquete excedió 60 segundos.'); app.exit(1); }, 60000);

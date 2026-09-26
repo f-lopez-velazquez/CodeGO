@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.2.0 · Preparación automática verificada
+
+- Primera apertura bloqueada hasta preparar un Python 3.13 aislado y completar el 100 % del proceso.
+- Python 3.14 se rechaza para evitar compilaciones incompatibles de Pygame; en Windows se instala automáticamente Python 3.13.15 con firma y SHA-256 verificados.
+- Runtime portátil automático para Linux y macOS cuando el equipo no tiene Python 3.12/3.13 compatible.
+- 25 librerías con versiones fijas y ruedas binarias; instalación individual para identificar y reintentar fallos sin reiniciar todo el proceso.
+- Micropruebas reales de cálculo, datos, gráficos, Pygame, Tk, Excel, SQLite, serial virtual, HTTP, cifrado e `input()` UTF-8.
+- Validación limpia de primera apertura en CI para Windows, Ubuntu y macOS, además de la matriz nativa existente.
+
 ## 1.1.1 · Terminal integrada y pantallas con escalado
 
 - Escritura directamente junto al prompt de Python, sin campo ni botón de envío separado.

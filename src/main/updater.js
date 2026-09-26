@@ -41,16 +41,15 @@ function findMatchingAsset(assets, platform = process.platform, arch = process.a
   }
 
   if (platform === 'linux') {
-    // Preferir AppImage x86_64
-    return assets.find(a => a.name.includes('linux-x86_64') && a.name.endsWith('.AppImage')) ||
+    return assets.find(a => /linux-(x64|x86_64)/.test(a.name) && a.name.endsWith('.AppImage')) ||
            assets.find(a => a.name.endsWith('.AppImage')) ||
            assets.find(a => a.name.includes('linux') && a.name.endsWith('.tar.gz')) || null;
   }
 
   if (platform === 'darwin') {
-    // Preferir DMG si existe, o ZIP
-    return assets.find(a => a.name.endsWith('.dmg')) ||
-           assets.find(a => a.name.includes('mac') && a.name.endsWith('.zip')) || null;
+    const target = arch === 'arm64' ? 'arm64' : 'x64';
+    return assets.find(a => a.name.includes(`mac-${target}`) && a.name.endsWith('.dmg')) ||
+           assets.find(a => a.name.includes(`mac-${target}`) && a.name.endsWith('.zip')) || null;
   }
 
   return null;

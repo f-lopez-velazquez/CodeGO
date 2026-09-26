@@ -21,6 +21,27 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       killPython: async () => { setTimeout(() => handleExecutionFinished({ exitCode: null, signal: 'SIGKILL', duration: 1 }), 10); return { success: true }; }
     };
   });
+  await page.setViewportSize({width:1024,height:480});
+  await page.evaluate(() => {
+    state.environmentSetupRequired = true;
+    state.environmentReady = false;
+    document.body.classList.add('environment-setup-required');
+    DOM.modalAutoInstaller.classList.remove('hidden');
+    DOM.btnCloseAutoInstaller.classList.add('hidden');
+    DOM.btnFinishAutoInstaller.classList.add('hidden');
+  });
+  await page.keyboard.press('Escape');
+  assert(await page.locator('#modal-auto-installer').isVisible(), 'Mandatory first-launch setup closed with Escape');
+  assert(await page.locator('#btn-close-auto-installer').isHidden() && await page.locator('#btn-finish-auto-installer').isHidden(), 'Setup grants access before completion');
+  await page.locator('.auto-installer-card').evaluate(element => { element.scrollTop = element.scrollHeight; });
+  const setupGeometry = await page.locator('.auto-installer-card').boundingBox();
+  assert(setupGeometry && setupGeometry.y >= 0 && setupGeometry.y + setupGeometry.height <= 480, `Setup dialog clipped: ${JSON.stringify(setupGeometry)}`);
+  await page.evaluate(() => {
+    state.environmentSetupRequired = false;
+    state.environmentReady = true;
+    document.body.classList.remove('environment-setup-required');
+    DOM.modalAutoInstaller.classList.add('hidden');
+  });
   const results = [];
   for (const size of [{width:1440,height:900}, {width:1024,height:700}, {width:768,height:600}, {width:390,height:844}, {width:1280,height:600}, {width:1024,height:480}]) {
     await page.setViewportSize(size);

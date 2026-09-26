@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * publish-release.cjs
- * Publica los instaladores de v1.0.0 en GitHub Releases usando gh CLI.
+ * Publica los instaladores de la versión actual en GitHub Releases usando gh CLI.
  * Uso: node scripts/publish-release.cjs [--dry-run]
  */
 
@@ -9,7 +9,7 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const VERSION = '1.0.0';
+const VERSION = require('../package.json').version;
 const TAG = `v${VERSION}`;
 const DIST = path.join(__dirname, '..', 'dist');
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -42,8 +42,8 @@ Descarga \`CodeGO-${VERSION}-mac-x64.zip\`, descomprime y arrastra a Aplicacione
 
 ### Linux
 \`\`\`bash
-chmod +x CodeGO-${VERSION}-linux-x86_64.AppImage
-./CodeGO-${VERSION}-linux-x86_64.AppImage
+chmod +x CodeGO-${VERSION}-linux-x64.AppImage
+./CodeGO-${VERSION}-linux-x64.AppImage
 \`\`\`
 
 ## Checksums SHA-256
@@ -56,7 +56,7 @@ Ver \`SHA256SUMS.txt\` adjunto.
 // Files to upload
 const ASSETS = [
   // Linux
-  `CodeGO-${VERSION}-linux-x86_64.AppImage`,
+  `CodeGO-${VERSION}-linux-x64.AppImage`,
   `CodeGO-${VERSION}-linux-x64.tar.gz`,
   // Windows
   `CodeGO-${VERSION}-setup-x64.exe`,

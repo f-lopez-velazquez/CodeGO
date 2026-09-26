@@ -7,8 +7,9 @@ const platform = process.platform;
 const arch = process.arch;
 const expected = platform === 'linux' ? ['AppImage', 'tar.gz'] : platform === 'win32' ? ['setup', 'portable'] : ['dmg', 'zip'];
 fs.mkdirSync('downloads', {recursive: true});
-const files = fs.readdirSync('dist').filter(name => name.startsWith(`CodeGO ExamGuard-${version}-`) && /\.(AppImage|tar\.gz|exe|dmg|zip)$/.test(name));
-if (files.length !== expected.length || expected.some(type => !files.some(name => name.includes(type)))) throw Error('Faltan instaladores esperados.');
+const candidates = fs.readdirSync('dist').filter(name => (name.startsWith(`CodeGO-${version}-`) || name.startsWith(`CodeGO ExamGuard-${version}-`)) && /\.(AppImage|tar\.gz|exe|dmg|zip)$/.test(name));
+const files = expected.map(type => candidates.find(name => name.startsWith(`CodeGO-${version}-`) && name.includes(type)) || candidates.find(name => name.includes(type)));
+if (files.some(file => !file)) throw Error('Faltan instaladores esperados.');
 const checksums = [];
 for (const file of files.sort()) {
   const name = file.replace('CodeGO ExamGuard', 'CodeGO').replace('-x86_64.', '-x64.');

@@ -7,6 +7,66 @@ const { createSubmission, createCertifiedTaskSubmission, verifySubmission, extra
 const { runSelfTest } = require('../src/main/self-test');
 const { createWifiControl } = require('../src/main/wifi-control');
 const { ensurePythonEnvironment } = require('../src/main/python-environment');
+const environmentSetup = require('../src/main/environment-setup');
+
+test('Python selection rejects 3.14 and resolves a compatible 64-bit interpreter', async () => {
+  const calls = [];
+  const execute = async (command, args) => {
+    calls.push([command, args]);
+    const minor = command === 'python-3.14' ? 14 : 13;
+    return JSON.stringify({ executable: `/runtime/python-${minor}`, major: 3, minor, bits: 64, version: `3.${minor}.0` }) + '\n';
+  };
+  const selected = await environmentSetup.selectPython(['python-3.14', 'python-3.13'], execute);
+  assert.equal(selected.minor, 13);
+  assert.equal(selected.executable, '/runtime/python-13');
+  assert.equal(calls.length, 2);
+});
+
+test('Preparation uses pinned wheels and writes readiness only after microtests', async t => {
+  const directory = temporary(t);
+  const calls = [];
+  const execute = async (command, args, options = {}) => {
+    const input = options.input || '';
+    calls.push({ command, args, input });
+    if (args.includes('-c') && command.startsWith(directory) && !fs.existsSync(command)) throw new Error('missing');
+    if (args.includes('-m') && args.includes('venv')) {
+      const executable = environmentSetup.pythonPath(args.at(-1));
+      fs.mkdirSync(path.dirname(executable), { recursive: true });
+      fs.writeFileSync(executable, 'test');
+      return '';
+    }
+    if (input.includes('importlib.metadata')) {
+      return JSON.stringify(Object.fromEntries(environmentSetup.PACKAGES.map(item => [item.module, { installed: true, version: item.version, desc: item.distribution }]))) + '\n';
+    }
+    if (input.includes('Micropruebas') || input.includes("checks=[]")) return JSON.stringify({ success: true, checks: ['microtest'] }) + '\n';
+    if (args.includes('-c')) return JSON.stringify({ executable: command, major: 3, minor: 13, bits: 64, version: '3.13.15' }) + '\n';
+    return '';
+  };
+  const result = await environmentSetup.prepareEnvironment({
+    directory,
+    selectInterpreter: async () => ({ executable: 'python-3.13', major: 3, minor: 13, bits: 64, version: '3.13.15' }),
+    execute,
+    selfTest: async () => ({ success: true, checks: [{ name: 'stdin UTF-8', success: true }] })
+  });
+  assert.equal(result.success, true);
+  assert.equal(environmentSetup.environmentStatus(directory).ready, true);
+  const installs = calls.filter(call => call.args.includes('install'));
+  assert.ok(installs.length >= environmentSetup.PACKAGES.length);
+  assert.ok(installs.every(call => call.args.includes('--only-binary=:all:')));
+  for (const item of environmentSetup.PACKAGES) {
+    assert.ok(installs.some(call => call.args.includes(`${item.distribution}==${item.version}`)), item.distribution);
+  }
+});
+
+test('Preparation leaves the application locked when Python is incompatible', async t => {
+  const directory = temporary(t);
+  await assert.rejects(() => environmentSetup.prepareEnvironment({
+    directory,
+    selectInterpreter: async () => ({ executable: 'python-3.14', major: 3, minor: 14, bits: 64, version: '3.14.7' }),
+    execute: async () => ''
+  }), /3\.12 o 3\.13/);
+  assert.equal(environmentSetup.environmentStatus(directory).ready, false);
+});
 
 test('Failed virtual environment never falls back to system pip', t => {
   const directory = path.join(temporary(t), 'entorno con acentos á');

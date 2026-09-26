@@ -2456,6 +2456,15 @@ body.theme-paper #code-textarea::selection {
   display: none !important;
 }
 
+body.environment-setup-required > :not(#modal-auto-installer) {
+  pointer-events: none;
+}
+
+body.environment-setup-required #modal-auto-installer {
+  background: var(--bg-primary);
+  backdrop-filter: none;
+}
+
 /* Auto Installer Modal Card */
 .auto-installer-card {
   max-width: 760px;
@@ -2465,6 +2474,13 @@ body.theme-paper #code-textarea::selection {
   gap: 16px;
   border: 1px solid rgba(56, 189, 248, 0.3);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.15);
+}
+
+.setup-credits {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-align: center;
 }
 
 .installer-progress-container {

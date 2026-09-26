@@ -2,9 +2,9 @@
 
 ## Descargas públicas
 
-La Release `v1.1.1-preview.1` contiene instaladores de vista previa para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados de desarrollador ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la apertura por sus políticas de seguridad. En equipos administrados consulta al responsable de TI; no desactives las protecciones del sistema.
+La Release `v1.2.0` contiene instaladores para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados de desarrollador ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la apertura por sus políticas de seguridad. En equipos administrados consulta al responsable de TI; no desactives las protecciones del sistema.
 
-Python 3.12/3.13, pip y venv se preparan por separado. La aplicación no incluye el intérprete ni todas las librerías científicas. Ejecuta **Comprobar este equipo** antes de usarla.
+La primera apertura bloquea el acceso mientras prepara un entorno aislado. Si no encuentra Python 3.12/3.13 de 64 bits, instala Python 3.13.15 para CodeGO sin modificar el Python del usuario. Después instala 25 librerías versionadas mediante ruedas binarias y ejecuta micropruebas; solo habilita la aplicación tras llegar al 100 %. Python 3.14 no se usa para este entorno porque algunas librerías educativas, entre ellas Pygame, aún pueden intentar compilarse desde código fuente.
 
 ## Producción firmada
 

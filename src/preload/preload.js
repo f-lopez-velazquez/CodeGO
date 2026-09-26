@@ -7,11 +7,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // System diagnostics & Package Management
   runSelfTest: () => ipcRenderer.invoke('system:self-test'),
+  getEnvironmentStatus: () => ipcRenderer.invoke('system:environment-status'),
+  prepareEnvironment: () => ipcRenderer.invoke('system:prepare-environment'),
   checkPython: () => ipcRenderer.invoke('system:check-python'),
   checkFullEnvironment: () => ipcRenderer.invoke('system:check-full-environment'),
-  installPackage: (pkgName) => ipcRenderer.invoke('system:install-package', pkgName),
-  installAllRecommended: () => ipcRenderer.invoke('system:install-all-recommended'),
-  autoInstallAllPrerequisites: () => ipcRenderer.invoke('system:auto-install-all-prerequisites'),
 
   // Kiosk & Security
   startKiosk: (studentData) => ipcRenderer.invoke('security:start-kiosk', studentData),

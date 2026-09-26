@@ -31,6 +31,7 @@ test('Updater: findMatchingAsset detects correct OS binary', () => {
   const assets = [
     { name: 'CodeGO-1.0.1-linux-x64.tar.gz', size: 110000000, browser_download_url: 'https://example.com/tar' },
     { name: 'CodeGO-1.0.1-linux-x86_64.AppImage', size: 120000000, browser_download_url: 'https://example.com/appimage' },
+    { name: 'CodeGO-1.0.1-mac-arm64.dmg', size: 340000000, browser_download_url: 'https://example.com/macarm' },
     { name: 'CodeGO-1.0.1-mac-x64.zip', size: 360000000, browser_download_url: 'https://example.com/maczip' },
     { name: 'CodeGO-1.0.1-portable-x64.exe', size: 105000000, browser_download_url: 'https://example.com/portable' },
     { name: 'CodeGO-1.0.1-setup-x64.exe', size: 106000000, browser_download_url: 'https://example.com/setup' },
@@ -48,9 +49,10 @@ test('Updater: findMatchingAsset detects correct OS binary', () => {
   assert.equal(linuxAsset.name, 'CodeGO-1.0.1-linux-x86_64.AppImage');
 
   // macOS: prefers zip/dmg
-  const macAsset = updater.findMatchingAsset(assets, 'darwin');
+  const macAsset = updater.findMatchingAsset(assets, 'darwin', 'x64');
   assert.ok(macAsset);
   assert.equal(macAsset.name, 'CodeGO-1.0.1-mac-x64.zip');
+  assert.equal(updater.findMatchingAsset(assets, 'darwin', 'arm64').name, 'CodeGO-1.0.1-mac-arm64.dmg');
 
   // Empty or invalid assets
   assert.equal(updater.findMatchingAsset([], 'linux'), null);
