@@ -269,6 +269,71 @@ body {
   text-decoration: underline;
 }
 
+/* Professional Direct Access Banner */
+.release-direct-box {
+  max-width: 920px;
+  margin: 16px auto 16px;
+  background: rgba(88, 166, 255, 0.05);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+}
+
+.release-direct-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.release-direct-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.release-direct-info p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+.btn-release-github {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.btn-release-github:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .release-direct-box {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 .download-options .sep {
   opacity: 0.4;
 }

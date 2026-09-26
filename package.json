@@ -82,15 +82,20 @@
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "CodeGO ExamGuard",
       "uninstallDisplayName": "Desinstalar CodeGO ExamGuard",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "runAfterFinish": true,
       "artifactName": "${productName}-${version}-setup-${arch}.${ext}"
     },
     "mac": {
