@@ -696,8 +696,19 @@ function setupIpcHandlers() {
     const packages = inspectPythonPackages(pythonInfo.command);
 
     const essentialKeys = [
+      // Fundamentales
       'pygame', 'numpy', 'matplotlib', 'pandas', 'requests', 'PIL',
-      'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama', 'serial'
+      'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama',
+      // Hardware: Arduino / ESP32 / Microcontroladores
+      'serial', 'esptool', 'pyfirmata2', 'usb',
+      // Raspberry Pi / SBC
+      'smbus2', 'gpiozero', 'board',
+      // Machine Learning y Visión
+      'sklearn', 'cv2',
+      // Web y Redes
+      'websockets', 'flask', 'httpx',
+      // Utilities educativas
+      'tqdm', 'rich', 'qrcode', 'cryptography', 'pydantic',
     ];
     const missingKeys = essentialKeys.filter((k) => !packages[k] || !packages[k].installed);
 
@@ -837,14 +848,37 @@ function setupIpcHandlers() {
       emitProgress(3, 4, 'Entorno virtual configurado ✓', 70, `>>> [3/4] Entorno virtual listo en: ${targetVenv}\n`);
 
       // ---------------------------------------------------------------
-      // ETAPA 4: Instalar las 12 Librerías de Nivel Básico a Avanzado y Hardware
+      // ETAPA 4: Instalar librerías completas — básicas, avanzadas, hardware y microcontroladores
       // ---------------------------------------------------------------
       const allPackages = [
+        // --- Librerías fundamentales de Python ---
         'pygame', 'numpy', 'matplotlib', 'pandas', 'requests', 'pillow',
-        'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama', 'pyserial'
+        'scipy', 'seaborn', 'openpyxl', 'sympy', 'colorama', 'pyserial',
+        // --- Arduino / ESP32 / Microcontroladores ---
+        'esptool',          // Flashear ESP32 / ESP8266 desde Python
+        'pyfirmata2',       // Control de Arduino via protocolo Firmata
+        'pyusb',            // Comunicación USB directa con microcontroladores
+        // --- Raspberry Pi y hardware SBC ---
+        'smbus2',           // I2C / SMBus para Raspberry Pi y sensores
+        'gpiozero',         // GPIO de Raspberry Pi (compatible Linux)
+        'adafruit-blinka',  // Capa de compatibilidad CircuitPython/Adafruit
+        // --- Machine Learning y ciencia de datos ---
+        'scikit-learn',     // ML: clasificación, regresión, clustering
+        'opencv-python-headless', // Visión por computadora (sin GUI)
+        // --- Redes, web y APIs ---
+        'websockets',       // WebSockets para IoT y comunicación en tiempo real
+        'flask',            // Servidor web ligero para proyectos Python
+        'httpx',            // Cliente HTTP moderno (alternativa a requests)
+        // --- Utilities educativas ---
+        'tqdm',             // Barras de progreso en terminal
+        'rich',             // Salida de terminal con colores y tablas
+        'qrcode',           // Generación de códigos QR
+        'cryptography',     // Cifrado y seguridad (HMAC, AES, etc.)
+        'python-dotenv',    // Variables de entorno para proyectos
+        'pydantic',         // Validación de datos (muy usado en proyectos modernos)
       ];
 
-      emitProgress(4, 4, 'Instalando 12 librerías para exámenes y hardware...', 75, `>>> [4/4] Instalando paquete completo:\n    ${allPackages.join(', ')}\n\n`);
+      emitProgress(4, 4, `Instalando ${allPackages.length} librerías para exámenes, hardware y microcontroladores...`, 75, `>>> [4/4] Instalando paquete completo (${allPackages.length} librerías):\n    ${allPackages.join(', ')}\n\n`);
 
       const pipArgs = ['-m', 'pip', 'install', '--upgrade', ...allPackages];
 
@@ -866,7 +900,7 @@ function setupIpcHandlers() {
       });
 
       if (pipExitCode !== 0) throw new Error(`pip terminó con código ${pipExitCode}. Revisa el registro y vuelve a intentarlo.`);
-      emitProgress(4, 4, '¡Entorno y Librerías 100% Configurados! ✓', 100, '\n======================================================\n>>> ¡ÉXITO! Visual C++, Python 3 y las 12 librerías (incluyendo Arduino/PySerial) están listas para el examen.\n======================================================\n');
+      emitProgress(4, 4, '¡Entorno y Librerías 100% Configurados! ✓', 100, `\n======================================================\n>>> ¡ÉXITO! Python 3 y ${allPackages.length} librerías instaladas:\n    Incluye: numpy, pandas, matplotlib, pygame, pyserial, esptool, smbus2, gpiozero, scikit-learn, opencv, flask y más.\n    ✅ Listas para exámenes, tareas, Arduino, ESP32 y Raspberry Pi.\n======================================================\n`);
 
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('setup:finished', { success: true });

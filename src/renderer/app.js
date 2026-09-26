@@ -641,21 +641,45 @@ function setupSplitters() {
 // 5. PACKAGE MANAGER & ENVIRONMENT DIAGNOSTICS
 // ==============================================================
 const PKG_CONFIG = {
-  pygame: { icon: '🎮', name: 'Pygame', cat: 'games' },
-  numpy: { icon: '🔢', name: 'NumPy', cat: 'math' },
-  matplotlib: { icon: '📊', name: 'Matplotlib', cat: 'data' },
-  pandas: { icon: '🐼', name: 'Pandas', cat: 'data' },
-  requests: { icon: '🌐', name: 'Requests', cat: 'net' },
-  PIL: { icon: '🖼️', name: 'Pillow (PIL)', cat: 'games' },
-  scipy: { icon: '🔬', name: 'SciPy', cat: 'math' },
-  seaborn: { icon: '📈', name: 'Seaborn', cat: 'data' },
-  openpyxl: { icon: '📑', name: 'OpenPyXL (Excel)', cat: 'data' },
-  sympy: { icon: '📐', name: 'SymPy (Álgebra)', cat: 'math' },
-  colorama: { icon: '🎨', name: 'Colorama (Consola)', cat: 'net' },
-  serial: { icon: '🔌', name: 'PySerial (Arduino / ESP32)', cat: 'hardware' },
-  sqlite3: { icon: '🗄️', name: 'SQLite3 (SQL)', cat: 'data' },
-  tkinter: { icon: '🖥️', name: 'Tkinter (GUI)', cat: 'games' }
+  // --- Fundamentales ---
+  pygame:    { icon: '🎮', name: 'Pygame',               cat: 'games'    },
+  numpy:     { icon: '🔢', name: 'NumPy',                cat: 'math'     },
+  matplotlib:{ icon: '📊', name: 'Matplotlib',           cat: 'data'     },
+  pandas:    { icon: '🐼', name: 'Pandas',               cat: 'data'     },
+  requests:  { icon: '🌐', name: 'Requests',             cat: 'net'      },
+  PIL:       { icon: '🖼️', name: 'Pillow (PIL)',         cat: 'games'    },
+  scipy:     { icon: '🔬', name: 'SciPy',                cat: 'math'     },
+  seaborn:   { icon: '📈', name: 'Seaborn',              cat: 'data'     },
+  openpyxl:  { icon: '📑', name: 'OpenPyXL (Excel)',     cat: 'data'     },
+  sympy:     { icon: '📐', name: 'SymPy (Álgebra)',      cat: 'math'     },
+  colorama:  { icon: '🎨', name: 'Colorama (Consola)',   cat: 'net'      },
+  // --- Hardware: Arduino / ESP32 / Microcontroladores ---
+  serial:    { icon: '🔌', name: 'PySerial (Arduino / ESP32)',  cat: 'hardware' },
+  esptool:   { icon: '⚡', name: 'ESPTool (Flash ESP32/ESP8266)', cat: 'hardware' },
+  pyfirmata2:{ icon: '🤖', name: 'PyFirmata2 (Arduino Firmata)', cat: 'hardware' },
+  usb:       { icon: '🔗', name: 'PyUSB (USB directo)',  cat: 'hardware' },
+  // --- Raspberry Pi / SBC ---
+  smbus2:    { icon: '🍓', name: 'SMBus2 (I2C / RPi)',  cat: 'hardware' },
+  gpiozero:  { icon: '🍓', name: 'GPIOZero (RPi GPIO)', cat: 'hardware' },
+  board:     { icon: '🔧', name: 'Adafruit Blinka (CircuitPython)', cat: 'hardware' },
+  // --- Machine Learning y Visión ---
+  sklearn:   { icon: '🧠', name: 'Scikit-learn (ML)',   cat: 'math'     },
+  cv2:       { icon: '👁️', name: 'OpenCV (Visión)',     cat: 'math'     },
+  // --- Web y Redes ---
+  websockets:{ icon: '🔄', name: 'WebSockets (IoT)',    cat: 'net'      },
+  flask:     { icon: '🍶', name: 'Flask (Servidor Web)', cat: 'net'     },
+  httpx:     { icon: '🌐', name: 'HTTPX (HTTP moderno)', cat: 'net'     },
+  // --- Utilidades educativas ---
+  tqdm:      { icon: '⏳', name: 'TQDM (Progreso)',     cat: 'net'      },
+  rich:      { icon: '✨', name: 'Rich (Terminal bonita)', cat: 'net'   },
+  qrcode:    { icon: '📱', name: 'QRCode (Códigos QR)', cat: 'data'    },
+  cryptography:{ icon: '🔒', name: 'Cryptography (Cifrado)', cat: 'net' },
+  pydantic:  { icon: '📋', name: 'Pydantic (Validación)', cat: 'data'  },
+  // --- Sistema (built-in) ---
+  sqlite3:   { icon: '🗄️', name: 'SQLite3 (SQL)',       cat: 'data'     },
+  tkinter:   { icon: '🖥️', name: 'Tkinter (GUI)',       cat: 'games'    },
 };
+
 
 async function loadEnvironmentDiagnostics() {
   if (window.electronAPI && window.electronAPI.checkFullEnvironment) {
@@ -699,13 +723,13 @@ async function loadEnvironmentDiagnostics() {
         DOM.envVcredistRow.style.display = 'none';
       }
 
-      // Update Lobby Packages label (12 recommended packages with hardware)
-      const totalRecommended = data.essentialKeys ? data.essentialKeys.length : 12;
+      // Update Lobby Packages label (25+ recommended packages with hardware)
+      const totalRecommended = data.essentialKeys ? data.essentialKeys.length : 25;
       const missingCount = data.missingCount || 0;
       const installedCount = Math.max(0, totalRecommended - missingCount);
 
       if (missingCount === 0) {
-        DOM.packagesCountLabel.textContent = `${totalRecommended}/${totalRecommended} Listas (Pygame, NumPy, SciPy, PySerial...)`;
+        DOM.packagesCountLabel.textContent = `${totalRecommended}/${totalRecommended} Listas (NumPy, PySerial, ESP32, RPi, ML...)`;
         DOM.packagesStatusIcon.textContent = '✓';
         DOM.packagesStatusIcon.className = 'diag-status ok';
         DOM.btnQuickInstallAll.classList.add('hidden');
