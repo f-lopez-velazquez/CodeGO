@@ -104,7 +104,7 @@
         "zip"
       ],
       "category": "public.app-category.education",
-      "icon": "build/icon.png",
+      "icon": "build/icon.icns",
       "minimumSystemVersion": "13.0"
     },
     "portable": {
