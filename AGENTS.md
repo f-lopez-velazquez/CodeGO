@@ -8,25 +8,33 @@
 
 **CodeGO ExamGuard** es un entorno de desarrollo educativo y supervisión académica de Python multiplataforma (Linux, Windows, macOS), construido sobre **Electron**, **Vanilla JavaScript**, **CSS Puro** y un **Motor de Ejecución Nativo de Python**.
 
-La aplicación opera bajo **dos modalidades totalmente diferenciadas**:
+La aplicación opera bajo **tres modalidades especializadas**:
 
 1. **🛡️ MODO EXAMEN BLINDADO**:
-   - **Objetivo**: Evaluación supervisada con integridad académica estricta.
+   - **Objetivo**: Evaluación formal supervisada con integridad académica estricta.
    - **Modo Kiosk**: La ventana se fija en pantalla completa y primer plano absoluto (`setKiosk(true)`, `setAlwaysOnTop(true)`).
    - **Desconexión Wi-Fi**: Deshabilita automáticamente las interfaces de red al iniciar y las restaura al entregar o con PIN de docente.
    - **Watchdog de Audio Anti-Mute**: Impide que el estudiante silencie el equipo para ocultar alarmas.
    - **Alerta Lumínica Estroboscópica de 12 Segundos ("Flashazo Docente")**: Si el estudiante cambia de ventana o pierde el foco, se registra una incidencia, se activa un flash estroboscópico de alta intensidad (`hazard-teacher-beacon`) visible a través del aula para alertar al docente inmediatamente, junto a un aviso sonoro armónico que dura **12 segundos exactos** antes de permitir reanudar.
    - **Excepciones legítimas**: NO se alarma si se abren ventanas gráficas de Python (Pygame, Tkinter, Turtle, Matplotlib).
-   - **Entrega Sellada**: Al presionar "Entregar", el código se bloquea contra modificación, copia y pegado, y se empaqueta en un archivo ZIP auditado.
+   - **Entrega Sellada**: Al presionar "Entregar", el código se bloquea contra modificación, copia y pegado, y se empaqueta en un archivo ZIP auditado con sello SHA-256.
 
-2. **📘 MODO ACTIVIDAD / TAREA**:
+2. **📦 MODO TAREA CERTIFICADA (Prueba de Autoría Irrefutable)**:
+   - **Objetivo**: Garantizar fehacientemente al docente que las tareas para casa o entregables fueron escritas a mano por el alumno dentro de CodeGO, sin copia/pega externo y sin alternar con ChatGPT u otras apps.
+   - **Bloqueo Estricto de Copiado/Pegado**: Se intercepta y prohíbe el pegado de código externo (`ctrl+v`, portapapeles). Todo el código debe ser digitado manualmente en el entorno.
+   - **Supervisión de Enfoque y Anti-Mute**: Kiosk activo, prohibición de cambio de ventana con alerta estroboscópica de 12 segundos y watchdog de audio para evitar mute.
+   - **Conectividad**: Wi-Fi habilitado para consultas o recursos permitidos según la actividad.
+   - **Telemetría Forense**: Mide pulsaciones de teclas, caracteres digitados, tiempo activo de tipeo, 0 intentos de pegado externo, ejecuciones nativas de prueba y registro de incidencias.
+   - **Entrega Criptográfica (`.codego`)**: Empaqueta el workspace jerárquico completo en un contenedor `.codego` firmado con **HMAC-SHA256**, acompañado de un `CERTIFICADO_DOCENTE.html` auto-contenido y un archivo de sello `.sha256`.
+
+3. **📘 MODO ACTIVIDAD / TAREA LIBRE**:
    - **Objetivo**: Práctica educativa en clase o casa con gestión libre de proyectos locales.
-   - **Regla Inviolable**: **EL BOTÓN DE ENTREGAR EXAMEN NUNCA DEBE APARECER** (ni visible ni habilitado). Solo debe mostrarse el botón `▶ Ejecutar`.
-   - **Gestión de Archivos**: Permite abrir carpetas del equipo (`Abrir Carpeta`) y crear nuevos proyectos (`Nuevo Proyecto`).
+   - **Regla Inviolable**: **LOS BOTONES DE ENTREGAR (`#btn-finish-exam` y `#btn-submit-task`) NUNCA DEBEN APARECER** (ni visibles ni habilitados). Solo debe mostrarse el botón `▶ Ejecutar`.
+   - **Gestión de Archivos**: Permite abrir carpetas del equipo (`Abrir Carpeta`) y crear nuevos proyectos (`Nuevo Proyecto`) con navegación jerárquica por subcarpetas.
    - **Conectividad Libre**: El Wi-Fi permanece habilitado.
    - **Supervisión y Anti-Mute**: Se mantiene activa la supervisión de cambio de ventana (aviso de 12 segundos) y el watchdog de audio para impedir silenciar el equipo.
 
-3. **✨ DIRECTRICES DE DISEÑO MINIMALISTA**:
+4. **✨ DIRECTRICES DE DISEÑO MINIMALISTA**:
    - **Cero saturación visual**: Prohibidos los muros de texto, explicaciones redundantes y componentes sobrecargados.
    - **Paleta sobria y contrastes nítidos**: Superficies oscuras mate (`#0f131d`), bordes sutiles de 1px y halos perimétricos limpios (sin difuminados pardos ni amarillentos).
    - **Lobby y modales compactos**: El lobby cabe en una sola pantalla sin necesidad de scroll vertical. Los avisos constan de título conciso, 1 línea explicativa, métricas limpias y un único botón de cuenta regresiva/reanudación.
@@ -74,6 +82,9 @@ Todos los canales IPC se comunican de forma segura a través de `window.electron
 | `fs:list-workspace` | Renderer ➔ Main | Lista recursivamente los archivos del workspace activo. |
 | `fs:save-file` | Renderer ➔ Main | Guarda el contenido del archivo abierto en disco. |
 | `exam:submit` | Renderer ➔ Main | Empaqueta el código y bitácora en ZIP con sello SHA-256. |
+| `task:submit` | Renderer ➔ Main | Empaqueta workspace jerárquico y telemetría en contenedor `.codego` firmado con HMAC-SHA256. |
+| `submission:verify-file` | Renderer ➔ Main | Audita integridad forense, firma HMAC y SHA-256 de archivos `.codego` y `.zip`. |
+| `submission:extract-code` | Renderer ➔ Main | Extrae el código fuente del contenedor entregado a una carpeta local elegida por el profesor. |
 | `hardware:list-serial-ports` | Renderer ➔ Main | Detecta puertos COM/USB seriales conectados (Arduino, ESP32, microcontroladores). |
 
 ---
@@ -93,19 +104,20 @@ La petición del usuario de septiembre de 2026 sustituye la barra separada anter
 
 Cualquier CLI o agente debe verificar estrictamente las siguientes reglas antes de confirmar cambios:
 
-1. **Ocultamiento del Botón de Entregar en Modo Actividad**:
+1. **Ocultamiento de Botones de Entrega en Modo Actividad**:
    - `styles.css` contiene:
      ```css
      body.mode-activity-active #btn-finish-exam,
+     body.mode-activity-active #btn-submit-task,
      body.mode-activity-active .exam-only-btn { display: none !important; }
      ```
-   - En `app.js`, tanto `setSessionMode('activity')` como `enterIdeWorkspace()` deben agregar `mode-activity-active` al `body` y fijar `DOM.btnFinishExam.style.display = 'none'`. **Nunca elimines estas protecciones**.
+   - En `app.js`, tanto `setSessionMode('activity')` como `enterIdeWorkspace()` deben agregar `mode-activity-active` al `body` y fijar `DOM.btnFinishExam.style.display = 'none'` y `DOM.btnSubmitTask.style.display = 'none'`. **Nunca elimines estas protecciones**.
 2. **Pantalla Completa por Defecto**:
    - La ventana principal debe iniciar maximizada y en pantalla completa (`fullscreen: true`).
 3. **Distribución Vertical (Lado a Lado)**:
    - Editor a la izquierda y terminal a la derecha con divisor redimensionable vertical (`splitter-horizontal` con `col-resize`).
 4. **Alerta de Incidencias de 12 Segundos**:
-   - El temporizador de 12 segundos debe completarse antes de habilitar el botón de reanudar examen.
+   - El temporizador de 12 segundos debe completarse antes de habilitar el botón de reanudar examen o tarea.
 5. **No usar frameworks pesados**:
    - Mantener el diseño en HTML semántico, CSS puro y JavaScript moderno nativo.
 

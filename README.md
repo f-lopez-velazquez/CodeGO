@@ -18,39 +18,39 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Descarga directa 1.1.1 | Alternativa |
+| Sistema | Descarga directa 1.2.0 | Alternativa |
 | --- | --- | --- |
-| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-portable-x64.exe) |
-| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-linux-x64.tar.gz) |
-| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-arm64.zip) |
-| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-x64.zip) |
+| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-portable-x64.exe) |
+| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-linux-x64.tar.gz) |
+| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-arm64.zip) |
+| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-x64.zip) |
 
 **Vista previa pública:** Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado. Los sistemas pueden advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones. Python se instala por separado.
 
-## Usar la aplicación
+## Modalidades de Trabajo
 
-1. Instala Python 3 con `pip` y `venv`. La matriz de comprobación contempla Python 3.12 y 3.13; usa un parche actualizado. Python y las librerías científicas **no vienen dentro del ejecutable**.
-2. Abre CodeGO y pulsa **Comprobar este equipo**. La prueba crea y lee un archivo temporal, ejecuta Python, responde a `input()` con acentos y elimina sus archivos.
-3. Elige **Actividad / Tarea** para programar libremente. No aparece el botón Entregar y no se modifican Wi-Fi ni audio.
-4. Abre un proyecto, escribe código y pulsa **F5 / Ejecutar**. Escribe directamente en la consola y envía con Enter. El botón Detener termina el proceso Python principal.
+1. **🛡️ Modo Examen Blindado**: Kiosk absoluto a pantalla completa, Wi-Fi deshabilitado automáticamente, watchdog de audio anti-silenciamiento y alerta estroboscópica de 12 segundos ante cualquier intento de cambio de ventana. Entrega sellada en ZIP auditado con sello SHA-256.
+2. **📦 Modo Tarea Certificada (Prueba de Autoría Irrefutable)**:
+   - **Anticopia estricto**: Prohíbe el pegado de código externo (`ctrl+v`, menús contextuales). Todo el código debe ser digitado directamente en CodeGO.
+   - **Supervisión académica**: Modo kiosk y alarma visual/acústica si se intenta cambiar a otras aplicaciones o navegadores (ChatGPT, editores externos, etc.).
+   - **Telemetría forense continua**: Registra pulsaciones de teclas, caracteres digitados, tiempo activo de tipeo, 0 intentos de pegado externo, ejecuciones de prueba e incidencias.
+   - **Contenedor `.codego` firmado con HMAC-SHA256**: Certificado criptográfico irrefutable + reporte visual auto-contenido `CERTIFICADO_DOCENTE.html`.
+3. **📘 Modo Actividad / Tarea Libre**: Entorno de programación sin restricciones para prácticas en clase o casa. Los botones de entrega (`#btn-finish-exam` y `#btn-submit-task`) permanecen estrictamente ocultos.
 
-En Linux, da permiso de ejecución al AppImage (`chmod +x CodeGO-1.1.1-linux-x64.AppImage`) y ábrelo. Si tu sistema no admite AppImage, extrae el paquete `tar.gz`. Los binarios no requieren Node.js instalado.
+## Manejo de Carpetas y Subcarpetas
 
-La herramienta de librerías instala dentro de `exam_env`; si no puede crear o verificar ese entorno, muestra el error y no usa pip global. La instalación de componentes requiere conexión y puede requerir permisos del administrador. En distribuciones sin `apt-get` y en macOS, prepara Python con las herramientas de tu sistema.
+CodeGO incluye un explorador de archivos con soporte integral de jerarquías de carpetas y subcarpetas:
+- Árbol jerárquico colapsable/expandible con ordenamiento natural (carpetas primero).
+- Creación rápida de archivos y subdirectorios dentro de cualquier nivel.
+- Barra de navegación por migas de pan (`Breadcrumbs`) que indica la ruta relativa en tiempo real.
+- Compatibilidad multiplataforma transparente (rutas normalizadas en Linux, Windows y macOS).
 
-## Configurar un examen
+## Herramienta Forense para Docentes (`🔍 Verificar Tarea/Examen`)
 
-El administrador debe definir `CODEGO_TEACHER_PIN` antes de iniciar CodeGO: al menos ocho caracteres, distinto del antiguo PIN público. No guardes la clave en este repositorio ni en los archivos del alumno. La ventana de autorización ya no muestra una clave predeterminada. Actividad no necesita PIN.
-
-Examen verifica la desconexión de Wi-Fi antes de activar kiosk. Si no puede comprobarla, no inicia la sesión. Al salir con autorización o entregar restaura únicamente las interfaces que modificó. En Linux necesita NetworkManager (`nmcli`); Windows requiere permisos para administrar adaptadores y macOS usa `networksetup`.
-
-La entrega genera un ZIP con código, bitácora y SHA-256 por archivo, además de un archivo `.zip.sha256`. Para comprobar ambos:
-
-```bash
-npm run verify:submission -- "/ruta/EXAMEN_alumno.zip"
-```
-
-Los hashes comprueban integridad respecto al checksum conservado por el docente; no cifran el ZIP ni autentican a su autor. Python ejecuta con los permisos del usuario: kiosk no sustituye el aislamiento y las políticas del sistema operativo. Para evaluaciones supervisadas aplica la aceptación física descrita en [PRODUCCION.md](docs/PRODUCCION.md).
+Disponible en el lobby y dentro del IDE:
+- Permite arrastrar o examinar archivos `.codego` o `.zip`.
+- Verifica la firma criptográfica HMAC y los hashes SHA-256 de cada archivo individual y del contenedor.
+- Despliega tarjeta del estudiante, telemetría de digitación auditada, visor de código con resaltado y botón para **ejecutar el código entregado** o **extraerlo limpiamente**.
 
 ## Desarrollo y comprobación
 

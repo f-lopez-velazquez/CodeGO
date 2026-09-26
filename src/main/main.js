@@ -1118,6 +1118,41 @@ except Exception:
       return { success: true, mode: 'activity' };
     }
 
+    if (studentData && studentData.mode === 'task') {
+      isKioskActive = true;
+      activeSessionMode = 'task';
+      currentWorkspace = defaultWorkspace;
+      if (!fs.existsSync(currentWorkspace)) {
+        fs.mkdirSync(currentWorkspace, { recursive: true });
+      }
+      startAudioWatchdog();
+      logSecurityIncident('TASK_MODE_STARTED', {
+        student: studentData,
+        startTime: new Date().toISOString()
+      });
+
+      if (mainWindow) {
+        mainWindow.setMenu(null);
+        mainWindow.setMenuBarVisibility(false);
+        mainWindow.setFullScreen(true);
+        mainWindow.setKiosk(true);
+        mainWindow.setAlwaysOnTop(true, 'screen-saver');
+
+        try {
+          const forbiddenKeys = ['Alt+Tab', 'Super', 'Alt+F4', 'F11', 'VolumeMute', 'VolumeDown'];
+          globalShortcut.registerAll(forbiddenKeys, () => {
+            enforceSystemAudioUnmute(0.95);
+            try { shell.beep(); } catch (_) {}
+            logSecurityIncident('GLOBAL_SHORTCUT_INTERCEPTED', {});
+          });
+        } catch (err) {
+          console.warn('Global shortcuts registration note in task mode:', err);
+        }
+      }
+
+      return { success: true, mode: 'task' };
+    }
+
     if (teacherPin.length < 8 || teacherPin === 'PROF1234') return { success: false, error: 'El docente debe configurar CODEGO_TEACHER_PIN con al menos 8 caracteres antes de iniciar el examen. Consulta la guía de instalación.' };
 
     // Exam Mode: Strictly isolate workspace to clean exam folder
@@ -1293,14 +1328,19 @@ except Exception:
     app.quit();
   });
 
-  // File System Operations (Dynamic currentWorkspace)
+  // File System Operations (Dynamic currentWorkspace with enhanced cross-platform subfolder support)
   handle('fs:list-workspace', async () => {
     function scanDir(dir, relative = '') {
       const items = fs.readdirSync(dir, { withFileTypes: true });
+      items.sort((a, b) => {
+        if (a.isDirectory() && !b.isDirectory()) return -1;
+        if (!a.isDirectory() && b.isDirectory()) return 1;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      });
       const result = [];
 
       for (const item of items) {
-        const itemRelative = path.join(relative, item.name);
+        const itemRelative = (relative ? relative + '/' : '') + item.name;
         const itemFull = path.join(dir, item.name);
 
         if (item.isDirectory()) {
@@ -1334,51 +1374,53 @@ except Exception:
     try {
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
       const content = fs.readFileSync(safePath, 'utf-8');
-      return { success: true, content, path: relativePath };
+      return { success: true, content, path: relativePath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
 
   handle('fs:save-file', async (event, { relativePath, content }) => {
-    if (workspaceSealed) return { success: false, error: 'El examen entregado es de solo lectura.' };
+    if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
+      fs.mkdirSync(path.dirname(safePath), { recursive: true });
       fs.writeFileSync(safePath, content, 'utf-8');
-      return { success: true, path: relativePath };
+      return { success: true, path: relativePath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
 
   handle('fs:create-file', async (event, relativePath) => {
-    if (workspaceSealed) return { success: false, error: 'El examen entregado es de solo lectura.' };
+    if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
+      fs.mkdirSync(path.dirname(safePath), { recursive: true });
       if (!fs.existsSync(safePath)) {
         fs.writeFileSync(safePath, '', 'utf-8');
       }
-      return { success: true, path: relativePath };
+      return { success: true, path: relativePath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
 
   handle('fs:create-folder', async (event, relativePath) => {
-    if (workspaceSealed) return { success: false, error: 'El examen entregado es de solo lectura.' };
+    if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
       if (!fs.existsSync(safePath)) {
         fs.mkdirSync(safePath, { recursive: true });
       }
-      return { success: true, path: relativePath };
+      return { success: true, path: relativePath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
 
   handle('fs:delete', async (event, relativePath) => {
-    if (workspaceSealed) return { success: false, error: 'El examen entregado es de solo lectura.' };
+    if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
       if (fs.existsSync(safePath)) {
@@ -1391,12 +1433,13 @@ except Exception:
   });
 
   handle('fs:rename', async (event, { oldPath, newPath }) => {
-    if (workspaceSealed) return { success: false, error: 'El examen entregado es de solo lectura.' };
+    if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
       const safeOld = resolveWorkspacePath(currentWorkspace, oldPath);
       const safeNew = resolveWorkspacePath(currentWorkspace, newPath);
+      fs.mkdirSync(path.dirname(safeNew), { recursive: true });
       fs.renameSync(safeOld, safeNew);
-      return { success: true };
+      return { success: true, path: newPath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };
     }
@@ -1438,6 +1481,87 @@ except Exception:
       }
 
       return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  // Certified Task Submission & Signing
+  handle('task:submit', async (event, submissionData) => {
+    if (activeProcess) return { success: false, error: 'Detén la ejecución de Python antes de entregar la tarea.' };
+    if (workspaceSealed) return { success: false, error: 'La tarea ya fue entregada.' };
+    try {
+      const { student, telemetry } = submissionData || {};
+      const safeStudent = String(student?.name || 'alumno').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+      const safeSubject = String(student?.subject || 'tarea').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+      const defaultName = `TAREA_${safeSubject}_${safeStudent}.codego`;
+
+      let customPath = null;
+      if (mainWindow) {
+        const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+          title: 'Guardar Archivo de Tarea Certificada CodeGO',
+          defaultPath: path.join(app.getPath('downloads'), defaultName),
+          filters: [
+            { name: 'Archivo de Tarea CodeGO (*.codego)', extensions: ['codego'] },
+            { name: 'Archivo ZIP (*.zip)', extensions: ['zip'] },
+            { name: 'Todos los archivos', extensions: ['*'] }
+          ]
+        });
+        if (canceled || !filePath) return { success: false, canceled: true };
+        customPath = filePath;
+      }
+
+      const result = createCertifiedTaskSubmission({
+        workspace: currentWorkspace,
+        customFilePath: customPath,
+        outputDirectory: app.getPath('downloads'),
+        student: student || {},
+        telemetry: telemetry || {},
+        version: app.getVersion()
+      });
+
+      workspaceSealed = true;
+      return result;
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  // Teacher Forensic Verifier IPC Handlers
+  handle('submission:open-file-dialog', async () => {
+    if (!mainWindow) return { canceled: true };
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Seleccionar Archivo de Tarea o Examen CodeGO (.codego / .zip)',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Archivos CodeGO (*.codego, *.zip)', extensions: ['codego', 'zip'] },
+        { name: 'Todos los archivos', extensions: ['*'] }
+      ]
+    });
+    if (canceled || !filePaths || filePaths.length === 0) return { canceled: true };
+    return { success: true, filePath: filePaths[0] };
+  });
+
+  handle('submission:verify-file', async (event, filePath) => {
+    try {
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { success: false, authentic: false, error: 'El archivo no existe o no se especificó ruta.' };
+      }
+      return verifySubmission(filePath);
+    } catch (e) {
+      return { success: false, authentic: false, error: e.message };
+    }
+  });
+
+  handle('submission:extract-code', async (event, { filePath }) => {
+    try {
+      if (!mainWindow) return { canceled: true };
+      const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        title: 'Seleccionar carpeta de destino para extraer el código entregado',
+        properties: ['openDirectory', 'createDirectory']
+      });
+      if (canceled || !filePaths || filePaths.length === 0) return { canceled: true };
+      return extractSubmissionFiles(filePath, filePaths[0]);
     } catch (e) {
       return { success: false, error: e.message };
     }

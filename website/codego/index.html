@@ -41,10 +41,10 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="badge-pill">
         <span class="dot" aria-hidden="true"></span>
-        <span>v1.1.1 · Vista previa · Windows · macOS · Linux</span>
+        <span>v1.2.0 · Vista previa · Windows · macOS · Linux</span>
       </div>
       <h1 id="hero-title">Aprende Python.<br><span class="accent-text">Sin complicaciones.</span></h1>
-      <p class="hero-subtitle">Editor de escritorio ligero con consola interactiva en tiempo real y modo de evaluación supervisada.</p>
+      <p class="hero-subtitle">Editor de escritorio ligero con consola interactiva en tiempo real, árbol jerárquico de carpetas, modo tarea certificada y evaluación supervisada.</p>
 
       <p class="release-note"><strong>Vista previa pública.</strong> Windows y macOS aún no tienen certificado de desarrollador; macOS no está notarizado. El sistema puede advertir o bloquear su apertura. <a href="https://github.com/f-lopez-velazquez/CodeGO/blob/main/docs/PRODUCCION.md">Estado de distribución y guía de instalación ↗</a></p>
       <!-- Direct Downloads Hub -->
@@ -58,12 +58,12 @@
             </span>
             <span class="os-badge">x64</span>
           </div>
-          <a class="btn-download" href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-setup-x64.exe">
+          <a class="btn-download" href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-setup-x64.exe">
             Descargar instalador ↓
           </a>
           <div class="download-options">
             <span>Opcional:</span>
-            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-portable-x64.exe">Versión portable (.exe)</a>
+            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-portable-x64.exe">Versión portable (.exe)</a>
           </div>
         </article>
 
@@ -76,14 +76,14 @@
             </span>
             <span class="os-badge">Apple / Intel</span>
           </div>
-          <a class="btn-download" href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-arm64.dmg">
+          <a class="btn-download" href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-arm64.dmg">
             Apple Silicon (.dmg) ↓
           </a>
           <div class="download-options">
-            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-x64.dmg">Mac Intel (.dmg)</a>
+            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-x64.dmg">Mac Intel (.dmg)</a>
             <span class="sep">·</span>
-            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-arm64.zip">ZIP Apple Silicon</a>
-            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-mac-x64.zip">ZIP Intel</a>
+            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-arm64.zip">ZIP Apple Silicon</a>
+            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-x64.zip">ZIP Intel</a>
           </div>
         </article>
 
@@ -96,18 +96,18 @@
             </span>
             <span class="os-badge">x64</span>
           </div>
-          <a class="btn-download" href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-linux-x64.AppImage">
+          <a class="btn-download" href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-linux-x64.AppImage">
             Descargar AppImage ↓
           </a>
           <div class="download-options">
             <span>Opcional:</span>
-            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.1.1-preview.1/CodeGO-1.1.1-linux-x64.tar.gz">Archivo .tar.gz</a>
+            <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-linux-x64.tar.gz">Archivo .tar.gz</a>
           </div>
         </article>
       </div>
 
       <p class="downloads-meta-note">
-        Gratis y Código Abierto · Licencia MIT · <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/tag/v1.1.1-preview.1" target="_blank" rel="noopener noreferrer">Ver notas de versión y hashes SHA-256 ↗</a>
+        Gratis y Código Abierto · Licencia MIT · <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/tag/v1.2.0-preview.1" target="_blank" rel="noopener noreferrer">Ver notas de versión y hashes SHA-256 ↗</a>
       </p>
     </section>
 
@@ -124,15 +124,19 @@
         <div class="showcase-nav" role="tablist" aria-label="Vistas de la aplicación">
           <button type="button" class="showcase-tab active" role="tab" id="tab-ide" aria-selected="true" aria-controls="panel-ide" tabindex="0">
             <span class="tab-icon">⚡</span>
-            <span class="tab-text">IDE & Terminal</span>
+            <span class="tab-text">IDE & Subcarpetas</span>
+          </button>
+          <button type="button" class="showcase-tab" role="tab" id="tab-task" aria-selected="false" aria-controls="panel-task" tabindex="-1">
+            <span class="tab-icon">📦</span>
+            <span class="tab-text">Tarea Certificada</span>
+          </button>
+          <button type="button" class="showcase-tab" role="tab" id="tab-verifier" aria-selected="false" aria-controls="panel-verifier" tabindex="-1">
+            <span class="tab-icon">🔍</span>
+            <span class="tab-text">Verificador Docente</span>
           </button>
           <button type="button" class="showcase-tab" role="tab" id="tab-lobby" aria-selected="false" aria-controls="panel-lobby" tabindex="-1">
             <span class="tab-icon">🛡️</span>
-            <span class="tab-text">Home & Diagnóstico</span>
-          </button>
-          <button type="button" class="showcase-tab" role="tab" id="tab-packages" aria-selected="false" aria-controls="panel-packages" tabindex="-1">
-            <span class="tab-icon">📦</span>
-            <span class="tab-text">Librerías & Hardware</span>
+            <span class="tab-text">Inicio & Diagnóstico</span>
           </button>
           <button type="button" class="showcase-tab" role="tab" id="tab-alerta" aria-selected="false" aria-controls="panel-alerta" tabindex="-1">
             <span class="tab-icon">🚨</span>
@@ -142,96 +146,128 @@
             <span class="tab-icon">🔒</span>
             <span class="tab-text">Modo Examen</span>
           </button>
+          <button type="button" class="showcase-tab" role="tab" id="tab-packages" aria-selected="false" aria-controls="panel-packages" tabindex="-1">
+            <span class="tab-icon">⚙️</span>
+            <span class="tab-text">Librerías & Hardware</span>
+          </button>
         </div>
       </div>
 
       <!-- Panels Container -->
       <div class="showcase-panels">
-        <!-- Panel 1: IDE Workspace -->
+        <!-- Panel 1: IDE Workspace & Subfolders -->
         <article class="showcase-panel active" id="panel-ide" role="tabpanel" aria-labelledby="tab-ide">
           <div class="preview-frame">
             <div class="preview-topbar">
               <div class="topbar-dots">
                 <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
               </div>
-              <span class="topbar-title">CodeGO · Modo Actividad — main.py</span>
+              <span class="topbar-title">CodeGO · Explorador Jerárquico & Terminal Interactiva — sensores/calibracion.py</span>
               <span class="topbar-status"><span class="status-indicator"></span> Terminal Interactiva Lista</span>
             </div>
             <div class="preview-img-container">
-              <img src="/productos/codego/codego-ide.png" width="1920" height="1080" alt="Editor de Python lado a lado con terminal interactiva unificada ejecutando captura de sensores Arduino" fetchpriority="high">
+              <img src="/productos/codego/codego-ide.png" width="1920" height="1080" alt="Editor de Python con árbol de subcarpetas, migas de pan y terminal interactiva unificada ejecutando captura de sensores Arduino" fetchpriority="high">
             </div>
           </div>
           <div class="showcase-details">
             <div class="showcase-info">
-              <h3>Consola Interactiva Unificada y Soporte para Microcontroladores</h3>
-              <p>El código a la izquierda y la terminal a la derecha. La respuesta a <code>input()</code> se ingresa en el mismo flujo de texto junto al prompt. Soporta lectura de sensores y pulsadores de Arduino / ESP32 mediante PySerial.</p>
+              <h3>Árbol Jerárquico de Carpetas, Migas de Pan y Consola Unificada</h3>
+              <p>Manejo nativo y fluido de carpetas y subcarpetas en cualquier sistema operativo. Árbol colapsable con ordenamiento natural, barra de migas de pan (breadcrumbs) con ruta en tiempo real y terminal interactiva donde la respuesta a <code>input()</code> se ingresa en el mismo flujo de texto.</p>
             </div>
             <div class="showcase-pills">
               <span class="pill">⚡ <code>input()</code> en consola</span>
+              <span class="pill">📁 Subcarpetas recursivas</span>
+              <span class="pill">🍞 Migas de pan (Breadcrumbs)</span>
               <span class="pill">🔌 PySerial integrado</span>
-              <span class="pill">▶ Autoguardado <kbd>F5</kbd></span>
-              <span class="pill">📁 Proyectos locales</span>
             </div>
           </div>
         </article>
 
-        <!-- Panel 2: Home / Lobby -->
+        <!-- Panel 2: Certified Task Mode -->
+        <article class="showcase-panel" id="panel-task" role="tabpanel" aria-labelledby="tab-task" hidden>
+          <div class="preview-frame">
+            <div class="preview-topbar">
+              <div class="topbar-dots">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              </div>
+              <span class="topbar-title">CodeGO · Modo Tarea Certificada — Tarea 1: Algoritmos de Sensores</span>
+              <span class="topbar-status task-status"><span class="status-indicator" style="background:#3fb950;box-shadow:0 0 8px #3fb950;"></span> Autoría Certificada</span>
+            </div>
+            <div class="preview-img-container">
+              <img src="/productos/codego/codego-task.png" width="1920" height="1080" alt="Modo Tarea Certificada en CodeGO con bloqueo de pegado externo y botón de entrega sellada" loading="lazy">
+            </div>
+          </div>
+          <div class="showcase-details">
+            <div class="showcase-info">
+              <h3>Prueba de Autoría Irrefutable: Anti-Copy/Paste y Contenedor Criptográfico</h3>
+              <p>Garantiza al profesor que la tarea fue escrita a mano por el alumno dentro de CodeGO. Bloquea el pegado de código externo, supervisa la permanencia en pantalla (sin cambiar a otras apps ni ChatGPT) y empaqueta el trabajo en un archivo <code>.codego</code> firmado con HMAC-SHA256.</p>
+            </div>
+            <div class="showcase-pills">
+              <span class="pill task-pill">📋 Anti-copia/pega estricto</span>
+              <span class="pill task-pill">🛡️ Modo Kiosk supervisado</span>
+              <span class="pill task-pill">⌨️ Auditoría de pulsaciones</span>
+              <span class="pill task-pill">📦 Contenedor .codego HMAC</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Panel 3: Teacher Forensic Verifier -->
+        <article class="showcase-panel" id="panel-verifier" role="tabpanel" aria-labelledby="tab-verifier" hidden>
+          <div class="preview-frame">
+            <div class="preview-topbar">
+              <div class="topbar-dots">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              </div>
+              <span class="topbar-title">CodeGO · Herramienta Forense para Docentes — Auditoría Criptográfica</span>
+              <span class="topbar-status"><span class="status-indicator" style="background:#3fb950;box-shadow:0 0 8px #3fb950;"></span> Firma Válida</span>
+            </div>
+            <div class="preview-img-container">
+              <img src="/productos/codego/codego-verificador.png" width="1920" height="1080" alt="Herramienta forense docente de verificación de tareas y exámenes en CodeGO" loading="lazy">
+            </div>
+          </div>
+          <div class="showcase-details">
+            <div class="showcase-info">
+              <h3>Auditoría Forense para el Docente: Validación de Firma, Telemetría y Ejecución</h3>
+              <p>El profesor puede arrastrar cualquier archivo <code>.codego</code> o <code>.zip</code> entregado para verificar su autenticidad criptográfica al instante. Muestra si hubo intentos de copia externa, el tiempo exacto de tipeo, permite leer el código con coloreado de sintaxis, extraerlo a una carpeta o ejecutarlo in-situ.</p>
+            </div>
+            <div class="showcase-pills">
+              <span class="pill task-pill">✓ Firma HMAC validada</span>
+              <span class="pill task-pill">⏱️ 1,450 teclas auditadas</span>
+              <span class="pill">▶ Ejecución in-situ</span>
+              <span class="pill">📥 Extracción limpia</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Panel 4: Home / Lobby -->
         <article class="showcase-panel" id="panel-lobby" role="tabpanel" aria-labelledby="tab-lobby" hidden>
           <div class="preview-frame">
             <div class="preview-topbar">
               <div class="topbar-dots">
                 <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
               </div>
-              <span class="topbar-title">CodeGO · Inicio — Diagnóstico del Sistema</span>
+              <span class="topbar-title">CodeGO · Inicio — 3 Modalidades & Diagnóstico del Sistema</span>
               <span class="topbar-status"><span class="status-indicator"></span> Sistema Validado</span>
             </div>
             <div class="preview-img-container">
-              <img src="/productos/codego/codego-lobby.png" width="1920" height="1080" alt="Pantalla de inicio minimalista de CodeGO con diagnóstico de entorno y selector de modalidad" loading="lazy">
+              <img src="/productos/codego/codego-lobby.png" width="1920" height="1080" alt="Pantalla de inicio minimalista de CodeGO con diagnóstico de entorno y selector de 3 modalidades" loading="lazy">
             </div>
           </div>
           <div class="showcase-details">
             <div class="showcase-info">
               <h3>Lobby Sobrio, Minimalista y Verificación Inmediata</h3>
-              <p>Sin saturación visual ni menús complejos. Permite seleccionar directamente entre Modo Examen y Modo Actividad, validando automáticamente el intérprete de Python, la red y el hardware antes de arrancar.</p>
+              <p>Sin saturación visual ni menús complejos. Permite seleccionar directamente entre Modo Examen, Modo Tarea y Modo Actividad, con acceso directo a la herramienta de verificación forense para profesores y diagnóstico automático del entorno.</p>
             </div>
             <div class="showcase-pills">
-              <span class="pill">🛡️ Selector Examen / Tarea</span>
+              <span class="pill">🛡️ 3 Modos especializados</span>
+              <span class="pill">🔍 Verificador docente</span>
               <span class="pill">✓ Comprobación rápida</span>
               <span class="pill">✨ Interfaz mate sobria</span>
-              <span class="pill">👤 Datos de sesión</span>
             </div>
           </div>
         </article>
 
-        <!-- Panel 3: Package & Hardware Manager -->
-        <article class="showcase-panel" id="panel-packages" role="tabpanel" aria-labelledby="tab-packages" hidden>
-          <div class="preview-frame">
-            <div class="preview-topbar">
-              <div class="topbar-dots">
-                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
-              </div>
-              <span class="topbar-title">CodeGO · Gestor de Librerías de Python & Entorno</span>
-              <span class="topbar-status"><span class="status-indicator"></span> 12 Paquetes Esenciales</span>
-            </div>
-            <div class="preview-img-container">
-              <img src="/productos/codego/codego-packages.png" width="1920" height="1080" alt="Gestor de dependencias de CodeGO con instalación en 1 clic de Pygame, NumPy, SciPy, PySerial" loading="lazy">
-            </div>
-          </div>
-          <div class="showcase-details">
-            <div class="showcase-info">
-              <h3>Batería Completa de 12 Librerías Científicas y Hardware</h3>
-              <p>Instalación en un solo clic de los paquetes recomendados (Pygame, NumPy, Matplotlib, Pandas, SciPy, Pillow, SymPy, PySerial...) sin lidiar con comandos terminal ni errores de compilador C++.</p>
-            </div>
-            <div class="showcase-pills">
-              <span class="pill">📦 12 paquetes en 1 clic</span>
-              <span class="pill">🎮 Pygame & Gráficos 2D</span>
-              <span class="pill">🔢 NumPy & SciPy</span>
-              <span class="pill">🌐 Buscador PyPI libre</span>
-            </div>
-          </div>
-        </article>
-
-        <!-- Panel 4: Teacher Strobe Flash -->
+        <!-- Panel 5: Teacher Strobe Flash -->
         <article class="showcase-panel" id="panel-alerta" role="tabpanel" aria-labelledby="tab-alerta" hidden>
           <div class="preview-frame">
             <div class="preview-topbar">
@@ -248,7 +284,7 @@
           <div class="showcase-details">
             <div class="showcase-info">
               <h3>Alerta Lumínica Estroboscópica Visible a Distancia</h3>
-              <p>Si el estudiante cambia de ventana o pierde el foco, la pantalla emite un flash estroboscópico perimétrico visible en toda el aula. El audio anti-silencio y la cuenta regresiva forzada de 12s garantizan la supervisión docente.</p>
+              <p>Si el estudiante cambia de ventana o pierde el foco, la pantalla emite un flash estroboscópico perimétrico visible en toda el aula. El audio anti-silencio y la cuenta regresiva forzada de 12s garantizan la supervisión docente tanto en exámenes como en tareas.</p>
             </div>
             <div class="showcase-pills">
               <span class="pill alert-pill">🚨 Flash estroboscópico</span>
@@ -259,7 +295,7 @@
           </div>
         </article>
 
-        <!-- Panel 5: Exam Mode -->
+        <!-- Panel 6: Exam Mode -->
         <article class="showcase-panel" id="panel-examen" role="tabpanel" aria-labelledby="tab-examen" hidden>
           <div class="preview-frame">
             <div class="preview-topbar">
@@ -286,59 +322,109 @@
             </div>
           </div>
         </article>
+
+        <!-- Panel 7: Package & Hardware Manager -->
+        <article class="showcase-panel" id="panel-packages" role="tabpanel" aria-labelledby="tab-packages" hidden>
+          <div class="preview-frame">
+            <div class="preview-topbar">
+              <div class="topbar-dots">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              </div>
+              <span class="topbar-title">CodeGO · Gestor de Librerías de Python & Entorno</span>
+              <span class="topbar-status"><span class="status-indicator"></span> 12 Paquetes Esenciales</span>
+            </div>
+            <div class="preview-img-container">
+              <img src="/productos/codego/codego-packages.png" width="1920" height="1080" alt="Gestor de dependencias de CodeGO con instalación en 1 clic de Pygame, NumPy, SciPy, PySerial" loading="lazy">
+            </div>
+          </div>
+          <div class="showcase-details">
+            <div class="showcase-info">
+              <h3>Batería Completa de 12 Librerías Científicas y Hardware</h3>
+              <p>Instalación en un solo clic de los paquetes recomendados (Pygame, NumPy, Matplotlib, Pandas, SciPy, Pillow, SymPy, PySerial...) sin lidiar con comandos terminal ni errores de compilador C++.</p>
+            </div>
+            <div class="showcase-pills">
+              <span class="pill">📦 12 paquetes en 1 clic</span>
+              <span class="pill">🎮 Pygame & Gráficos 2D</span>
+              <span class="pill">🔢 NumPy & SciPy</span>
+              <span class="pill">🌐 Buscador PyPI libre</span>
+            </div>
+          </div>
+        </article>
       </div>
 
       <!-- Mini Thumbnail Gallery for Instant Scanning -->
       <div class="showcase-thumbnails" role="group" aria-label="Miniaturas de capturas">
-        <button type="button" class="thumb-card active" data-target="tab-ide" aria-label="Ver captura de IDE & Terminal">
+        <button type="button" class="thumb-card active" data-target="tab-ide" aria-label="Ver captura de IDE & Subcarpetas">
           <div class="thumb-img-wrap"><img src="/productos/codego/codego-ide.png" width="320" height="180" alt="Miniatura IDE" loading="lazy"></div>
-          <span>01 · IDE & Terminal</span>
+          <span>01 · IDE & Carpetas</span>
+        </button>
+        <button type="button" class="thumb-card" data-target="tab-task" aria-label="Ver captura de Tarea Certificada">
+          <div class="thumb-img-wrap"><img src="/productos/codego/codego-task.png" width="320" height="180" alt="Miniatura Tarea Certificada" loading="lazy"></div>
+          <span>02 · Tarea Certificada</span>
+        </button>
+        <button type="button" class="thumb-card" data-target="tab-verifier" aria-label="Ver captura de Verificador Docente">
+          <div class="thumb-img-wrap"><img src="/productos/codego/codego-verificador.png" width="320" height="180" alt="Miniatura Verificador" loading="lazy"></div>
+          <span>03 · Auditor Forense</span>
         </button>
         <button type="button" class="thumb-card" data-target="tab-lobby" aria-label="Ver captura de Inicio & Diagnóstico">
           <div class="thumb-img-wrap"><img src="/productos/codego/codego-lobby.png" width="320" height="180" alt="Miniatura Lobby" loading="lazy"></div>
-          <span>02 · Inicio & Lobby</span>
-        </button>
-        <button type="button" class="thumb-card" data-target="tab-packages" aria-label="Ver captura de Librerías">
-          <div class="thumb-img-wrap"><img src="/productos/codego/codego-packages.png" width="320" height="180" alt="Miniatura Librerías" loading="lazy"></div>
-          <span>03 · 12 Librerías</span>
+          <span>04 · Inicio & 3 Modos</span>
         </button>
         <button type="button" class="thumb-card" data-target="tab-alerta" aria-label="Ver captura de Alerta">
           <div class="thumb-img-wrap"><img src="/productos/codego/codego-alerta.png" width="320" height="180" alt="Miniatura Flashazo" loading="lazy"></div>
-          <span>04 · Flash Docente</span>
+          <span>05 · Flash Docente</span>
         </button>
         <button type="button" class="thumb-card" data-target="tab-examen" aria-label="Ver captura de Modo Examen">
           <div class="thumb-img-wrap"><img src="/productos/codego/codego-examen.png" width="320" height="180" alt="Miniatura Examen" loading="lazy"></div>
-          <span>05 · Modo Examen</span>
+          <span>06 · Modo Examen</span>
+        </button>
+        <button type="button" class="thumb-card" data-target="tab-packages" aria-label="Ver captura de Librerías">
+          <div class="thumb-img-wrap"><img src="/productos/codego/codego-packages.png" width="320" height="180" alt="Miniatura Librerías" loading="lazy"></div>
+          <span>07 · 12 Librerías</span>
         </button>
       </div>
     </section>
 
-    <!-- Two Modes Section -->
+    <!-- Three Modes Section -->
     <section class="modes-section" aria-label="Modos de trabajo">
       <div class="modes-grid">
         <!-- Modo Actividad -->
         <article class="mode-box">
           <p class="mode-box-tag">01 · Práctica libre</p>
-          <h2>Modo Actividad / Tarea</h2>
-          <p>Diseñado para que los estudiantes experimenten con total libertad en clase o en casa, sin bloqueos ni restricciones.</p>
+          <h2>Modo Actividad / Práctica</h2>
+          <p>Para experimentar y trabajar con total libertad en clase o en casa, sin bloqueos ni restricciones.</p>
           <ul class="mode-list">
+            <li>Navegación jerárquica por carpetas y subcarpetas con breadcrumbs</li>
             <li>Consola interactiva con soporte nativo para <code>input()</code></li>
-            <li>Soporte de hardware y sensores para Arduino, ESP32 y microcontroladores (PySerial)</li>
-            <li>Apertura y creación de proyectos en cualquier carpeta</li>
+            <li>Soporte de hardware y sensores para Arduino / ESP32 (PySerial)</li>
             <li>Autoguardado inmediato antes de ejecutar (<kbd>F5</kbd>)</li>
-            <li>Conectividad a internet sin restricciones</li>
+            <li>Botones de entrega estrictamente ocultos</li>
+          </ul>
+        </article>
+
+        <!-- Modo Tarea Certificada -->
+        <article class="mode-box mode-task">
+          <p class="mode-box-tag">02 · Autoría irrefutable</p>
+          <h2>Modo Tarea Certificada</h2>
+          <p>Garantiza que la tarea fue escrita a mano por el alumno, bloqueando copia externa y supervisando el enfoque.</p>
+          <ul class="mode-list">
+            <li>Bloqueo estricto de copia y pegado externo (anti-paste)</li>
+            <li>Supervisión de enfoque y aviso estroboscópico de 12 segundos</li>
+            <li>Auditoría de pulsaciones, caracteres y tiempo de tipeo</li>
+            <li>Contenedor <code>.codego</code> firmado con HMAC-SHA256</li>
+            <li>Reporte visual docente auto-contenido en HTML</li>
           </ul>
         </article>
 
         <!-- Modo Examen -->
         <article class="mode-box">
-          <p class="mode-box-tag">02 · Evaluación supervisada</p>
+          <p class="mode-box-tag">03 · Evaluación supervisada</p>
           <h2>Modo Examen Blindado</h2>
-          <p>Para evaluaciones académicas con integridad. Elimina distracciones y sella el trabajo final del alumno.</p>
+          <p>Para evaluaciones académicas formales. Elimina distracciones, desconecta la red y sella el trabajo final.</p>
           <ul class="mode-list">
-            <li>Pantalla completa en modo kiosk para evaluación supervisada</li>
-            <li>Desconexión Wi-Fi automática (restaurable al entregar o con PIN)</li>
-            <li>Watchdog de audio anti-silencio y alerta estroboscópica de 12 segundos visible a distancia</li>
+            <li>Pantalla completa en modo kiosk absoluto</li>
+            <li>Desconexión Wi-Fi automática (restaurable con PIN)</li>
+            <li>Watchdog de audio anti-silencio y alerta estroboscópica</li>
             <li>Entrega sellada empaquetada en ZIP auditado con SHA-256</li>
           </ul>
         </article>

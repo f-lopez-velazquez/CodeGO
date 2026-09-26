@@ -281,7 +281,7 @@ body {
 /* Mode Segmented Control */
 .mode-segment-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   background: rgba(22, 28, 42, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
@@ -294,15 +294,16 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.18s ease;
+  white-space: nowrap;
 }
 
 .mode-segment-btn:hover {
@@ -315,6 +316,14 @@ body {
   background: rgba(239, 68, 68, 0.14) !important;
   color: #fca5a5 !important;
   border-color: rgba(239, 68, 68, 0.45) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.mode-segment-btn.active#mode-card-task,
+.mode-card.active#mode-card-task {
+  background: rgba(16, 185, 129, 0.16) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -3101,11 +3110,22 @@ body.theme-paper .academic-title {
 /* Modo Actividad: Ocultamiento estricto e inviolable del botón entregar examen y temporizadores */
 body.mode-activity-active #btn-finish-exam,
 body.mode-activity-active .exam-only-btn,
+body.mode-activity-active #btn-submit-task,
+body.mode-activity-active .task-only-btn,
 body.mode-activity-active .exam-timer-pill,
 body.mode-activity-active #nav-waiting-review-badge,
 body.mode-activity-active .post-submission-toolbar,
-#btn-finish-exam.hidden {
+body.mode-exam-active #btn-submit-task,
+body.mode-exam-active .task-only-btn,
+body.mode-task-active #btn-finish-exam,
+body.mode-task-active .exam-only-btn,
+#btn-finish-exam.hidden,
+#btn-submit-task.hidden {
   display: none !important;
+}
+
+body.mode-task-active #btn-submit-task {
+  display: inline-flex !important;
 }
 
 /* Cursor indicator while resizing */
@@ -3445,3 +3465,344 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
 .sidebar-explorer, .file-tree { min-height: 0; }
 .sidebar-footer { flex-shrink: 0; }
 @media (max-height: 480px) { .sidebar-footer > p { display: none; } .sidebar-footer { padding: 4px 8px; } .sidebar-footer .app-credits { margin-top: 0; padding-top: 0; border: 0; } }
+
+/* ==============================================================
+   TASK MODE, BREADCRUMBS & COLLAPSIBLE FOLDERS
+   ============================================================== */
+/* Breadcrumbs Bar */
+.nav-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav-breadcrumbs .crumb-root { color: var(--accent-cyan); font-weight: 500; }
+.nav-breadcrumbs .crumb-sep { color: var(--text-muted); font-size: 0.7rem; }
+.nav-breadcrumbs .crumb-file { color: var(--text-primary); font-weight: 600; }
+
+/* Mode Indicator for Task */
+.nav-mode-indicator.mode-task {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+.nav-mode-indicator.mode-task .mode-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+/* Submit Task Button */
+.btn-action.submit-task {
+  background: linear-gradient(135deg, #059669, #0d9488);
+  color: #ffffff;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.25);
+  font-weight: 600;
+}
+.btn-action.submit-task:hover {
+  background: linear-gradient(135deg, #10b981, #14b8a6);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+}
+
+.highlight-action-btn {
+  color: #38bdf8 !important;
+  font-weight: 600 !important;
+}
+.highlight-action-btn:hover {
+  color: #7dd3fc !important;
+  text-decoration: underline;
+}
+
+/* Collapsible Folders & Tree Elements */
+.tree-folder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  transition: background 0.15s ease;
+  user-select: none;
+}
+.tree-folder:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.tree-folder-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-toggle-icon {
+  display: inline-block;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+  width: 12px;
+  text-align: center;
+}
+.tree-folder.expanded .folder-toggle-icon {
+  transform: rotate(90deg);
+}
+.folder-name {
+  font-weight: 600;
+  color: #cbd5e1;
+}
+.tree-folder-actions {
+  display: none;
+  align-items: center;
+  gap: 2px;
+}
+.tree-folder:hover .tree-folder-actions {
+  display: flex;
+}
+.btn-tree-subaction {
+  background: transparent;
+  border: none;
+  font-size: 0.72rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.btn-tree-subaction:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+.tree-folder-children {
+  display: flex;
+  flex-direction: column;
+}
+.tree-folder.collapsed + .tree-folder-children {
+  display: none;
+}
+
+/* ==============================================================
+   FORENSIC VERIFIER MODAL & TELEMETRY AUDIT
+   ============================================================== */
+.verifier-card {
+  max-width: 780px !important;
+  width: 95% !important;
+  max-height: 90vh !important;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+.verifier-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.badge-status-waiting {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+.badge-status-valid {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+.badge-status-tampered {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+}
+.verifier-dropzone {
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md);
+  padding: 24px 16px;
+  text-align: center;
+  background: rgba(15, 20, 32, 0.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.verifier-dropzone:hover,
+.verifier-dropzone.dragover {
+  border-color: var(--accent-cyan);
+  background: rgba(56, 189, 248, 0.06);
+}
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.dropzone-icon {
+  font-size: 2rem;
+}
+.dropzone-content p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+.dropzone-content p strong {
+  color: var(--accent-cyan);
+}
+.verifier-result-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.verifier-student-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(22, 30, 46, 0.8);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.verifier-student-info h4 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.verif-student-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+.meta-sep {
+  color: var(--text-muted);
+}
+.verifier-hmac-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+.verifier-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+@media (max-width: 600px) {
+  .verifier-telemetry-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.telemetry-card {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  background: rgba(15, 20, 32, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  gap: 3px;
+}
+.telemetry-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+.telemetry-value {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+.telemetry-sub {
+  font-size: 0.68rem;
+  color: #34d399;
+  font-weight: 500;
+}
+.verifier-code-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+.verifier-files-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(22, 30, 46, 0.5);
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+}
+.section-subtitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.verifier-files-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+.verif-file-tab {
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.verif-file-tab.active {
+  background: var(--bg-surface);
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.verifier-code-preview {
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px 14px;
+}
+.verifier-code-preview pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  user-select: text;
+}
+.dialog-buttons-left {
+  display: flex;
+  gap: 8px;
+}

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { createSubmission, verifySubmission } = require('../src/main/submission');
+const { createSubmission, createCertifiedTaskSubmission, verifySubmission, extractSubmissionFiles } = require('../src/main/submission');
 const { runSelfTest } = require('../src/main/self-test');
 const { createWifiControl } = require('../src/main/wifi-control');
 const { ensurePythonEnvironment } = require('../src/main/python-environment');
@@ -31,6 +31,56 @@ test('Submission includes real hashes and detects ZIP tampering', t => {
   assert.equal(result.manifest.autor,'Francisco López Velázquez');
   fs.appendFileSync(result.zipPath, 'tampering');
   assert.throws(()=>verifySubmission(result.zipPath), /SHA-256/);
+});
+
+test('Certified Task creates signed container with subfolders and verifies HMAC integrity', t => {
+  const root = temporary(t), workspace = path.join(root, 'student-project');
+  fs.mkdirSync(path.join(workspace, 'subcarpeta'), { recursive: true });
+  fs.writeFileSync(path.join(workspace, 'main.py'), 'import subcarpeta.helper\nprint("Hola Tarea")');
+  fs.writeFileSync(path.join(workspace, 'subcarpeta', 'helper.py'), 'def sumar(a,b): return a+b');
+
+  const telemetry = {
+    keystrokesCount: 1450,
+    charactersTyped: 1200,
+    activeTypingSeconds: 1800,
+    externalPasteAttempts: 0,
+    runsCount: 5,
+    incidentsCount: 0
+  };
+
+  const result = createCertifiedTaskSubmission({
+    workspace,
+    outputDirectory: path.join(root, 'out'),
+    student: { name: 'Francisco López', id: '12345', subject: 'Robótica' },
+    telemetry,
+    version: '1.2.0'
+  });
+
+  assert.equal(result.success, true);
+  assert.ok(fs.existsSync(result.filePath));
+
+  const verified = verifySubmission(result.filePath);
+  assert.equal(verified.success, true);
+  assert.equal(verified.authentic, true);
+  assert.equal(verified.mode, 'task');
+  assert.equal(verified.files, 2);
+  assert.equal(verified.student.name, 'Francisco López');
+  assert.equal(verified.telemetry.keystrokesCount, 1450);
+  assert.equal(verified.telemetry.externalPasteAttempts, 0);
+
+  // Test extraction with subfolders
+  const extractDir = path.join(root, 'extracted');
+  const extracted = extractSubmissionFiles(result.filePath, extractDir);
+  assert.equal(extracted.extractedCount, 2);
+  assert.ok(fs.existsSync(path.join(extractDir, 'main.py')));
+  assert.ok(fs.existsSync(path.join(extractDir, 'subcarpeta', 'helper.py')));
+
+  // Test tampering with .codego container
+  const tamperedFile = path.join(root, 'tampered.codego');
+  fs.copyFileSync(result.filePath, tamperedFile);
+  fs.copyFileSync(result.filePath + '.sha256', tamperedFile + '.sha256');
+  fs.appendFileSync(tamperedFile, 'injected_tampering');
+  assert.throws(() => verifySubmission(tamperedFile), /SHA-256|corrupto|dañado/);
 });
 test('Self-test runs real Python stdin, UTF-8 and workspace writes without leftovers', {timeout:15000}, async t => {
   const directory = temporary(t);

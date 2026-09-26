@@ -570,11 +570,17 @@ body {
   color: #79c0ff;
 }
 
+.showcase-pills .pill.task-pill {
+  background: rgba(63, 185, 80, 0.08);
+  border-color: rgba(63, 185, 80, 0.25);
+  color: #3fb950;
+}
+
 /* Mini Thumbnail Gallery */
 .showcase-thumbnails {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
   margin-top: 20px;
 }
 
@@ -635,7 +641,7 @@ body {
   color: var(--accent);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .showcase-details {
     flex-direction: column;
   }
@@ -645,7 +651,7 @@ body {
     min-width: 0;
   }
   .showcase-thumbnails {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -655,15 +661,21 @@ body {
   }
 }
 
-/* Modes Grid: 2 Clean Minimalist Columns */
+/* Modes Grid: 3 Clean Minimalist Columns */
 .modes-section {
   margin-bottom: 56px;
 }
 
 .modes-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
+}
+
+@media (max-width: 960px) {
+  .modes-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .mode-box {
@@ -671,6 +683,16 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 26px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-box.mode-task {
+  border-color: rgba(63, 185, 80, 0.22);
+}
+
+.mode-box.mode-task .mode-box-tag {
+  color: #3fb950;
 }
 
 .mode-box-tag {

@@ -139,10 +139,22 @@ const state = {
   isWordWrap: false,
   isTermMaximized: false,
   isExamSubmitted: false,
+  isTaskSubmitted: false,
+  collapsedFolders: new Set(),
+  taskTelemetry: {
+    keystrokes: 0,
+    charactersWritten: 0,
+    externalPasteAttempts: 0,
+    runsCount: 0,
+    activeEditingSeconds: 0,
+    lastKeystrokeTime: null
+  },
+  currentVerifiedFile: null,
+  verifiedSubmissionData: null,
   termLayout: 'side', // 'side' (Default: Side-by-side vertical split) | 'bottom'
-  appMode: 'exam', // 'exam' | 'activity'
+  appMode: 'exam', // 'exam' | 'task' | 'activity'
   examSessionActive: false, // Strictly true only when in an active, unsubmitted exam session
-  workspaceSessionActive: false // True during an active IDE workspace session (Exam or Activity)
+  workspaceSessionActive: false // True during an active IDE workspace session (Exam, Task or Activity)
 };
 
 // DOM Elements
@@ -154,11 +166,13 @@ const DOM = {
 
   // Mode Selection (Lobby)
   modeCardExam: document.getElementById('mode-card-exam'),
+  modeCardTask: document.getElementById('mode-card-task'),
   modeCardActivity: document.getElementById('mode-card-activity'),
   startBtnTitle: document.getElementById('start-btn-title'),
   startBtnSubtitle: document.getElementById('start-btn-subtitle'),
   lobbyRulesTitle: document.getElementById('lobby-rules-title'),
   lobbyRulesList: document.getElementById('lobby-rules-list'),
+  btnVerifyTaskLobby: document.getElementById('btn-verify-task-lobby'),
 
   // Lobby & Validation
   lobbyValidationBanner: document.getElementById('lobby-validation-banner'),
@@ -237,7 +251,11 @@ const DOM = {
   btnRunCode: document.getElementById('btn-run-code'),
   btnStopCode: document.getElementById('btn-stop-code'),
   btnFinishExam: document.getElementById('btn-finish-exam'),
+  btnSubmitTask: document.getElementById('btn-submit-task'),
+  btnVerifySubmissionIde: document.getElementById('btn-verify-submission-ide'),
   btnTeacherUnlock: document.getElementById('btn-teacher-unlock'),
+  navBreadcrumbs: document.getElementById('nav-breadcrumbs'),
+  crumbCurrentFile: document.getElementById('crumb-current-file'),
 
   // Splitters & Layout
   ideMainGrid: document.getElementById('ide-main-grid'),
@@ -322,6 +340,44 @@ const DOM = {
   submitTotalIncidents: document.getElementById('submit-total-incidents'),
   btnCancelSubmit: document.getElementById('btn-cancel-submit'),
   btnConfirmSubmit: document.getElementById('btn-confirm-submit'),
+
+  // Modal de Entrega de Tarea Certificada
+  modalTaskSubmit: document.getElementById('modal-task-submit'),
+  taskSubmitTotalTime: document.getElementById('task-submit-total-time'),
+  taskSubmitKeystrokes: document.getElementById('task-submit-keystrokes'),
+  taskSubmitCharacters: document.getElementById('task-submit-characters'),
+  taskSubmitPastes: document.getElementById('task-submit-pastes'),
+  taskSubmitRuns: document.getElementById('task-submit-runs'),
+  taskSubmitIncidents: document.getElementById('task-submit-incidents'),
+  btnCancelTaskSubmit: document.getElementById('btn-cancel-task-submit'),
+  btnConfirmTaskSubmit: document.getElementById('btn-confirm-task-submit'),
+
+  // Modal Verificador Forense Docente
+  modalVerifySubmission: document.getElementById('modal-verify-submission'),
+  verifierStatusBadge: document.getElementById('verifier-status-badge'),
+  verifierDropzone: document.getElementById('verifier-dropzone'),
+  btnSelectSubmissionFile: document.getElementById('btn-select-submission-file'),
+  verifierResultContainer: document.getElementById('verifier-result-container'),
+  verifStudentName: document.getElementById('verif-student-name'),
+  verifStudentId: document.getElementById('verif-student-id'),
+  verifSubject: document.getElementById('verif-subject'),
+  verifDate: document.getElementById('verif-date'),
+  verifOs: document.getElementById('verif-os'),
+  verifHmacBadge: document.getElementById('verif-hmac-badge'),
+  verifHmacText: document.getElementById('verif-hmac-text'),
+  verifKeystrokes: document.getElementById('verif-keystrokes'),
+  verifCharacters: document.getElementById('verif-characters'),
+  verifPastes: document.getElementById('verif-pastes'),
+  verifPastesSub: document.getElementById('verif-pastes-sub'),
+  verifEditingTime: document.getElementById('verif-editing-time'),
+  verifRuns: document.getElementById('verif-runs'),
+  verifIncidents: document.getElementById('verif-incidents'),
+  verifFilesTabs: document.getElementById('verif-files-tabs'),
+  verifCodeDisplay: document.getElementById('verif-code-display'),
+  verifCodeContent: document.getElementById('verif-code-content'),
+  btnExtractSubmissionCode: document.getElementById('btn-extract-submission-code'),
+  btnRunSubmissionCode: document.getElementById('btn-run-submission-code'),
+  btnCloseVerifySubmission: document.getElementById('btn-close-verify-submission'),
 
   modalSubmissionSuccess: document.getElementById('modal-submission-success'),
   receiptFilename: document.getElementById('receipt-filename'),
@@ -905,11 +961,13 @@ async function initApp() {
 // ==============================================================
 function setSessionMode(mode) {
   state.appMode = mode;
+  document.body.classList.remove('mode-exam-active', 'mode-task-active', 'mode-activity-active');
+  if (DOM.modeCardExam) DOM.modeCardExam.classList.toggle('active', mode === 'exam');
+  if (DOM.modeCardTask) DOM.modeCardTask.classList.toggle('active', mode === 'task');
+  if (DOM.modeCardActivity) DOM.modeCardActivity.classList.toggle('active', mode === 'activity');
+
   if (mode === 'exam') {
-    document.body.classList.remove('mode-activity-active');
     document.body.classList.add('mode-exam-active');
-    if (DOM.modeCardExam) DOM.modeCardExam.classList.add('active');
-    if (DOM.modeCardActivity) DOM.modeCardActivity.classList.remove('active');
     if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR EXAMEN';
     if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo seguro';
     if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = 'DIRECTRICES DEL MODO EXAMEN:';
@@ -926,15 +984,44 @@ function setSessionMode(mode) {
       DOM.btnFinishExam.style.display = 'inline-flex';
       DOM.btnFinishExam.disabled = false;
     }
+    if (DOM.btnSubmitTask) {
+      DOM.btnSubmitTask.classList.add('hidden');
+      DOM.btnSubmitTask.style.display = 'none';
+      DOM.btnSubmitTask.disabled = true;
+    }
+    if (DOM.activityActionsToolbar) {
+      DOM.activityActionsToolbar.classList.add('hidden');
+      DOM.activityActionsToolbar.style.display = 'none';
+    }
+  } else if (mode === 'task') {
+    document.body.classList.add('mode-task-active');
+    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR TAREA';
+    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo certificado anti-copia';
+    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = 'DIRECTRICES DEL MODO TAREA CERTIFICADA:';
+    if (DOM.lobbyRulesList) {
+      DOM.lobbyRulesList.innerHTML = `
+        <li><strong>Bloqueo Anti-Copia/Pega Externo:</strong> El código debe escribirse en CodeGO para certificar su autoría irrefutable.</li>
+        <li><strong>Supervisión y Modo Seguro:</strong> Bloquea la apertura de otras aplicaciones o navegadores con alarma de 12s.</li>
+        <li><strong>Telemetría de Pulsaciones:</strong> Se auditan teclas pulsadas, tiempo de edición activo y pruebas realizadas.</li>
+        <li><strong>Certificado Criptográfico .codego:</strong> Genera un contenedor sellado con firma digital HMAC-SHA256 para el docente.</li>
+      `;
+    }
+    if (DOM.btnFinishExam) {
+      DOM.btnFinishExam.classList.add('hidden');
+      DOM.btnFinishExam.style.display = 'none';
+      DOM.btnFinishExam.disabled = true;
+    }
+    if (DOM.btnSubmitTask) {
+      DOM.btnSubmitTask.classList.remove('hidden');
+      DOM.btnSubmitTask.style.display = 'inline-flex';
+      DOM.btnSubmitTask.disabled = false;
+    }
     if (DOM.activityActionsToolbar) {
       DOM.activityActionsToolbar.classList.add('hidden');
       DOM.activityActionsToolbar.style.display = 'none';
     }
   } else {
-    document.body.classList.remove('mode-exam-active');
     document.body.classList.add('mode-activity-active');
-    if (DOM.modeCardActivity) DOM.modeCardActivity.classList.add('active');
-    if (DOM.modeCardExam) DOM.modeCardExam.classList.remove('active');
     if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR ACTIVIDAD';
     if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo libre';
     if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = 'DIRECTRICES DEL MODO ACTIVIDAD:';
@@ -951,6 +1038,11 @@ function setSessionMode(mode) {
       DOM.btnFinishExam.style.display = 'none';
       DOM.btnFinishExam.disabled = true;
     }
+    if (DOM.btnSubmitTask) {
+      DOM.btnSubmitTask.classList.add('hidden');
+      DOM.btnSubmitTask.style.display = 'none';
+      DOM.btnSubmitTask.disabled = true;
+    }
     if (DOM.activityActionsToolbar) {
       DOM.activityActionsToolbar.classList.remove('hidden');
       DOM.activityActionsToolbar.style.display = 'inline-flex';
@@ -965,6 +1057,9 @@ function setupEventListeners() {
   // Mode Selection in Lobby
   if (DOM.modeCardExam) {
     DOM.modeCardExam.addEventListener('click', () => setSessionMode('exam'));
+  }
+  if (DOM.modeCardTask) {
+    DOM.modeCardTask.addEventListener('click', () => setSessionMode('task'));
   }
   if (DOM.modeCardActivity) {
     DOM.modeCardActivity.addEventListener('click', () => setSessionMode('activity'));
@@ -1007,6 +1102,13 @@ function setupEventListeners() {
   document.addEventListener('paste', (e) => {
     if (state.isExamSubmitted) {
       e.preventDefault();
+      return;
+    }
+    if (state.appMode === 'task' && !e.target.closest('#teacher-pin-input, #custom-pkg-input')) {
+      e.preventDefault();
+      state.taskTelemetry.externalPasteAttempts++;
+      showPasteBlockedToast();
+      return;
     }
   });
 
@@ -1162,6 +1264,13 @@ function setupEventListeners() {
   DOM.codeTextarea.addEventListener('paste', (e) => {
     if (state.isExamSubmitted) {
       e.preventDefault();
+      return;
+    }
+    if (state.appMode === 'task') {
+      e.preventDefault();
+      state.taskTelemetry.externalPasteAttempts++;
+      showPasteBlockedToast();
+      return;
     }
   });
 
@@ -1215,6 +1324,45 @@ function setupEventListeners() {
   });
   DOM.btnCancelSubmit.addEventListener('click', () => DOM.modalSubmitExam.classList.add('hidden'));
   DOM.btnConfirmSubmit.addEventListener('click', handleExamFinalSubmit);
+
+  // Task Finish / Submission
+  if (DOM.btnSubmitTask) {
+    DOM.btnSubmitTask.addEventListener('click', () => {
+      if (state.isTaskSubmitted) {
+        DOM.modalSubmissionSuccess.classList.remove('hidden');
+        return;
+      }
+      openSubmitTaskModal();
+    });
+  }
+  if (DOM.btnCancelTaskSubmit) {
+    DOM.btnCancelTaskSubmit.addEventListener('click', () => DOM.modalTaskSubmit.classList.add('hidden'));
+  }
+  if (DOM.btnConfirmTaskSubmit) {
+    DOM.btnConfirmTaskSubmit.addEventListener('click', handleTaskFinalSubmit);
+  }
+
+  // Teacher Forensic Verifier
+  if (DOM.btnVerifyTaskLobby) {
+    DOM.btnVerifyTaskLobby.addEventListener('click', openVerifySubmissionModal);
+  }
+  if (DOM.btnVerifySubmissionIde) {
+    DOM.btnVerifySubmissionIde.addEventListener('click', openVerifySubmissionModal);
+  }
+  if (DOM.btnCloseVerifySubmission) {
+    DOM.btnCloseVerifySubmission.addEventListener('click', () => DOM.modalVerifySubmission.classList.add('hidden'));
+  }
+  if (DOM.btnSelectSubmissionFile) {
+    DOM.btnSelectSubmissionFile.addEventListener('click', handleSelectSubmissionFile);
+  }
+  if (DOM.btnExtractSubmissionCode) {
+    DOM.btnExtractSubmissionCode.addEventListener('click', handleExtractSubmissionCode);
+  }
+  if (DOM.btnRunSubmissionCode) {
+    DOM.btnRunSubmissionCode.addEventListener('click', handleRunSubmissionCode);
+  }
+  setupVerifierDragAndDrop();
+
   if (DOM.btnReviewSubmittedCode) {
     DOM.btnReviewSubmittedCode.addEventListener('click', () => {
       DOM.modalSubmissionSuccess.classList.add('hidden');
@@ -1237,7 +1385,7 @@ function setupEventListeners() {
   // Global Keyboard Shortcuts (F5: Run, Ctrl+S: Save, Ctrl++/Ctrl-: Zoom, Ctrl+0: Reset, Ctrl+B: Sidebar)
   window.addEventListener('keydown', (e) => {
     // Intercept volume tampering & mute keys so alarms cannot be silenced
-    if (state.examSessionActive && state.appMode === 'exam' && (['AudioVolumeMute', 'VolumeMute', 'AudioVolumeDown', 'VolumeDown'].includes(e.key) || e.code === 'AudioVolumeMute' || e.code === 'AudioVolumeDown')) {
+    if (state.examSessionActive && (state.appMode === 'exam' || state.appMode === 'task') && (['AudioVolumeMute', 'VolumeMute', 'AudioVolumeDown', 'VolumeDown'].includes(e.key) || e.code === 'AudioVolumeMute' || e.code === 'AudioVolumeDown')) {
       e.preventDefault();
       e.stopPropagation();
       return false;
@@ -1457,6 +1605,13 @@ async function handleStartExamClick() {
   if (state.appMode === 'exam') {
     // Launch countdown sequence for exam with kiosk lock
     await startCountdownSequence();
+  } else if (state.appMode === 'task') {
+    // Task Mode: start with kiosk lockdown and anti-cheat tracking
+    if (window.electronAPI && window.electronAPI.startKiosk) {
+      const result = await window.electronAPI.startKiosk({ ...state.student, mode: 'task' });
+      if (!result.success) { alert(result.error); return; }
+    }
+    enterIdeWorkspace();
   } else {
     // Activity Mode: start immediately without kiosk lockdown or anti-cheat triggers
     state.examSessionActive = false;
@@ -1524,7 +1679,7 @@ function enterIdeWorkspace() {
   state.workspaceSessionActive = true;
 
   if (state.appMode === 'exam') {
-    document.body.classList.remove('mode-activity-active');
+    document.body.classList.remove('mode-activity-active', 'mode-task-active');
     document.body.classList.add('mode-exam-active');
     state.examSessionActive = true; // Security watchdog & kiosk active only in exam mode
     // Mode Exam: Clear & prominent crimson badge, timer visible, finish exam button visible
@@ -1544,6 +1699,11 @@ function enterIdeWorkspace() {
       DOM.btnFinishExam.style.display = 'inline-flex';
       DOM.btnFinishExam.disabled = false;
     }
+    if (DOM.btnSubmitTask) {
+      DOM.btnSubmitTask.classList.add('hidden');
+      DOM.btnSubmitTask.style.display = 'none';
+      DOM.btnSubmitTask.disabled = true;
+    }
     if (DOM.activityActionsToolbar) {
       DOM.activityActionsToolbar.classList.add('hidden');
       DOM.activityActionsToolbar.style.display = 'none';
@@ -1557,8 +1717,47 @@ function enterIdeWorkspace() {
 
     state.examStartTime = Date.now();
     startExamTimer();
+  } else if (state.appMode === 'task') {
+    document.body.classList.remove('mode-activity-active', 'mode-exam-active');
+    document.body.classList.add('mode-task-active');
+    state.examSessionActive = true; // Kiosk & watchdog active to prevent opening other programs
+    if (DOM.navModeIndicator) {
+      DOM.navModeIndicator.className = 'nav-mode-indicator mode-task';
+      DOM.navModeIndicator.title = 'Sesión de Tarea Certificada con Auditoría Forense y Bloqueo Anti-Copia';
+    }
+    if (DOM.navModeText) {
+      DOM.navModeText.textContent = 'MODO TAREA CERTIFICADA';
+    }
+    if (DOM.examTimerPill) {
+      DOM.examTimerPill.classList.remove('hidden');
+      DOM.examTimerPill.style.display = 'inline-flex';
+    }
+    if (DOM.btnFinishExam) {
+      DOM.btnFinishExam.classList.add('hidden');
+      DOM.btnFinishExam.style.display = 'none';
+      DOM.btnFinishExam.disabled = true;
+    }
+    if (DOM.btnSubmitTask) {
+      DOM.btnSubmitTask.classList.remove('hidden');
+      DOM.btnSubmitTask.style.display = 'inline-flex';
+      DOM.btnSubmitTask.disabled = false;
+    }
+    if (DOM.activityActionsToolbar) {
+      DOM.activityActionsToolbar.classList.add('hidden');
+      DOM.activityActionsToolbar.style.display = 'none';
+    }
+    if (DOM.sidebarTitleLabel) {
+      DOM.sidebarTitleLabel.textContent = 'ESPACIO DE TAREA';
+    }
+    if (DOM.workspaceHintLabel) {
+      DOM.workspaceHintLabel.textContent = 'Entorno de tarea con certificación de autoría';
+    }
+
+    state.examStartTime = Date.now();
+    state.taskTelemetry.lastKeystrokeTime = Date.now();
+    startExamTimer();
   } else {
-    document.body.classList.remove('mode-exam-active');
+    document.body.classList.remove('mode-exam-active', 'mode-task-active');
     document.body.classList.add('mode-activity-active');
     state.examSessionActive = false; // Mode Activity has NO anti-cheat monitoring or timer
     // Mode Activity: Blue badge, NO timer, NO finish button (only run button), project toolbar active
@@ -1577,6 +1776,11 @@ function enterIdeWorkspace() {
       DOM.btnFinishExam.classList.add('hidden'); // Solo botón ejecutar, JAMÁS entregar
       DOM.btnFinishExam.style.display = 'none';
       DOM.btnFinishExam.disabled = true;
+    }
+    if (DOM.btnSubmitTask) {
+      DOM.btnSubmitTask.classList.add('hidden');
+      DOM.btnSubmitTask.style.display = 'none';
+      DOM.btnSubmitTask.disabled = true;
     }
     if (DOM.activityActionsToolbar) {
       DOM.activityActionsToolbar.classList.remove('hidden');
@@ -1811,66 +2015,179 @@ async function loadWorkspaceFiles() {
   }
 }
 
+function updateBreadcrumbs(relativePath) {
+  if (!DOM.navBreadcrumbs) return;
+  const normalized = (relativePath || 'main.py').replace(/\\/g, '/');
+  const parts = normalized.split('/').filter(Boolean);
+  const fileName = parts.pop() || 'main.py';
+
+  let html = `<span class="crumb-root">📁 workspace</span>`;
+  for (const part of parts) {
+    html += `<span class="crumb-sep">/</span><span class="crumb-folder">📁 ${escapeHtml(part)}</span>`;
+  }
+  html += `<span class="crumb-sep">/</span><span class="crumb-file" id="crumb-current-file">🐍 ${escapeHtml(fileName)}</span>`;
+  DOM.navBreadcrumbs.innerHTML = html;
+}
+
 function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
   if (depth === 0) container.innerHTML = '';
 
   tree.forEach((item) => {
-    const itemEl = document.createElement('div');
-    itemEl.className = `tree-item ${state.activeFilePath === item.path ? 'active' : ''}`;
-    itemEl.style.paddingLeft = `${10 + depth * 14}px`;
+    const itemPath = (item.path || '').replace(/\\/g, '/');
+    const isDir = item.type === 'directory';
 
-    let icon = '📄';
-    if (item.type === 'directory') {
-      icon = '📁';
-    } else if (item.name.endsWith('.py')) {
-      icon = '🐍';
-    } else if (item.name.endsWith('.json')) {
-      icon = '📦';
-    } else if (item.name.endsWith('.csv') || item.name.endsWith('.data')) {
-      icon = '📊';
-    }
+    if (isDir) {
+      const folderWrap = document.createElement('div');
+      folderWrap.className = 'tree-folder-group';
 
-    itemEl.innerHTML = `
-      <div class="tree-item-left">
-        <span class="tree-item-icon">${icon}</span>
-        <span class="tree-item-name">${escapeHtml(item.name)}</span>
-      </div>
-      <div class="tree-item-actions">
-        <button class="btn-tree-action" title="Eliminar" data-action="delete" data-path="${escapeHtml(item.path)}">🗑️</button>
-      </div>
-    `;
+      const isCollapsed = state.collapsedFolders.has(itemPath);
+      const folderEl = document.createElement('div');
+      folderEl.className = `tree-folder ${isCollapsed ? 'collapsed' : 'expanded'}`;
+      folderEl.style.paddingLeft = `${8 + depth * 14}px`;
 
-    // Item click
-    itemEl.addEventListener('click', (e) => {
-      if (e.target.closest('[data-action="delete"]')) return;
-      if (item.type === 'file') {
-        openFileInEditor(item.path);
-      }
-    });
+      folderEl.innerHTML = `
+        <div class="tree-folder-left">
+          <span class="folder-toggle-icon">${isCollapsed ? '▶' : '▼'}</span>
+          <span class="tree-item-icon">${isCollapsed ? '📁' : '📂'}</span>
+          <span class="folder-name">${escapeHtml(item.name)}</span>
+        </div>
+        <div class="tree-folder-actions">
+          <button class="btn-tree-subaction" title="Crear archivo en esta carpeta" data-action="new-file-in-folder" data-path="${escapeHtml(itemPath)}">+</button>
+          <button class="btn-tree-subaction" title="Crear subcarpeta en esta carpeta" data-action="new-subfolder-in-folder" data-path="${escapeHtml(itemPath)}">📁+</button>
+          <button class="btn-tree-subaction" title="Eliminar carpeta" data-action="delete-folder" data-path="${escapeHtml(itemPath)}">🗑️</button>
+        </div>
+      `;
 
-    // Delete click
-    const deleteBtn = itemEl.querySelector('[data-action="delete"]');
-    if (deleteBtn) {
-      deleteBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (state.isExamSubmitted) return;
-        if (confirm(`¿Eliminar ${item.name}?`)) {
-          if (window.electronAPI) {
-            if (!await saveAllFiles()) return;
-            const result = await window.electronAPI.deleteItem(item.path);
-            if (!result.success) { alert(result.error); return; }
-            state.openTabs.filter(t => t.path === item.path || t.path.startsWith(item.path + '/')).forEach(t => closeTab(t.path));
-            loadWorkspaceFiles();
-          }
+      // Click to toggle folder expand/collapse
+      folderEl.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-tree-subaction')) return;
+        if (state.collapsedFolders.has(itemPath)) {
+          state.collapsedFolders.delete(itemPath);
+        } else {
+          state.collapsedFolders.add(itemPath);
         }
+        renderFileTree(state.filesTree || tree);
       });
-    }
 
-    container.appendChild(itemEl);
+      // Actions within this directory
+      const newFileBtn = folderEl.querySelector('[data-action="new-file-in-folder"]');
+      if (newFileBtn) {
+        newFileBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (state.isExamSubmitted) return;
+          const fileName = prompt(`Crear archivo dentro de ${item.name}/:\nEjemplo: helper.py`);
+          if (fileName && fileName.trim()) {
+            const cleanName = fileName.trim().replace(/^\/+/, '');
+            const fullPath = `${itemPath}/${cleanName}`;
+            if (window.electronAPI) {
+              const res = await window.electronAPI.createFile(fullPath);
+              if (!res.success) { alert(res.error); return; }
+              state.collapsedFolders.delete(itemPath);
+              await loadWorkspaceFiles();
+              await openFileInEditor(fullPath);
+            }
+          }
+        });
+      }
 
-    // Recursively render directories
-    if (item.type === 'directory' && item.children) {
-      renderFileTree(item.children, container, depth + 1);
+      const newFolderBtn = folderEl.querySelector('[data-action="new-subfolder-in-folder"]');
+      if (newFolderBtn) {
+        newFolderBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (state.isExamSubmitted) return;
+          const folderName = prompt(`Crear subcarpeta dentro de ${item.name}/:\nEjemplo: componentes`);
+          if (folderName && folderName.trim()) {
+            const cleanName = folderName.trim().replace(/^\/+/, '');
+            const fullPath = `${itemPath}/${cleanName}`;
+            if (window.electronAPI) {
+              const res = await window.electronAPI.createFolder(fullPath);
+              if (!res.success) { alert(res.error); return; }
+              state.collapsedFolders.delete(itemPath);
+              await loadWorkspaceFiles();
+            }
+          }
+        });
+      }
+
+      const deleteFolderBtn = folderEl.querySelector('[data-action="delete-folder"]');
+      if (deleteFolderBtn) {
+        deleteFolderBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (state.isExamSubmitted) return;
+          if (confirm(`¿Eliminar la carpeta "${item.name}" y todos sus archivos?`)) {
+            if (window.electronAPI) {
+              if (!await saveAllFiles()) return;
+              const res = await window.electronAPI.deleteItem(itemPath);
+              if (!res.success) { alert(res.error); return; }
+              state.openTabs.filter(t => t.path === itemPath || t.path.startsWith(itemPath + '/')).forEach(t => closeTab(t.path));
+              loadWorkspaceFiles();
+            }
+          }
+        });
+      }
+
+      folderWrap.appendChild(folderEl);
+
+      const childrenWrap = document.createElement('div');
+      childrenWrap.className = 'tree-folder-children';
+      if (isCollapsed) {
+        childrenWrap.style.display = 'none';
+      }
+
+      if (item.children && item.children.length > 0) {
+        renderFileTree(item.children, childrenWrap, depth + 1);
+      }
+      folderWrap.appendChild(childrenWrap);
+      container.appendChild(folderWrap);
+
+    } else {
+      // File item
+      const itemEl = document.createElement('div');
+      itemEl.className = `tree-item ${state.activeFilePath === itemPath ? 'active' : ''}`;
+      itemEl.style.paddingLeft = `${10 + depth * 14}px`;
+
+      let icon = '📄';
+      if (item.name.endsWith('.py')) {
+        icon = '🐍';
+      } else if (item.name.endsWith('.json')) {
+        icon = '📦';
+      } else if (item.name.endsWith('.csv') || item.name.endsWith('.data')) {
+        icon = '📊';
+      }
+
+      itemEl.innerHTML = `
+        <div class="tree-item-left">
+          <span class="tree-item-icon">${icon}</span>
+          <span class="tree-item-name">${escapeHtml(item.name)}</span>
+        </div>
+        <div class="tree-item-actions">
+          <button class="btn-tree-action" title="Eliminar" data-action="delete" data-path="${escapeHtml(itemPath)}">🗑️</button>
+        </div>
+      `;
+
+      itemEl.addEventListener('click', (e) => {
+        if (e.target.closest('[data-action="delete"]')) return;
+        openFileInEditor(itemPath);
+      });
+
+      const deleteBtn = itemEl.querySelector('[data-action="delete"]');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (state.isExamSubmitted) return;
+          if (confirm(`¿Eliminar ${item.name}?`)) {
+            if (window.electronAPI) {
+              if (!await saveAllFiles()) return;
+              const result = await window.electronAPI.deleteItem(itemPath);
+              if (!result.success) { alert(result.error); return; }
+              closeTab(itemPath);
+              loadWorkspaceFiles();
+            }
+          }
+        });
+      }
+
+      container.appendChild(itemEl);
     }
   });
 }
@@ -1914,6 +2231,7 @@ async function openFileInEditor(relativePath) {
   updateLineNumbers();
   updateCursorStats();
   updateSyntaxHighlighting();
+  updateBreadcrumbs(relativePath);
 
   // Highlight active tree item
   document.querySelectorAll('.tree-item').forEach((el) => {
@@ -2168,6 +2486,19 @@ function handleEditorKeydown(e) {
     return;
   }
 
+  // Telemetry: count keystrokes and track active typing seconds
+  if (state.appMode === 'task' || state.appMode === 'exam') {
+    state.taskTelemetry.keystrokes++;
+    const now = Date.now();
+    if (state.taskTelemetry.lastKeystrokeTime) {
+      const diff = (now - state.taskTelemetry.lastKeystrokeTime) / 1000;
+      if (diff > 0 && diff < 6) {
+        state.taskTelemetry.activeEditingSeconds += diff;
+      }
+    }
+    state.taskTelemetry.lastKeystrokeTime = now;
+  }
+
   // Support Tab key for 4-space Python indentation
   if (e.key === 'Tab') {
     e.preventDefault();
@@ -2198,6 +2529,43 @@ function handleEditorKeydown(e) {
       handleEditorInput();
     }
   }
+}
+
+function showPasteBlockedToast() {
+  let toast = document.getElementById('paste-blocked-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'paste-blocked-toast';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: linear-gradient(135deg, #1e1b4b, #312e81);
+      border: 1px solid #818cf8;
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      z-index: 10000;
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      max-width: 380px;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<span style="font-size: 1.5rem;">⚠️</span><div><strong>Pegado bloqueado en Modo Tarea</strong><br><span style="font-size: 0.76rem; color: #c7d2fe;">El código debe escribirse directamente en CodeGO para certificar su autoría irrefutable.</span></div>`;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateY(0)';
+  try { sounds.playCountdownTick(true); } catch (_) {}
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+  }, 4500);
 }
 
 function updateLineNumbers() {
@@ -2250,6 +2618,9 @@ async function runCurrentPythonCode() {
     if (!state.isExamSubmitted && !await saveAllFiles()) throw new Error('Guarda los cambios antes de ejecutar.');
     state.isRunning = true;
     state.isStopping = false;
+    if (state.appMode === 'task') {
+      state.taskTelemetry.runsCount++;
+    }
     DOM.btnStopCode.disabled = false;
     DOM.btnStopCode.classList.add('active');
     DOM.termStatusBadge.className = 'term-badge running';
@@ -2489,6 +2860,242 @@ async function handleExamFinalSubmit() {
     state.isSubmitting = false;
     DOM.btnConfirmSubmit.disabled = false;
   }
+}
+
+function openSubmitTaskModal() {
+  if (state.appMode !== 'task' || state.isTaskSubmitted) return;
+  DOM.taskSubmitTotalTime.textContent = DOM.timerDisplay.textContent;
+  DOM.taskSubmitKeystrokes.textContent = (state.taskTelemetry.keystrokes || 0).toLocaleString();
+  DOM.taskSubmitCharacters.textContent = (DOM.codeTextarea.value.length || 0).toLocaleString();
+
+  if (state.taskTelemetry.externalPasteAttempts === 0) {
+    DOM.taskSubmitPastes.textContent = '0 (100% escrito a mano ✓)';
+    DOM.taskSubmitPastes.className = 'clean';
+  } else {
+    DOM.taskSubmitPastes.textContent = `${state.taskTelemetry.externalPasteAttempts} intentos bloqueados`;
+    DOM.taskSubmitPastes.className = 'highlight-red';
+  }
+
+  DOM.taskSubmitRuns.textContent = `${state.taskTelemetry.runsCount || 0} pruebas`;
+
+  if (state.incidentsCount === 0) {
+    DOM.taskSubmitIncidents.textContent = '0 (Sesión limpia ✓)';
+    DOM.taskSubmitIncidents.className = 'clean';
+  } else {
+    DOM.taskSubmitIncidents.textContent = `${state.incidentsCount} salida(s) de foco`;
+    DOM.taskSubmitIncidents.className = 'highlight-red';
+  }
+
+  DOM.modalTaskSubmit.classList.remove('hidden');
+}
+
+async function handleTaskFinalSubmit() {
+  if (state.appMode !== 'task' || state.isTaskSubmitted || state.isSubmitting) return;
+  if (state.isRunning || state.isStarting) { alert('Detén el programa antes de entregar la tarea.'); return; }
+  state.isSubmitting = true;
+  DOM.btnConfirmTaskSubmit.disabled = true;
+  DOM.codeTextarea.readOnly = true;
+  try {
+    if (!await saveAllFiles()) throw new Error('No se pudieron guardar todos los archivos. Reintenta antes de entregar.');
+    if (!window.electronAPI) throw new Error('La entrega está disponible en la aplicación de escritorio.');
+    const res = await window.electronAPI.submitTask({
+      student: state.student,
+      telemetry: state.taskTelemetry,
+      incidentsCount: state.incidentsCount
+    });
+    if (!res.success) throw new Error(res.error);
+
+    state.isTaskSubmitted = true;
+    lockExamEnvironment();
+    DOM.modalTaskSubmit.classList.add('hidden');
+    if (state.examTimerInterval) clearInterval(state.examTimerInterval);
+    DOM.receiptFilename.textContent = res.fileName;
+    DOM.receiptPath.textContent = res.filePath;
+    DOM.receiptChecksum.textContent = res.sha256;
+    DOM.modalSubmissionSuccess.classList.remove('hidden');
+
+    appendTerminalOutput(`\n>>> [TAREA CERTIFICADA ENTREGADA CON ÉXITO]`, 'success');
+    appendTerminalOutput(`>>> Archivo generado: ${res.fileName}`, 'system');
+    appendTerminalOutput(`>>> Firma Digital HMAC-SHA256: ${res.manifest?.signature ? 'Válida' : 'Generada'}`, 'system');
+    appendTerminalOutput(`>>> Entrega este archivo .codego a tu profesor para certificar tu autoría.\n`, 'system');
+  } catch (error) {
+    DOM.codeTextarea.readOnly = state.isTaskSubmitted;
+    alert(`No se completó la entrega de la tarea: ${error.message}`);
+  } finally {
+    state.isSubmitting = false;
+    DOM.btnConfirmTaskSubmit.disabled = false;
+  }
+}
+
+function openVerifySubmissionModal() {
+  state.currentVerifiedFile = null;
+  state.verifiedSubmissionData = null;
+  if (DOM.verifierStatusBadge) {
+    DOM.verifierStatusBadge.className = 'badge-status-waiting';
+    DOM.verifierStatusBadge.textContent = 'Esperando archivo';
+  }
+  if (DOM.verifierResultContainer) DOM.verifierResultContainer.classList.add('hidden');
+  if (DOM.btnExtractSubmissionCode) DOM.btnExtractSubmissionCode.classList.add('hidden');
+  if (DOM.btnRunSubmissionCode) DOM.btnRunSubmissionCode.classList.add('hidden');
+  if (DOM.modalVerifySubmission) DOM.modalVerifySubmission.classList.remove('hidden');
+}
+
+async function handleSelectSubmissionFile() {
+  if (!window.electronAPI?.openSubmissionFileDialog) return;
+  const res = await window.electronAPI.openSubmissionFileDialog();
+  if (res && res.filePath) {
+    await verifyFileByPath(res.filePath);
+  }
+}
+
+function formatTime(totalSeconds) {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  if (hrs > 0) return `${hrs}h ${mins}m ${secs}s`;
+  return `${mins}m ${secs}s`;
+}
+
+async function verifyFileByPath(filePath) {
+  if (!window.electronAPI?.verifySubmissionFile) return;
+  if (DOM.verifierStatusBadge) {
+    DOM.verifierStatusBadge.className = 'badge-status-waiting';
+    DOM.verifierStatusBadge.textContent = 'Verificando firma criptográfica...';
+  }
+
+  const res = await window.electronAPI.verifySubmissionFile(filePath);
+  if (!res.success) {
+    if (DOM.verifierStatusBadge) {
+      DOM.verifierStatusBadge.className = 'badge-status-tampered';
+      DOM.verifierStatusBadge.textContent = 'ERROR / ARCHIVO DAÑADO';
+    }
+    alert('Error al verificar archivo: ' + res.error);
+    return;
+  }
+
+  state.currentVerifiedFile = filePath;
+  state.verifiedSubmissionData = res;
+  if (DOM.verifierResultContainer) DOM.verifierResultContainer.classList.remove('hidden');
+  if (DOM.btnExtractSubmissionCode) DOM.btnExtractSubmissionCode.classList.remove('hidden');
+  if (DOM.btnRunSubmissionCode) DOM.btnRunSubmissionCode.classList.remove('hidden');
+
+  // Authentic badge & banner
+  if (DOM.verifierStatusBadge) {
+    if (res.authentic) {
+      DOM.verifierStatusBadge.className = 'badge-status-valid';
+      DOM.verifierStatusBadge.textContent = '✓ AUTÉNTICO (Firma Válida)';
+      if (DOM.verifHmacBadge) {
+        DOM.verifHmacBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+        DOM.verifHmacBadge.style.color = '#34d399';
+        DOM.verifHmacBadge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+      }
+      if (DOM.verifHmacText) DOM.verifHmacText.textContent = 'Firma Criptográfica HMAC-SHA256 Verificada';
+    } else {
+      DOM.verifierStatusBadge.className = 'badge-status-tampered';
+      DOM.verifierStatusBadge.textContent = '⚠️ ADULTERADO O SIN FIRMA';
+      if (DOM.verifHmacBadge) {
+        DOM.verifHmacBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+        DOM.verifHmacBadge.style.color = '#f87171';
+        DOM.verifHmacBadge.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+      }
+      if (DOM.verifHmacText) DOM.verifHmacText.textContent = '¡Firma no válida o archivo adulterado!';
+    }
+  }
+
+  // Student header
+  if (DOM.verifStudentName) DOM.verifStudentName.textContent = res.student?.name || 'Estudiante Desconocido';
+  if (DOM.verifStudentId) DOM.verifStudentId.textContent = 'Matrícula: ' + (res.student?.id || '--');
+  if (DOM.verifSubject) DOM.verifSubject.textContent = 'Materia: ' + (res.student?.subject || '--');
+  if (DOM.verifDate) DOM.verifDate.textContent = 'Fecha: ' + (res.timestamp ? new Date(res.timestamp).toLocaleString() : '--');
+  if (DOM.verifOs) DOM.verifOs.textContent = 'SO: ' + (res.platform || '--');
+
+  // Telemetry
+  const tel = res.telemetry || {};
+  if (DOM.verifKeystrokes) DOM.verifKeystrokes.textContent = (tel.keystrokes || 0).toLocaleString();
+  if (DOM.verifCharacters) DOM.verifCharacters.textContent = (tel.charactersWritten || 0).toLocaleString();
+  if (DOM.verifPastes) DOM.verifPastes.textContent = tel.externalPasteAttempts || 0;
+  if (DOM.verifPastesSub) {
+    if (tel.externalPasteAttempts === 0) {
+      DOM.verifPastesSub.textContent = '✓ 100% hecho en CodeGO';
+      DOM.verifPastesSub.style.color = '#34d399';
+    } else {
+      DOM.verifPastesSub.textContent = '⚠️ Intentos de pegado detectados';
+      DOM.verifPastesSub.style.color = '#f87171';
+    }
+  }
+  if (DOM.verifEditingTime) DOM.verifEditingTime.textContent = formatTime(Math.round(tel.activeEditingSeconds || 0));
+  if (DOM.verifRuns) DOM.verifRuns.textContent = (tel.runsCount || 0) + ' veces';
+  if (DOM.verifIncidents) DOM.verifIncidents.textContent = (res.incidentsCount || 0) + ' faltas';
+
+  // Files list
+  if (DOM.verifFilesTabs) {
+    DOM.verifFilesTabs.innerHTML = '';
+    if (res.fileList && res.fileList.length > 0) {
+      res.fileList.forEach((file, index) => {
+        const tabBtn = document.createElement('button');
+        tabBtn.type = 'button';
+        tabBtn.className = `verif-file-tab ${index === 0 ? 'active' : ''}`;
+        tabBtn.textContent = file.path;
+        tabBtn.addEventListener('click', () => {
+          DOM.verifFilesTabs.querySelectorAll('.verif-file-tab').forEach(b => b.classList.remove('active'));
+          tabBtn.classList.add('active');
+          if (DOM.verifCodeContent) DOM.verifCodeContent.textContent = file.content || '(Archivo vacío)';
+        });
+        DOM.verifFilesTabs.appendChild(tabBtn);
+      });
+      if (DOM.verifCodeContent) DOM.verifCodeContent.textContent = res.fileList[0].content || '(Archivo vacío)';
+    } else {
+      if (DOM.verifCodeContent) DOM.verifCodeContent.textContent = '(Sin archivos de código legibles)';
+    }
+  }
+}
+
+async function handleExtractSubmissionCode() {
+  if (!state.currentVerifiedFile || !window.electronAPI?.extractSubmissionCode) return;
+  const res = await window.electronAPI.extractSubmissionCode(state.currentVerifiedFile);
+  if (res && res.success) {
+    alert(`Archivos extraídos con éxito en:\n${res.targetDir}`);
+  } else if (res && !res.canceled) {
+    alert(`Error al extraer archivos: ${res.error}`);
+  }
+}
+
+async function handleRunSubmissionCode() {
+  if (!state.verifiedSubmissionData?.fileList) return;
+  const activeTab = DOM.verifFilesTabs?.querySelector('.verif-file-tab.active');
+  const path = activeTab ? activeTab.textContent : state.verifiedSubmissionData.fileList[0]?.path;
+  const fileObj = state.verifiedSubmissionData.fileList.find(f => f.path === path) || state.verifiedSubmissionData.fileList[0];
+  if (!fileObj) return;
+
+  DOM.modalVerifySubmission.classList.add('hidden');
+  appendTerminalOutput(`\n>>> [VERIFICACIÓN DOCENTE]: Ejecutando ${fileObj.path} del alumno ${state.verifiedSubmissionData.student?.name}...\n`, 'system');
+  if (window.electronAPI?.runPython) {
+    await window.electronAPI.runPython({ code: fileObj.content, fileName: fileObj.path });
+  }
+}
+
+function setupVerifierDragAndDrop() {
+  if (!DOM.verifierDropzone) return;
+  ['dragenter', 'dragover'].forEach(name => {
+    DOM.verifierDropzone.addEventListener(name, (e) => {
+      e.preventDefault();
+      DOM.verifierDropzone.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(name => {
+    DOM.verifierDropzone.addEventListener(name, (e) => {
+      e.preventDefault();
+      DOM.verifierDropzone.classList.remove('dragover');
+    });
+  });
+  DOM.verifierDropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      verifyFileByPath(file.path);
+    }
+  });
 }
 
 async function handleOpenWorkspaceFolder() {

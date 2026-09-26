@@ -38,6 +38,10 @@
           <span class="mode-icon">🛡️</span>
           <span class="mode-text">Modo Examen</span>
         </button>
+        <button type="button" class="mode-card mode-segment-btn" id="mode-card-task" data-mode="task" role="tab" aria-selected="false">
+          <span class="mode-icon">📦</span>
+          <span class="mode-text">Modo Tarea</span>
+        </button>
         <button type="button" class="mode-card mode-segment-btn" id="mode-card-activity" data-mode="activity" role="tab" aria-selected="false">
           <span class="mode-icon">📘</span>
           <span class="mode-text">Modo Actividad</span>
@@ -72,6 +76,8 @@
         <div class="system-status-bar">
           <span id="system-status-indicator" class="status-pill ok">● Sistema preparado</span>
           <div class="status-tools">
+            <button type="button" id="btn-verify-task-lobby" class="btn-text-action highlight-action-btn">🔍 Verificar Tarea/Examen</button>
+            <span class="status-sep">·</span>
             <button type="button" id="btn-open-pkg-manager-lobby" class="btn-text-action">Paquetes</button>
             <span class="status-sep">·</span>
             <button type="button" class="btn-text-action" data-self-test>Comprobar</button>
@@ -197,6 +203,12 @@
           <span class="nav-separator">/</span>
           <span class="nav-student" id="nav-student-label">Alumno</span>
         </div>
+
+        <div class="nav-breadcrumbs" id="nav-breadcrumbs" title="Ruta del archivo activo en el espacio de trabajo">
+          <span class="crumb-root">📁 workspace</span>
+          <span class="crumb-sep">/</span>
+          <span class="crumb-file" id="crumb-current-file">main.py</span>
+        </div>
       </div>
 
       <div class="nav-center">
@@ -303,6 +315,11 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </button>
 
+        <!-- Botón Verificador Docente de Tareas/Exámenes -->
+        <button id="btn-verify-submission-ide" class="btn-icon-ghost" title="Verificador Forense Docente (.codego / .zip)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        </button>
+
         <!-- Botón Desbloqueo Profesor -->
         <button id="btn-teacher-unlock" class="btn-icon-ghost" title="Desbloqueo Profesor">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -338,6 +355,12 @@
         <button id="btn-finish-exam" class="btn-action submit exam-only-btn hidden" style="display: none !important;" title="Finalizar y entregar examen">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <span class="action-label" id="finish-exam-label">Entregar</span>
+        </button>
+
+        <!-- Botón Entregar Tarea Certificada (Exclusivo en Modo Tarea) -->
+        <button id="btn-submit-task" class="btn-action submit-task task-only-btn hidden" style="display: none !important;" title="Finalizar y entregar tarea con certificado de autoría irrefutable">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span class="action-label" id="submit-task-label">Entregar Tarea</span>
         </button>
 
         <!-- Barra de Herramientas Post-Entrega de Examen -->
@@ -844,6 +867,148 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <div class="dialog-buttons">
         <button type="button" id="btn-review-submitted-code" class="btn-ghost">Revisar y Ejecutar Código</button>
         <button type="button" id="btn-close-app" class="btn-primary">Cerrar Aplicación</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: CONFIRMACIÓN DE ENTREGA DE TAREA CERTIFICADA -->
+  <div id="modal-task-submit" class="modal-overlay hidden">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <span class="dialog-icon">📦</span>
+        <div>
+          <h3>Entregar Tarea Certificada</h3>
+          <p class="dialog-desc">Se generará un archivo protegido <code>.codego</code> con firma criptográfica HMAC-SHA256 y certificado de autoría irrefutable para tu profesor.</p>
+        </div>
+      </div>
+
+      <div class="submit-summary-box">
+        <div class="summary-item">
+          <span>Tiempo de edición:</span>
+          <strong id="task-submit-total-time">00:00:00</strong>
+        </div>
+        <div class="summary-item">
+          <span>Pulsaciones de tecla:</span>
+          <strong id="task-submit-keystrokes">0</strong>
+        </div>
+        <div class="summary-item">
+          <span>Caracteres redactados:</span>
+          <strong id="task-submit-characters">0</strong>
+        </div>
+        <div class="summary-item">
+          <span>Pegado externo:</span>
+          <strong id="task-submit-pastes" class="clean">0 (100% hecho a mano)</strong>
+        </div>
+        <div class="summary-item">
+          <span>Pruebas ejecutadas:</span>
+          <strong id="task-submit-runs">0</strong>
+        </div>
+        <div class="summary-item">
+          <span>Salidas de ventana:</span>
+          <strong id="task-submit-incidents" class="clean">0 (Limpio)</strong>
+        </div>
+      </div>
+
+      <div class="dialog-buttons">
+        <button type="button" id="btn-cancel-task-submit" class="btn-ghost">Seguir Programando</button>
+        <button type="button" id="btn-confirm-task-submit" class="btn-action submit-task">Generar Contenedor .codego</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL 7: VERIFICADOR FORENSE DOCENTE (TAREAS Y EXÁMENES) -->
+  <div id="modal-verify-submission" class="modal-overlay hidden">
+    <div class="dialog-card verifier-card">
+      <div class="dialog-header">
+        <span class="dialog-icon">🔍</span>
+        <div style="flex: 1;">
+          <div class="verifier-header-row">
+            <h3>Verificador Forense Docente CodeGO</h3>
+            <span id="verifier-status-badge" class="badge-status-waiting">Esperando archivo</span>
+          </div>
+          <p class="dialog-desc">Arrastra y suelta un archivo <code>.codego</code> o <code>.zip</code> aquí o búscalo en tu equipo para auditar su autenticidad y autoría.</p>
+        </div>
+      </div>
+
+      <!-- File Drop & Picker Zone -->
+      <div class="verifier-dropzone" id="verifier-dropzone">
+        <div class="dropzone-content">
+          <span class="dropzone-icon">📥</span>
+          <p>Arrastra aquí la tarea <strong>.codego</strong> o examen <strong>.zip</strong></p>
+          <button type="button" id="btn-select-submission-file" class="btn-tool-option">Seleccionar Archivo del Equipo</button>
+        </div>
+      </div>
+
+      <!-- Result Container (hidden until a file is loaded) -->
+      <div id="verifier-result-container" class="verifier-result-container hidden">
+        <!-- Student Info Header Banner -->
+        <div class="verifier-student-banner">
+          <div class="verifier-student-info">
+            <h4 id="verif-student-name">Nombre del Alumno</h4>
+            <div class="verif-student-meta">
+              <span id="verif-student-id">Matrícula: --</span>
+              <span class="meta-sep">•</span>
+              <span id="verif-subject">Materia: --</span>
+              <span class="meta-sep">•</span>
+              <span id="verif-date">Fecha: --</span>
+              <span class="meta-sep">•</span>
+              <span id="verif-os">SO: --</span>
+            </div>
+          </div>
+          <div class="verifier-hmac-badge" id="verif-hmac-badge">
+            <span class="hmac-icon">🛡️</span>
+            <span id="verif-hmac-text">Firma Criptográfica Verificada</span>
+          </div>
+        </div>
+
+        <!-- Telemetry Audit Grid -->
+        <div class="verifier-telemetry-grid">
+          <div class="telemetry-card">
+            <span class="telemetry-label">⌨️ Teclas Pulsadas</span>
+            <strong class="telemetry-value" id="verif-keystrokes">0</strong>
+          </div>
+          <div class="telemetry-card">
+            <span class="telemetry-label">📝 Caracteres Escritos</span>
+            <strong class="telemetry-value" id="verif-characters">0</strong>
+          </div>
+          <div class="telemetry-card">
+            <span class="telemetry-label">📋 Pegado Externo</span>
+            <strong class="telemetry-value" id="verif-pastes">0</strong>
+            <span class="telemetry-sub" id="verif-pastes-sub">100% hecho en CodeGO</span>
+          </div>
+          <div class="telemetry-card">
+            <span class="telemetry-label">⏱️ Tiempo Activo</span>
+            <strong class="telemetry-value" id="verif-editing-time">00:00:00</strong>
+          </div>
+          <div class="telemetry-card">
+            <span class="telemetry-label">▶ Pruebas Python</span>
+            <strong class="telemetry-value" id="verif-runs">0 veces</strong>
+          </div>
+          <div class="telemetry-card">
+            <span class="telemetry-label">⚠️ Salidas de Foco</span>
+            <strong class="telemetry-value" id="verif-incidents">0</strong>
+          </div>
+        </div>
+
+        <!-- Files list and code preview -->
+        <div class="verifier-code-section">
+          <div class="verifier-files-nav">
+            <span class="section-subtitle">Archivos Entregados:</span>
+            <div id="verif-files-tabs" class="verifier-files-tabs"></div>
+          </div>
+          <div class="verifier-code-preview">
+            <pre id="verif-code-display"><code id="verif-code-content">Selecciona un archivo para inspeccionar su código fuente...</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialog-buttons">
+        <div class="dialog-buttons-left">
+          <button type="button" id="btn-extract-submission-code" class="btn-tool-option hidden">📂 Extraer Código a Carpeta</button>
+          <button type="button" id="btn-run-submission-code" class="btn-action run hidden">▶ Probar Código</button>
+        </div>
+        <button type="button" id="btn-close-verify-submission" class="btn-ghost">Cerrar Verificador</button>
       </div>
     </div>
   </div>

@@ -49,8 +49,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendPythonStdin: (text) => ipcRenderer.invoke('python:stdin', text),
   killPython: () => ipcRenderer.invoke('python:kill'),
 
-  // Exam Finalization
+  // Exam & Certified Task Finalization & Verification
   submitExam: (studentData) => ipcRenderer.invoke('exam:submit', studentData),
+  submitTask: (payload) => ipcRenderer.invoke('task:submit', payload),
+  verifySubmissionFile: (filePath) => ipcRenderer.invoke('submission:verify-file', filePath),
+  openSubmissionFileDialog: () => ipcRenderer.invoke('submission:open-file-dialog'),
+  extractSubmissionCode: (filePath) => ipcRenderer.invoke('submission:extract-code', filePath),
 
   // Hardware & Microcontrollers (Arduino, ESP32, Raspberry Pi, etc.)
   listSerialPorts: () => ipcRenderer.invoke('hardware:list-serial-ports'),
