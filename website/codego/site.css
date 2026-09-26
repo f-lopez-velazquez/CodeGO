@@ -353,6 +353,125 @@ body {
   text-decoration: underline;
 }
 
+/* Teacher Pitch Section */
+.teacher-pitch {
+  margin: 20px 0 64px;
+  text-align: center;
+}
+
+.pitch-eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.pitch-title {
+  font-size: clamp(22px, 3.5vw, 32px);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.pitch-lead {
+  font-size: clamp(14px, 1.8vw, 16px);
+  color: var(--ink-secondary);
+  max-width: 720px;
+  margin: 0 auto 36px;
+  line-height: 1.6;
+}
+
+.pitch-lead strong {
+  color: #fff;
+}
+
+.pitch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  text-align: left;
+  margin-bottom: 36px;
+}
+
+.pitch-card {
+  background: var(--bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.pitch-card:hover {
+  border-color: rgba(88, 166, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.pitch-icon {
+  font-size: 28px;
+  margin-bottom: 14px;
+  line-height: 1;
+}
+
+.pitch-card h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.pitch-card p {
+  font-size: 13.5px;
+  color: var(--ink-secondary);
+  line-height: 1.6;
+}
+
+.pitch-card strong {
+  color: #fff;
+}
+
+.pitch-card code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+.pitch-cta {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .pitch-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 580px) {
+  .pitch-grid {
+    grid-template-columns: 1fr;
+  }
+  .pitch-cta {
+    flex-direction: column;
+    width: 100%;
+  }
+  .pitch-cta a {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* Real Showcase Gallery */
 .showcase-section {
   margin-bottom: 64px;
