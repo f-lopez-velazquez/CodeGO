@@ -111,19 +111,206 @@
       </p>
     </section>
 
-    <!-- Real Screenshot Preview -->
-    <section class="preview-wrap" aria-label="Vista previa de la interfaz">
-      <div class="preview-frame">
-        <div class="preview-topbar">
-          <div class="topbar-dots">
-            <span></span><span></span><span></span>
-          </div>
-          <span>CodeGO — main.py</span>
-          <span>Python 3.12 / UTF-8</span>
-        </div>
-        <img src="/productos/codego/codego-input-1.1.1.png" width="1280" height="800" alt="Interfaz real de CodeGO con editor de código y terminal interactiva con soporte para input()" loading="lazy">
+    <!-- Real Showcase Gallery -->
+    <section class="showcase-section" aria-label="Galería y capturas de pantalla de CodeGO">
+      <div class="showcase-header">
+        <span class="showcase-eyebrow">DISEÑO Y CAPTURAS REALES</span>
+        <h2 class="showcase-title">Explora la experiencia completa de CodeGO</h2>
+        <p class="showcase-desc">Conoce cada una de las superficies diseñadas para el aula: desde el lobby sin distracciones y la terminal interactiva hasta el soporte de hardware y la supervisión estroboscópica.</p>
       </div>
-      <p class="preview-caption">El código a un lado, la terminal al otro. Escribe la respuesta directamente junto al prompt de <code>input()</code>, dentro de la misma terminal.</p>
+
+      <!-- Navigation Tabs -->
+      <div class="showcase-nav-wrap">
+        <div class="showcase-nav" role="tablist" aria-label="Vistas de la aplicación">
+          <button type="button" class="showcase-tab active" role="tab" id="tab-ide" aria-selected="true" aria-controls="panel-ide" tabindex="0">
+            <span class="tab-icon">⚡</span>
+            <span class="tab-text">IDE & Terminal</span>
+          </button>
+          <button type="button" class="showcase-tab" role="tab" id="tab-lobby" aria-selected="false" aria-controls="panel-lobby" tabindex="-1">
+            <span class="tab-icon">🛡️</span>
+            <span class="tab-text">Home & Diagnóstico</span>
+          </button>
+          <button type="button" class="showcase-tab" role="tab" id="tab-packages" aria-selected="false" aria-controls="panel-packages" tabindex="-1">
+            <span class="tab-icon">📦</span>
+            <span class="tab-text">Librerías & Hardware</span>
+          </button>
+          <button type="button" class="showcase-tab" role="tab" id="tab-alerta" aria-selected="false" aria-controls="panel-alerta" tabindex="-1">
+            <span class="tab-icon">🚨</span>
+            <span class="tab-text">Flashazo Docente</span>
+          </button>
+          <button type="button" class="showcase-tab" role="tab" id="tab-examen" aria-selected="false" aria-controls="panel-examen" tabindex="-1">
+            <span class="tab-icon">🔒</span>
+            <span class="tab-text">Modo Examen</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Panels Container -->
+      <div class="showcase-panels">
+        <!-- Panel 1: IDE Workspace -->
+        <article class="showcase-panel active" id="panel-ide" role="tabpanel" aria-labelledby="tab-ide">
+          <div class="preview-frame">
+            <div class="preview-topbar">
+              <div class="topbar-dots">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              </div>
+              <span class="topbar-title">CodeGO · Modo Actividad — main.py</span>
+              <span class="topbar-status"><span class="status-indicator"></span> Terminal Interactiva Lista</span>
+            </div>
+            <div class="preview-img-container">
+              <img src="/productos/codego/codego-ide.png" width="1920" height="1080" alt="Editor de Python lado a lado con terminal interactiva unificada ejecutando captura de sensores Arduino" fetchpriority="high">
+            </div>
+          </div>
+          <div class="showcase-details">
+            <div class="showcase-info">
+              <h3>Consola Interactiva Unificada y Soporte para Microcontroladores</h3>
+              <p>El código a la izquierda y la terminal a la derecha. La respuesta a <code>input()</code> se ingresa en el mismo flujo de texto junto al prompt. Soporta lectura de sensores y pulsadores de Arduino / ESP32 mediante PySerial.</p>
+            </div>
+            <div class="showcase-pills">
+              <span class="pill">⚡ <code>input()</code> en consola</span>
+              <span class="pill">🔌 PySerial integrado</span>
+              <span class="pill">▶ Autoguardado <kbd>F5</kbd></span>
+              <span class="pill">📁 Proyectos locales</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Panel 2: Home / Lobby -->
+        <article class="showcase-panel" id="panel-lobby" role="tabpanel" aria-labelledby="tab-lobby" hidden>
+          <div class="preview-frame">
+            <div class="preview-topbar">
+              <div class="topbar-dots">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              </div>
+              <span class="topbar-title">CodeGO · Inicio — Diagnóstico del Sistema</span>
+              <span class="topbar-status"><span class="status-indicator"></span> Sistema Validado</span>
+            </div>
+            <div class="preview-img-container">
+              <img src="/productos/codego/codego-lobby.png" width="1920" height="1080" alt="Pantalla de inicio minimalista de CodeGO con diagnóstico de entorno y selector de modalidad" loading="lazy">
+            </div>
+          </div>
+          <div class="showcase-details">
+            <div class="showcase-info">
+              <h3>Lobby Sobrio, Minimalista y Verificación Inmediata</h3>
+              <p>Sin saturación visual ni menús complejos. Permite seleccionar directamente entre Modo Examen y Modo Actividad, validando automáticamente el intérprete de Python, la red y el hardware antes de arrancar.</p>
+            </div>
+            <div class="showcase-pills">
+              <span class="pill">🛡️ Selector Examen / Tarea</span>
+              <span class="pill">✓ Comprobación rápida</span>
+              <span class="pill">✨ Interfaz mate sobria</span>
+              <span class="pill">👤 Datos de sesión</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Panel 3: Package & Hardware Manager -->
+        <article class="showcase-panel" id="panel-packages" role="tabpanel" aria-labelledby="tab-packages" hidden>
+          <div class="preview-frame">
+            <div class="preview-topbar">
+              <div class="topbar-dots">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              </div>
+              <span class="topbar-title">CodeGO · Gestor de Librerías de Python & Entorno</span>
+              <span class="topbar-status"><span class="status-indicator"></span> 12 Paquetes Esenciales</span>
+            </div>
+            <div class="preview-img-container">
+              <img src="/productos/codego/codego-packages.png" width="1920" height="1080" alt="Gestor de dependencias de CodeGO con instalación en 1 clic de Pygame, NumPy, SciPy, PySerial" loading="lazy">
+            </div>
+          </div>
+          <div class="showcase-details">
+            <div class="showcase-info">
+              <h3>Batería Completa de 12 Librerías Científicas y Hardware</h3>
+              <p>Instalación en un solo clic de los paquetes recomendados (Pygame, NumPy, Matplotlib, Pandas, SciPy, Pillow, SymPy, PySerial...) sin lidiar con comandos terminal ni errores de compilador C++.</p>
+            </div>
+            <div class="showcase-pills">
+              <span class="pill">📦 12 paquetes en 1 clic</span>
+              <span class="pill">🎮 Pygame & Gráficos 2D</span>
+              <span class="pill">🔢 NumPy & SciPy</span>
+              <span class="pill">🌐 Buscador PyPI libre</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Panel 4: Teacher Strobe Flash -->
+        <article class="showcase-panel" id="panel-alerta" role="tabpanel" aria-labelledby="tab-alerta" hidden>
+          <div class="preview-frame">
+            <div class="preview-topbar">
+              <div class="topbar-dots">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              </div>
+              <span class="topbar-title">CodeGO · Aviso de Supervisión — Flashazo Docente</span>
+              <span class="topbar-status alert-status"><span class="status-indicator pulse"></span> 12s Obligatorios</span>
+            </div>
+            <div class="preview-img-container">
+              <img src="/productos/codego/codego-alerta.png" width="1920" height="1080" alt="Alerta lumínica estroboscópica de supervisión visible para el profesor en el aula de cómputo" loading="lazy">
+            </div>
+          </div>
+          <div class="showcase-details">
+            <div class="showcase-info">
+              <h3>Alerta Lumínica Estroboscópica Visible a Distancia</h3>
+              <p>Si el estudiante cambia de ventana o pierde el foco, la pantalla emite un flash estroboscópico perimétrico visible en toda el aula. El audio anti-silencio y la cuenta regresiva forzada de 12s garantizan la supervisión docente.</p>
+            </div>
+            <div class="showcase-pills">
+              <span class="pill alert-pill">🚨 Flash estroboscópico</span>
+              <span class="pill alert-pill">⏱️ 12s forzados</span>
+              <span class="pill alert-pill">🔊 Watchdog anti-mute</span>
+              <span class="pill alert-pill">📋 Registro en bitácora</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Panel 5: Exam Mode -->
+        <article class="showcase-panel" id="panel-examen" role="tabpanel" aria-labelledby="tab-examen" hidden>
+          <div class="preview-frame">
+            <div class="preview-topbar">
+              <div class="topbar-dots">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              </div>
+              <span class="topbar-title">CodeGO · Modo Examen Blindado — Evaluación Supervisada</span>
+              <span class="topbar-status exam-status"><span class="status-indicator"></span> Kiosk & Wi-Fi Off</span>
+            </div>
+            <div class="preview-img-container">
+              <img src="/productos/codego/codego-examen.png" width="1920" height="1080" alt="Modo examen supervisado de CodeGO con temporizador activo y botón de entrega sellada" loading="lazy">
+            </div>
+          </div>
+          <div class="showcase-details">
+            <div class="showcase-info">
+              <h3>Modo Examen Blindado con Entrega Sellada Criptográfica</h3>
+              <p>La aplicación toma control de la pantalla completa en modo Kiosk, apaga el Wi-Fi automáticamente e inicia el cronómetro. Al entregar, el código se bloquea contra copia o edición y se empaqueta en un archivo ZIP con sello SHA-256.</p>
+            </div>
+            <div class="showcase-pills">
+              <span class="pill exam-pill">🔒 Modo Kiosk fijado</span>
+              <span class="pill exam-pill">📡 Wi-Fi deshabilitado</span>
+              <span class="pill exam-pill">⏱️ Cronómetro visible</span>
+              <span class="pill exam-pill">📦 ZIP auditado SHA-256</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Mini Thumbnail Gallery for Instant Scanning -->
+      <div class="showcase-thumbnails" role="group" aria-label="Miniaturas de capturas">
+        <button type="button" class="thumb-card active" data-target="tab-ide" aria-label="Ver captura de IDE & Terminal">
+          <div class="thumb-img-wrap"><img src="/productos/codego/codego-ide.png" width="320" height="180" alt="Miniatura IDE" loading="lazy"></div>
+          <span>01 · IDE & Terminal</span>
+        </button>
+        <button type="button" class="thumb-card" data-target="tab-lobby" aria-label="Ver captura de Inicio & Diagnóstico">
+          <div class="thumb-img-wrap"><img src="/productos/codego/codego-lobby.png" width="320" height="180" alt="Miniatura Lobby" loading="lazy"></div>
+          <span>02 · Inicio & Lobby</span>
+        </button>
+        <button type="button" class="thumb-card" data-target="tab-packages" aria-label="Ver captura de Librerías">
+          <div class="thumb-img-wrap"><img src="/productos/codego/codego-packages.png" width="320" height="180" alt="Miniatura Librerías" loading="lazy"></div>
+          <span>03 · 12 Librerías</span>
+        </button>
+        <button type="button" class="thumb-card" data-target="tab-alerta" aria-label="Ver captura de Alerta">
+          <div class="thumb-img-wrap"><img src="/productos/codego/codego-alerta.png" width="320" height="180" alt="Miniatura Flashazo" loading="lazy"></div>
+          <span>04 · Flash Docente</span>
+        </button>
+        <button type="button" class="thumb-card" data-target="tab-examen" aria-label="Ver captura de Modo Examen">
+          <div class="thumb-img-wrap"><img src="/productos/codego/codego-examen.png" width="320" height="180" alt="Miniatura Examen" loading="lazy"></div>
+          <span>05 · Modo Examen</span>
+        </button>
+      </div>
     </section>
 
     <!-- Two Modes Section -->
@@ -181,5 +368,66 @@
       </nav>
     </div>
   </footer>
+
+  <script>
+    (function () {
+      const tabs = Array.from(document.querySelectorAll('.showcase-tab'));
+      const panels = Array.from(document.querySelectorAll('.showcase-panel'));
+      const thumbs = Array.from(document.querySelectorAll('.thumb-card'));
+
+      function activateTab(tabId) {
+        const targetTab = document.getElementById(tabId);
+        if (!targetTab) return;
+        const panelId = targetTab.getAttribute('aria-controls');
+
+        tabs.forEach(t => {
+          const isSelected = t === targetTab;
+          t.classList.toggle('active', isSelected);
+          t.setAttribute('aria-selected', String(isSelected));
+          t.setAttribute('tabindex', isSelected ? '0' : '-1');
+        });
+
+        panels.forEach(p => {
+          const isMatch = p.id === panelId;
+          p.classList.toggle('active', isMatch);
+          p.hidden = !isMatch;
+        });
+
+        thumbs.forEach(th => {
+          th.classList.toggle('active', th.getAttribute('data-target') === tabId);
+        });
+      }
+
+      tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => activateTab(tab.id));
+        tab.addEventListener('keydown', e => {
+          let nextIndex = index;
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            nextIndex = (index + 1) % tabs.length;
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            nextIndex = (index - 1 + tabs.length) % tabs.length;
+          } else if (e.key === 'Home') {
+            nextIndex = 0;
+          } else if (e.key === 'End') {
+            nextIndex = tabs.length - 1;
+          } else {
+            return;
+          }
+          e.preventDefault();
+          tabs[nextIndex].focus();
+          activateTab(tabs[nextIndex].id);
+        });
+      });
+
+      thumbs.forEach(th => {
+        th.addEventListener('click', () => {
+          const target = th.getAttribute('data-target');
+          if (target) {
+            activateTab(target);
+          }
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
