@@ -12,6 +12,7 @@ const { createSubmission } = require('./submission');
 const { runSelfTest } = require('./self-test');
 const { createWifiControl } = require('./wifi-control');
 const { ensurePythonEnvironment } = require('./python-environment');
+const updater = require('./updater');
 const wifiControl = createWifiControl();
 
 const packagedReportArgument = process.argv.find(argument => argument.startsWith('--self-test-report='));
@@ -1635,6 +1636,56 @@ except Exception:
       return extractSubmissionFiles(filePath, filePaths[0]);
     } catch (e) {
       return { success: false, error: e.message };
+    }
+  });
+
+  // In-App Auto-Updater Handlers (Lobby Only)
+  handle('updater:get-current-version', async () => {
+    return { success: true, version: app.getVersion() };
+  });
+
+  handle('updater:check', async () => {
+    if (isKioskActive || activeSessionMode === 'exam' || activeSessionMode === 'task') {
+      return { success: false, error: 'Comprobación de actualizaciones deshabilitada durante exámenes y tareas.' };
+    }
+    return updater.checkForUpdates({ currentVersion: app.getVersion() });
+  });
+
+  let updateDownloadBusy = false;
+  handle('updater:download-and-install', async (event, { downloadUrl, assetName } = {}) => {
+    if (isKioskActive || activeSessionMode === 'exam' || activeSessionMode === 'task') {
+      return { success: false, error: 'Actualizaciones deshabilitadas durante exámenes y tareas.' };
+    }
+    if (updateDownloadBusy) {
+      return { success: false, error: 'Ya hay una descarga de actualización en curso.' };
+    }
+    if (!downloadUrl) {
+      return { success: false, error: 'No se proporcionó una URL de descarga válida.' };
+    }
+
+    updateDownloadBusy = true;
+    try {
+      const tempDir = app.getPath('temp');
+      const cleanName = (assetName || 'CodeGO-Update').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const destPath = path.join(tempDir, cleanName);
+
+      await updater.downloadAssetWithProgress(downloadUrl, destPath, (progress) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('updater:progress', progress);
+        }
+      });
+
+      const result = updater.launchInstaller(destPath);
+      if (result.action === 'restarting') {
+        setTimeout(() => {
+          app.quit();
+        }, 800);
+      }
+      return { success: true, ...result };
+    } catch (err) {
+      return { success: false, error: err.message };
+    } finally {
+      updateDownloadBusy = false;
     }
   });
 }

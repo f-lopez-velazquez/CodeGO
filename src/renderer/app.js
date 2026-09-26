@@ -155,7 +155,9 @@ const state = {
   appMode: 'exam', // 'exam' | 'task' | 'activity'
   examSessionActive: false, // Strictly true only when in an active, unsubmitted exam session
   workspaceSessionActive: false, // True during an active IDE workspace session (Exam, Task or Activity)
-  isInternalModalOpen: false
+  isInternalModalOpen: false,
+  availableUpdate: null,
+  isUpdating: false
 };
 
 // DOM Elements
@@ -178,6 +180,22 @@ const DOM = {
   // Lobby & Validation
   lobbyValidationBanner: document.getElementById('lobby-validation-banner'),
   lobbyValidationText: document.getElementById('lobby-validation-text'),
+  lobbyUpdateBanner: document.getElementById('lobby-update-banner'),
+  updateBannerTitle: document.getElementById('update-banner-title'),
+  updateBannerDesc: document.getElementById('update-banner-desc'),
+  btnUpdateViewNotes: document.getElementById('btn-update-view-notes'),
+  btnUpdateNow: document.getElementById('btn-update-now'),
+  btnUpdateDismiss: document.getElementById('btn-update-dismiss'),
+  updateProgressContainer: document.getElementById('update-progress-container'),
+  updateProgressFill: document.getElementById('update-progress-fill'),
+  updateProgressText: document.getElementById('update-progress-text'),
+  updateProgressDetail: document.getElementById('update-progress-detail'),
+  btnCheckUpdatesLobby: document.getElementById('btn-check-updates-lobby'),
+  modalReleaseNotes: document.getElementById('modal-release-notes'),
+  modalReleaseNotesTitle: document.getElementById('modal-release-notes-title'),
+  modalReleaseNotesBody: document.getElementById('modal-release-notes-body'),
+  btnCloseReleaseNotes: document.getElementById('btn-close-release-notes'),
+  btnModalInstallUpdate: document.getElementById('btn-modal-install-update'),
   studentNameInput: document.getElementById('student-name'),
   studentIdInput: document.getElementById('student-id'),
   examSubjectInput: document.getElementById('exam-subject'),
@@ -987,6 +1005,7 @@ async function initApp() {
 
   await loadEnvironmentDiagnostics();
   startWifiMonitoring();
+  checkUpdatesSilently();
 }
 
 function checkAndDisplayLastSession() {
@@ -1248,6 +1267,28 @@ function setupEventListeners() {
       }
     });
   });
+
+  // In-App Auto-Updater Event Listeners
+  if (DOM.btnCheckUpdatesLobby) {
+    DOM.btnCheckUpdatesLobby.addEventListener('click', handleManualCheckUpdates);
+  }
+  if (DOM.btnUpdateViewNotes) {
+    DOM.btnUpdateViewNotes.addEventListener('click', handleShowReleaseNotes);
+  }
+  if (DOM.btnCloseReleaseNotes) {
+    DOM.btnCloseReleaseNotes.addEventListener('click', handleCloseReleaseNotes);
+  }
+  if (DOM.btnUpdateDismiss) {
+    DOM.btnUpdateDismiss.addEventListener('click', () => {
+      if (DOM.lobbyUpdateBanner) DOM.lobbyUpdateBanner.classList.add('hidden');
+    });
+  }
+  if (DOM.btnUpdateNow) {
+    DOM.btnUpdateNow.addEventListener('click', handleStartUpdate);
+  }
+  if (DOM.btnModalInstallUpdate) {
+    DOM.btnModalInstallUpdate.addEventListener('click', handleStartUpdate);
+  }
 
   // Package Manager Modals & Triggers
   DOM.btnOpenPkgManagerLobby.addEventListener('click', () => {
@@ -1777,6 +1818,8 @@ async function startCountdownSequence() {
 function enterIdeWorkspace() {
   switchView('ide');
   state.workspaceSessionActive = true;
+  if (DOM.lobbyUpdateBanner) DOM.lobbyUpdateBanner.classList.add('hidden');
+  handleCloseReleaseNotes();
 
   if (state.appMode === 'exam') {
     document.body.classList.remove('mode-activity-active', 'mode-task-active');
@@ -3312,6 +3355,161 @@ async function handleExitExamApp() {
     } else {
       window.close();
     }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// IN-APP AUTO-UPDATER
+// -----------------------------------------------------------------------------
+async function checkUpdatesSilently() {
+  if (!window.electronAPI || !window.electronAPI.checkForUpdates) return;
+  if (state.examSessionActive || state.workspaceSessionActive) return;
+
+  try {
+    const res = await window.electronAPI.checkForUpdates();
+    if (res && res.success && res.hasUpdate) {
+      state.availableUpdate = res;
+      displayUpdateBanner(res);
+    }
+  } catch (_) {
+    // Falla silenciosa si no hay conexión
+  }
+}
+
+function displayUpdateBanner(updateInfo) {
+  if (!DOM.lobbyUpdateBanner) return;
+  if (DOM.updateBannerTitle) {
+    DOM.updateBannerTitle.textContent = `Nueva versión disponible: v${updateInfo.latestVersion}`;
+  }
+  if (DOM.updateBannerDesc) {
+    DOM.updateBannerDesc.textContent = updateInfo.releaseName || 'Hay mejoras y correcciones listas para instalar.';
+  }
+  DOM.lobbyUpdateBanner.classList.remove('hidden');
+}
+
+async function handleManualCheckUpdates() {
+  if (!window.electronAPI || !window.electronAPI.checkForUpdates) {
+    alert('Función de actualización disponible en la versión de escritorio instalada.');
+    return;
+  }
+  if (DOM.btnCheckUpdatesLobby) {
+    DOM.btnCheckUpdatesLobby.disabled = true;
+    DOM.btnCheckUpdatesLobby.textContent = 'Buscando...';
+  }
+
+  try {
+    const res = await window.electronAPI.checkForUpdates();
+    if (res && res.success) {
+      if (res.hasUpdate) {
+        state.availableUpdate = res;
+        displayUpdateBanner(res);
+      } else {
+        alert(`✓ CodeGO está actualizado.\n\nLa versión instalada (v${res.currentVersion}) es la más reciente.`);
+      }
+    } else {
+      alert(`No se pudo verificar actualizaciones:\n${res?.error || 'Verifica tu conexión a internet.'}`);
+    }
+  } catch (err) {
+    alert(`Error al buscar actualizaciones: ${err.message}`);
+  } finally {
+    if (DOM.btnCheckUpdatesLobby) {
+      DOM.btnCheckUpdatesLobby.disabled = false;
+      DOM.btnCheckUpdatesLobby.textContent = 'Actualizaciones';
+    }
+  }
+}
+
+function handleShowReleaseNotes() {
+  if (!state.availableUpdate) return;
+  if (DOM.modalReleaseNotesTitle) {
+    DOM.modalReleaseNotesTitle.textContent = state.availableUpdate.releaseName || `Novedades de v${state.availableUpdate.latestVersion}`;
+  }
+  if (DOM.modalReleaseNotesBody) {
+    DOM.modalReleaseNotesBody.textContent = state.availableUpdate.releaseNotes || 'Correcciones de estabilidad, seguridad y mejoras generales.';
+  }
+  if (DOM.modalReleaseNotes) {
+    DOM.modalReleaseNotes.classList.remove('hidden');
+    state.isInternalModalOpen = true;
+  }
+}
+
+function handleCloseReleaseNotes() {
+  if (DOM.modalReleaseNotes) {
+    DOM.modalReleaseNotes.classList.add('hidden');
+    state.isInternalModalOpen = false;
+  }
+}
+
+async function handleStartUpdate() {
+  if (!state.availableUpdate || !state.availableUpdate.asset) {
+    if (state.availableUpdate && state.availableUpdate.releaseUrl) {
+      window.open(state.availableUpdate.releaseUrl, '_blank');
+    } else {
+      alert('No se encontró un instalador automático para este sistema operativo.');
+    }
+    return;
+  }
+
+  if (state.isUpdating) return;
+  state.isUpdating = true;
+
+  handleCloseReleaseNotes();
+
+  if (DOM.lobbyUpdateBanner) DOM.lobbyUpdateBanner.classList.remove('hidden');
+  if (DOM.btnUpdateNow) DOM.btnUpdateNow.disabled = true;
+  if (DOM.btnUpdateViewNotes) DOM.btnUpdateViewNotes.disabled = true;
+  if (DOM.btnUpdateDismiss) DOM.btnUpdateDismiss.disabled = true;
+  if (DOM.updateProgressContainer) DOM.updateProgressContainer.classList.remove('hidden');
+  if (DOM.updateProgressFill) DOM.updateProgressFill.style.width = '0%';
+  if (DOM.updateProgressText) DOM.updateProgressText.textContent = 'Iniciando descarga...';
+  if (DOM.updateProgressDetail) DOM.updateProgressDetail.textContent = 'Conectando con GitHub...';
+
+  let removeProgressListener = null;
+  if (window.electronAPI.onUpdateProgress) {
+    removeProgressListener = window.electronAPI.onUpdateProgress((progress) => {
+      if (DOM.updateProgressFill) {
+        DOM.updateProgressFill.style.width = `${progress.percent}%`;
+      }
+      if (DOM.updateProgressText) {
+        DOM.updateProgressText.textContent = `Descargando actualización (${progress.percent}%)...`;
+      }
+      if (DOM.updateProgressDetail && progress.totalBytes > 0) {
+        const currentMB = (progress.downloadedBytes / 1024 / 1024).toFixed(1);
+        const totalMB = (progress.totalBytes / 1024 / 1024).toFixed(1);
+        DOM.updateProgressDetail.textContent = `${currentMB} MB de ${totalMB} MB`;
+      }
+    });
+  }
+
+  try {
+    const res = await window.electronAPI.downloadAndInstallUpdate({
+      downloadUrl: state.availableUpdate.asset.downloadUrl,
+      assetName: state.availableUpdate.asset.name
+    });
+
+    if (res && res.success) {
+      if (DOM.updateProgressText) {
+        DOM.updateProgressText.textContent = '¡Descarga completada! Aplicando actualización...';
+      }
+      if (DOM.updateProgressDetail) {
+        DOM.updateProgressDetail.textContent = 'Reiniciando CodeGO...';
+      }
+      if (res.action === 'downloaded') {
+        alert(`La actualización se descargó exitosamente en:\n${res.path}`);
+      }
+    } else {
+      throw new Error(res?.error || 'Error al descargar o aplicar la actualización.');
+    }
+  } catch (err) {
+    alert(`No se pudo completar la actualización automática:\n${err.message}`);
+    if (DOM.btnUpdateNow) DOM.btnUpdateNow.disabled = false;
+    if (DOM.btnUpdateViewNotes) DOM.btnUpdateViewNotes.disabled = false;
+    if (DOM.btnUpdateDismiss) DOM.btnUpdateDismiss.disabled = false;
+    if (DOM.updateProgressText) DOM.updateProgressText.textContent = 'Error al actualizar.';
+    if (DOM.updateProgressDetail) DOM.updateProgressDetail.textContent = 'Puedes reintentar más tarde.';
+  } finally {
+    state.isUpdating = false;
+    if (removeProgressListener) removeProgressListener();
   }
 }
 

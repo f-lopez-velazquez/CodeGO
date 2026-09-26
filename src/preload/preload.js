@@ -56,6 +56,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openSubmissionFileDialog: () => ipcRenderer.invoke('submission:open-file-dialog'),
   extractSubmissionCode: (filePath) => ipcRenderer.invoke('submission:extract-code', filePath),
 
+  // In-App Auto-Updater
+  getCurrentVersion: () => ipcRenderer.invoke('updater:get-current-version'),
+  checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  downloadAndInstallUpdate: (payload) => ipcRenderer.invoke('updater:download-and-install', payload),
+  onUpdateProgress: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('updater:progress', handler);
+    return () => ipcRenderer.removeListener('updater:progress', handler);
+  },
+
   // Hardware & Microcontrollers (Arduino, ESP32, Raspberry Pi, etc.)
   listSerialPorts: () => ipcRenderer.invoke('hardware:list-serial-ports'),
 

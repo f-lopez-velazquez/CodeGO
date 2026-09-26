@@ -58,6 +58,11 @@
       "package.json"
     ],
     "artifactName": "CodeGO-${version}-${os}-${arch}.${ext}",
+    "publish": {
+      "provider": "github",
+      "owner": "f-lopez-velazquez",
+      "repo": "CodeGO"
+    },
     "linux": {
       "maintainer": "Francisco López Velázquez",
       "target": [

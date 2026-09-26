@@ -56,6 +56,37 @@
           <span id="lobby-validation-text">Por favor, completa los campos requeridos.</span>
         </div>
 
+        <!-- Banner de Actualización Disponible -->
+        <div id="lobby-update-banner" class="lobby-update-banner hidden">
+          <div class="update-banner-header">
+            <div class="update-banner-left">
+              <span class="update-badge-icon">✨</span>
+              <div class="update-text-col">
+                <div class="update-title-row">
+                  <strong id="update-banner-title">Nueva versión disponible</strong>
+                  <span class="update-tag-pill">Oficial</span>
+                </div>
+                <p id="update-banner-desc" class="update-desc">Hay mejoras y correcciones listas para instalar.</p>
+              </div>
+            </div>
+            <div class="update-banner-actions">
+              <button type="button" id="btn-update-view-notes" class="btn-update-notes">Novedades</button>
+              <button type="button" id="btn-update-now" class="btn-update-action">⬇ Actualizar</button>
+              <button type="button" id="btn-update-dismiss" class="btn-update-close" title="Descartar por ahora" aria-label="Cerrar aviso">✕</button>
+            </div>
+          </div>
+          <!-- Barra de progreso durante descarga -->
+          <div id="update-progress-container" class="update-progress-wrap hidden">
+            <div class="update-progress-bar-bg">
+              <div id="update-progress-fill" class="update-progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="update-progress-status">
+              <span id="update-progress-text">Descargando actualización (0%)...</span>
+              <span id="update-progress-detail">Conectando...</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Continuar Última Sesión / Trabajo en Curso -->
         <div id="lobby-continue-card" class="continue-session-card hidden">
           <div class="continue-card-content">
@@ -98,6 +129,8 @@
             <button type="button" id="btn-open-pkg-manager-lobby" class="btn-text-action">Paquetes</button>
             <span class="status-sep">·</span>
             <button type="button" class="btn-text-action" data-self-test>Comprobar</button>
+            <span class="status-sep">·</span>
+            <button type="button" id="btn-check-updates-lobby" class="btn-text-action">Actualizaciones</button>
             <output role="status" aria-live="polite" class="self-test-output hidden"></output>
           </div>
         </div>
@@ -724,6 +757,21 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <div class="app-credits"><strong>by zolvek.com.mx</strong><span>Programado por Francisco López Velázquez.</span></div>
       <div class="dialog-buttons single">
         <button type="button" id="btn-close-shortcuts" class="btn-primary">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE NOVEDADES DE ACTUALIZACIÓN -->
+  <div id="modal-release-notes" class="modal-overlay hidden">
+    <div class="dialog-card release-notes-card">
+      <div class="dialog-header">
+        <span class="dialog-icon">✨</span>
+        <h3 id="modal-release-notes-title">Novedades de la Versión</h3>
+      </div>
+      <div class="release-notes-content" id="modal-release-notes-body"></div>
+      <div class="dialog-buttons">
+        <button type="button" id="btn-close-release-notes" class="btn-tool-option">Cerrar</button>
+        <button type="button" id="btn-modal-install-update" class="btn-primary">⬇ Actualizar ahora</button>
       </div>
     </div>
   </div>
