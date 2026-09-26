@@ -53,7 +53,7 @@ test('Certified Task creates signed container with subfolders and verifies HMAC 
     outputDirectory: path.join(root, 'out'),
     student: { name: 'Francisco López', id: '12345', subject: 'Robótica' },
     telemetry,
-    version: '1.2.0'
+    version: '1.0.0'
   });
 
   assert.equal(result.success, true);

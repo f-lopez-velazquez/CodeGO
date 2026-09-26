@@ -154,7 +154,8 @@ const state = {
   termLayout: 'side', // 'side' (Default: Side-by-side vertical split) | 'bottom'
   appMode: 'exam', // 'exam' | 'task' | 'activity'
   examSessionActive: false, // Strictly true only when in an active, unsubmitted exam session
-  workspaceSessionActive: false // True during an active IDE workspace session (Exam, Task or Activity)
+  workspaceSessionActive: false, // True during an active IDE workspace session (Exam, Task or Activity)
+  isInternalModalOpen: false
 };
 
 // DOM Elements
@@ -180,6 +181,12 @@ const DOM = {
   studentNameInput: document.getElementById('student-name'),
   studentIdInput: document.getElementById('student-id'),
   examSubjectInput: document.getElementById('exam-subject'),
+  lobbyContinueCard: document.getElementById('lobby-continue-card'),
+  continueModeBadge: document.getElementById('continue-mode-badge'),
+  continueTimeLabel: document.getElementById('continue-time-label'),
+  continueSubjectTitle: document.getElementById('continue-subject-title'),
+  continueFileLabel: document.getElementById('continue-file-label'),
+  btnContinueLastSession: document.getElementById('btn-continue-last-session'),
   btnStartExam: document.getElementById('btn-start-exam'),
   systemStatusIndicator: document.getElementById('system-status-indicator'),
   lobbyPrereqAlert: document.getElementById('lobby-prereq-alert'),
@@ -833,6 +840,7 @@ function appendPipLog(text) {
 
 // Auto-Installer Pipeline Helpers
 async function startAutoRepairProcess() {
+  state.isInternalModalOpen = true;
   DOM.modalAutoInstaller.classList.remove('hidden');
   DOM.btnFinishAutoInstaller.classList.add('hidden');
   DOM.installerProgressBar.style.width = '5%';
@@ -944,6 +952,7 @@ async function initApp() {
     });
   });
   setSessionMode(state.appMode);
+  checkAndDisplayLastSession();
 
   // Asegurar siempre pantalla completa al iniciar
   if (window.electronAPI && window.electronAPI.setFullScreen) {
@@ -954,6 +963,51 @@ async function initApp() {
 
   await loadEnvironmentDiagnostics();
   startWifiMonitoring();
+}
+
+function checkAndDisplayLastSession() {
+  try {
+    const raw = localStorage.getItem('codego_last_session');
+    if (!raw) return;
+    const session = JSON.parse(raw);
+    if (!session) return;
+
+    if (session.studentName && DOM.studentNameInput && !DOM.studentNameInput.value) {
+      DOM.studentNameInput.value = session.studentName;
+    }
+    if (session.studentId && DOM.studentIdInput && !DOM.studentIdInput.value) {
+      DOM.studentIdInput.value = session.studentId;
+    }
+    if (session.examSubject && DOM.examSubjectInput) {
+      DOM.examSubjectInput.value = session.examSubject;
+    }
+
+    if (DOM.lobbyContinueCard && session.activeFilePath) {
+      const modeLabel = session.appMode === 'task'
+        ? 'TAREA EN CURSO'
+        : (session.appMode === 'activity' ? 'ACTIVIDAD EN CURSO' : 'EXAMEN EN CURSO');
+      if (DOM.continueModeBadge) DOM.continueModeBadge.textContent = modeLabel;
+      if (DOM.continueTimeLabel) DOM.continueTimeLabel.textContent = `Guardado: ${session.lastSavedDate || 'Recientemente'}`;
+      if (DOM.continueSubjectTitle) DOM.continueSubjectTitle.textContent = `Materia: ${session.examSubject || 'Programación en Python'}`;
+      if (DOM.continueFileLabel) DOM.continueFileLabel.textContent = `Archivo: ${session.activeFilePath}`;
+      DOM.lobbyContinueCard.classList.remove('hidden');
+
+      if (DOM.btnContinueLastSession) {
+        DOM.btnContinueLastSession.onclick = async () => {
+          setSessionMode(session.appMode || 'activity');
+          if (session.studentName) state.studentName = session.studentName;
+          if (session.studentId) state.studentId = session.studentId;
+          if (session.examSubject) state.examSubject = session.examSubject;
+          await startExamSession();
+          if (session.activeFilePath) {
+            setTimeout(() => {
+              openFile(session.activeFilePath);
+            }, 300);
+          }
+        };
+      }
+    }
+  } catch (_) {}
 }
 
 // ==============================================================
@@ -1132,11 +1186,13 @@ function setupEventListeners() {
   if (DOM.btnCloseAutoInstaller) {
     DOM.btnCloseAutoInstaller.addEventListener('click', () => {
       DOM.modalAutoInstaller.classList.add('hidden');
+      state.isInternalModalOpen = false;
     });
   }
   if (DOM.btnFinishAutoInstaller) {
     DOM.btnFinishAutoInstaller.addEventListener('click', async () => {
       DOM.modalAutoInstaller.classList.add('hidden');
+      state.isInternalModalOpen = false;
       await loadEnvironmentDiagnostics();
     });
   }
@@ -1170,9 +1226,26 @@ function setupEventListeners() {
   });
 
   // Package Manager Modals & Triggers
-  DOM.btnOpenPkgManagerLobby.addEventListener('click', () => DOM.modalPackageManager.classList.remove('hidden'));
-  DOM.btnOpenPkgManagerIde.addEventListener('click', () => DOM.modalPackageManager.classList.remove('hidden'));
-  DOM.btnClosePkgManager.addEventListener('click', () => DOM.modalPackageManager.classList.add('hidden'));
+  DOM.btnOpenPkgManagerLobby.addEventListener('click', () => {
+    state.isInternalModalOpen = true;
+    DOM.modalPackageManager.classList.remove('hidden');
+    renderPackagesGrid(state.environmentInfo?.packages, state.activePkgCategory);
+  });
+  DOM.btnOpenPkgManagerIde.addEventListener('click', () => {
+    state.isInternalModalOpen = true;
+    DOM.modalPackageManager.classList.remove('hidden');
+    renderPackagesGrid(state.environmentInfo?.packages, state.activePkgCategory);
+  });
+  DOM.btnClosePkgManager.addEventListener('click', () => {
+    DOM.modalPackageManager.classList.add('hidden');
+    state.isInternalModalOpen = false;
+  });
+  DOM.modalPackageManager.addEventListener('click', (e) => {
+    if (e.target === DOM.modalPackageManager) {
+      DOM.modalPackageManager.classList.add('hidden');
+      state.isInternalModalOpen = false;
+    }
+  });
 
   DOM.btnQuickInstallAll.addEventListener('click', installAllRecommendedPackages);
   DOM.btnInstallAllRecommended.addEventListener('click', installAllRecommendedPackages);
@@ -1433,14 +1506,17 @@ function setupEventListeners() {
     }
   }, { passive: false });
 
-  // Window Focus / Blur: Immediate detection in active sessions (Exam or Activity)
-  window.addEventListener('blur', () => {
-    if (state.workspaceSessionActive && !state.isExamSubmitted && !state.isRunning && !state.pythonGuiActive) {
-      handleSecurityViolation({
-        type: 'WINDOW_BLUR',
-        timestamp: new Date().toLocaleTimeString(),
-        durationSeconds: 1.0
-      });
+  // Close any internal open modals with Escape key
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (DOM.modalPackageManager && !DOM.modalPackageManager.classList.contains('hidden')) {
+        DOM.modalPackageManager.classList.add('hidden');
+        state.isInternalModalOpen = false;
+      }
+      if (DOM.modalAutoInstaller && !DOM.modalAutoInstaller.classList.contains('hidden')) {
+        DOM.modalAutoInstaller.classList.add('hidden');
+        state.isInternalModalOpen = false;
+      }
     }
   });
 }
@@ -1834,12 +1910,36 @@ function switchView(viewName) {
   if (viewName === 'ide') DOM.viewIde.classList.add('active');
 }
 
+function isInternalModalOpen() {
+  if (state.isInternalModalOpen) return true;
+  const internalModalIds = [
+    'modal-package-manager',
+    'modal-auto-installer',
+    'modal-shortcuts',
+    'modal-teacher-unlock',
+    'modal-submit-exam',
+    'modal-submission-success',
+    'modal-task-submit',
+    'modal-verify-submission'
+  ];
+  return internalModalIds.some(id => {
+    const el = document.getElementById(id);
+    return el && !el.classList.contains('hidden');
+  });
+}
+
 // ==============================================================
 // 9. ANTI-CHEAT & SECURITY VIOLATION ENGINE
 // ==============================================================
 function handleSecurityViolation(incidentData = {}) {
   // Trigger during any active workspace session (Exam or Activity) before final submission
   if (!state.workspaceSessionActive || state.isExamSubmitted) {
+    return;
+  }
+
+  // If any internal modal (Package Manager, Auto Installer, Verifier, etc.) is open, do NOT alarm!
+  if (isInternalModalOpen()) {
+    console.log('[Supervisión]: Omitiendo aviso porque hay un diálogo interno del entorno abierto.');
     return;
   }
 
@@ -2474,7 +2574,24 @@ async function saveAllFiles() {
   clearTimeout(state.autoSaveTimeout);
   const results = await Promise.all(state.openTabs.filter(t => t.isDirty).map(saveTab));
   await saveQueue;
+  saveLastSession();
   return results.every(Boolean);
+}
+
+function saveLastSession() {
+  try {
+    const session = {
+      studentName: DOM.studentNameInput?.value?.trim() || state.studentName || '',
+      studentId: DOM.studentIdInput?.value?.trim() || state.studentId || '',
+      examSubject: DOM.examSubjectInput?.value?.trim() || state.examSubject || '',
+      appMode: state.appMode || 'activity',
+      workspacePath: state.workspacePath || null,
+      activeFilePath: state.activeFilePath || 'main.py',
+      openTabs: state.openTabs?.map(t => ({ path: t.path, title: t.title })) || [],
+      lastSavedDate: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' + new Date().toLocaleDateString()
+    };
+    localStorage.setItem('codego_last_session', JSON.stringify(session));
+  } catch (_) {}
 }
 
 function handleEditorKeydown(e) {

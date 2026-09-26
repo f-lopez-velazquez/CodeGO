@@ -80,11 +80,30 @@ let mainWindow = null;
 let activeProcess = null;
 let allowWindowClose = false;
 let closeRequestPending = false;
+let isNativeDialogActive = false;
+async function withNativeDialog(fn) {
+  isNativeDialogActive = true;
+  try {
+    return await fn();
+  } finally {
+    setTimeout(() => {
+      isNativeDialogActive = false;
+    }, 600);
+  }
+}
 const pythonRunner = new PythonRunner({
   send: (channel, data) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, data);
+    if (channel === 'python:finished' && isKioskActive && mainWindow && !mainWindow.isDestroyed()) {
+      try { mainWindow.setAlwaysOnTop(true, 'screen-saver'); } catch (_) {}
+    }
   },
-  onProcess: child => { activeProcess = child; }
+  onProcess: child => {
+    activeProcess = child;
+    if (child && isKioskActive && mainWindow && !mainWindow.isDestroyed()) {
+      try { mainWindow.setAlwaysOnTop(false); } catch (_) {}
+    }
+  }
 });
 let activePipProcess = null;
 let installationBusy = false;
@@ -461,8 +480,14 @@ function createMainWindow() {
   let blurWhilePythonRunning = false;
 
   mainWindow.on('blur', () => {
-    // Only detect blur when a session is active in the workspace (Exam or Activity)
+    // Only detect blur when a session is active in the workspace (Exam, Task or Activity)
     if (!activeSessionMode) return;
+
+    // Check if a native OS dialog is active (e.g. Open Folder, Save Task, Verify Certificate)
+    if (isNativeDialogActive) return;
+
+    // Check if pip package installation or system auto-install is active
+    if (activePipProcess || installationBusy) return;
 
     // Check if Python child process is actively running (e.g. Pygame, Tkinter, Matplotlib, Turtle, OpenCV window)
     if (activeProcess && !activeProcess.killed) {
@@ -1261,10 +1286,10 @@ except Exception:
     if (isKioskActive) {
       return { success: false, error: 'Acceso a carpetas del sistema bloqueado durante la sesión de examen.' };
     }
-    const res = await dialog.showOpenDialog(mainWindow, {
+    const res = await withNativeDialog(() => dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
       title: 'Abrir Carpeta o Proyecto de Python'
-    });
+    }));
     if (res.canceled || !res.filePaths || res.filePaths.length === 0) {
       return { canceled: true };
     }
@@ -1278,10 +1303,10 @@ except Exception:
     if (isKioskActive) {
       return { success: false, error: 'Creación de proyectos externos bloqueada durante la sesión de examen.' };
     }
-    const res = await dialog.showOpenDialog(mainWindow, {
+    const res = await withNativeDialog(() => dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory', 'createDirectory'],
       title: 'Seleccionar Carpeta Dónde Crear el Nuevo Proyecto'
-    });
+    }));
     if (res.canceled || !res.filePaths || res.filePaths.length === 0) {
       return { canceled: true };
     }
@@ -1498,7 +1523,7 @@ except Exception:
 
       let customPath = null;
       if (mainWindow) {
-        const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        const { canceled, filePath } = await withNativeDialog(() => dialog.showSaveDialog(mainWindow, {
           title: 'Guardar Archivo de Tarea Certificada CodeGO',
           defaultPath: path.join(app.getPath('downloads'), defaultName),
           filters: [
@@ -1506,7 +1531,7 @@ except Exception:
             { name: 'Archivo ZIP (*.zip)', extensions: ['zip'] },
             { name: 'Todos los archivos', extensions: ['*'] }
           ]
-        });
+        }));
         if (canceled || !filePath) return { success: false, canceled: true };
         customPath = filePath;
       }
@@ -1521,6 +1546,18 @@ except Exception:
       });
 
       workspaceSealed = true;
+
+      // Release kiosk mode and unregister shortcuts after task submission
+      isKioskActive = false;
+      activeSessionMode = null;
+      stopAudioWatchdog();
+      if (mainWindow) {
+        mainWindow.setKiosk(false);
+        mainWindow.setFullScreen(false);
+        mainWindow.setAlwaysOnTop(false);
+        globalShortcut.unregisterAll();
+      }
+
       return result;
     } catch (e) {
       return { success: false, error: e.message };
@@ -1530,14 +1567,14 @@ except Exception:
   // Teacher Forensic Verifier IPC Handlers
   handle('submission:open-file-dialog', async () => {
     if (!mainWindow) return { canceled: true };
-    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    const { canceled, filePaths } = await withNativeDialog(() => dialog.showOpenDialog(mainWindow, {
       title: 'Seleccionar Archivo de Tarea o Examen CodeGO (.codego / .zip)',
       properties: ['openFile'],
       filters: [
         { name: 'Archivos CodeGO (*.codego, *.zip)', extensions: ['codego', 'zip'] },
         { name: 'Todos los archivos', extensions: ['*'] }
       ]
-    });
+    }));
     if (canceled || !filePaths || filePaths.length === 0) return { canceled: true };
     return { success: true, filePath: filePaths[0] };
   });
@@ -1556,23 +1593,55 @@ except Exception:
   handle('submission:extract-code', async (event, { filePath }) => {
     try {
       if (!mainWindow) return { canceled: true };
-      const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      const { canceled, filePaths } = await withNativeDialog(() => dialog.showOpenDialog(mainWindow, {
         title: 'Seleccionar carpeta de destino para extraer el código entregado',
         properties: ['openDirectory', 'createDirectory']
-      });
+      }));
       if (canceled || !filePaths || filePaths.length === 0) return { canceled: true };
       return extractSubmissionFiles(filePath, filePaths[0]);
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
+}
 
-
+async function autoEnsureLibrariesInstalled() {
+  if (diagnosticMode) return;
+  try {
+    const pythonInfo = resolvePythonBinary();
+    if (!pythonInfo.installed) return;
+    const targetVenv = resolveVenvDirectory();
+    const execPy = ensurePythonEnvironment({ command: pythonInfo.command, directory: targetVenv });
+    const packages = inspectPythonPackages(execPy);
+    const missing = [
+      'pygame', 'numpy', 'scipy', 'matplotlib', 'pandas', 'pillow',
+      'seaborn', 'openpyxl', 'sympy', 'colorama', 'pyserial', 'requests'
+    ].filter(k => {
+      const checkKey = k === 'pyserial' ? 'serial' : (k === 'pillow' ? 'PIL' : k);
+      return !packages[checkKey] || !packages[checkKey].installed;
+    });
+    if (missing.length > 0) {
+      installationBusy = true;
+      const proc = spawn(execPy, ['-m', 'pip', 'install', '--upgrade', ...missing], { windowsHide: true });
+      proc.on('close', (code) => {
+        installationBusy = false;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('pip:finished');
+        }
+      });
+      proc.on('error', () => {
+        installationBusy = false;
+      });
+    }
+  } catch (err) {
+    installationBusy = false;
+  }
 }
 
 app.whenReady().then(async () => {
   setupIpcHandlers();
   createMainWindow();
+  setTimeout(autoEnsureLibrariesInstalled, 1500);
   if (diagnosticMode) {
     console.info('CodeGO: iniciando comprobación del paquete.');
     const watchdog = setTimeout(() => { console.error('La comprobación del paquete excedió 60 segundos.'); app.exit(1); }, 60000);

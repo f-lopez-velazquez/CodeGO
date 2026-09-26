@@ -1,6 +1,6 @@
 {
   "name": "codego-examguard",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "description": "Entorno Blindado de Exámenes y Editor Python Multiplataforma",
   "homepage": "https://zolvek.com.mx/productos/codego",
   "author": {
@@ -57,7 +57,7 @@
       "build/icon.png",
       "package.json"
     ],
-    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "artifactName": "CodeGO-${version}-${os}-${arch}.${ext}",
     "linux": {
       "maintainer": "Francisco López Velázquez",
       "target": [
@@ -96,11 +96,10 @@
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
       "runAfterFinish": true,
-      "artifactName": "${productName}-${version}-setup-${arch}.${ext}"
+      "artifactName": "CodeGO-${version}-setup-${arch}.${ext}"
     },
     "mac": {
       "target": [
-        "dmg",
         "zip"
       ],
       "category": "public.app-category.education",
@@ -108,7 +107,7 @@
       "minimumSystemVersion": "13.0"
     },
     "portable": {
-      "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
+      "artifactName": "CodeGO-${version}-portable-${arch}.${ext}"
     }
   },
   "engines": {

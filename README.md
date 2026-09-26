@@ -18,12 +18,12 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Descarga directa 1.2.0 | Alternativa |
+| Sistema | Descarga directa 1.0.0 | Alternativa |
 | --- | --- | --- |
-| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-portable-x64.exe) |
-| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-linux-x64.tar.gz) |
-| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-arm64.zip) |
-| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0-preview.1/CodeGO-1.2.0-mac-x64.zip) |
+| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.0.0/CodeGO-1.0.0-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.0.0/CodeGO-1.0.0-portable-x64.exe) |
+| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.0.0/CodeGO-1.0.0-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.0.0/CodeGO-1.0.0-linux-x64.tar.gz) |
+| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.0.0/CodeGO-1.0.0-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.0.0/CodeGO-1.0.0-mac-arm64.zip) |
+| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.0.0/CodeGO-1.0.0-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.0.0/CodeGO-1.0.0-mac-x64.zip) |
 
 **Vista previa pública:** Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado. Los sistemas pueden advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones. Python se instala por separado.
 

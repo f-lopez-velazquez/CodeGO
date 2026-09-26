@@ -8,7 +8,8 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 cd "$DIR"
 
-echo "=== Instalando CodeGO ExamGuard v1.1.1 ==="
+VERSION=$(node -p "require('./package.json').version")
+echo "=== Instalando CodeGO ExamGuard v${VERSION} ==="
 
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
 
@@ -18,7 +19,7 @@ rm -f "$HOME/.local/bin/codego"
 rm -f "$HOME/CodeGO.AppImage"
 
 # 2. Copiar nuevo binario AppImage
-APPIMAGE="$DIR/dist/CodeGO ExamGuard-1.1.1-linux-x86_64.AppImage"
+APPIMAGE="$DIR/dist/CodeGO ExamGuard-${VERSION}-linux-x86_64.AppImage"
 
 if [ ! -f "$APPIMAGE" ]; then
     echo "Compilando nueva versión de AppImage..."
@@ -63,7 +64,7 @@ if [ "$(id -u)" -ne 0 ] && command -v sudo &> /dev/null; then
     fi
 fi
 
-echo "✓ CodeGO ExamGuard v1.1.1 instalado correctamente:"
+echo "✓ CodeGO ExamGuard v${VERSION} instalado correctamente:"
 echo "  • Menú de aplicaciones del sistema (busca 'CodeGO')"
 echo "  • Comando de terminal: codego"
 echo "  • Acceso directo: ~/CodeGO.AppImage"

@@ -56,6 +56,23 @@
           <span id="lobby-validation-text">Por favor, completa los campos requeridos.</span>
         </div>
 
+        <!-- Continuar Última Sesión / Trabajo en Curso -->
+        <div id="lobby-continue-card" class="continue-session-card hidden">
+          <div class="continue-card-content">
+            <div class="continue-badge-row">
+              <span class="continue-badge" id="continue-mode-badge">ACTIVIDAD EN CURSO</span>
+              <span class="continue-time" id="continue-time-label">Guardado recientemente</span>
+            </div>
+            <div class="continue-meta-text">
+              <strong id="continue-subject-title">Materia: Programación en Python</strong>
+              <span id="continue-file-label" class="continue-file">Último archivo: main.py</span>
+            </div>
+          </div>
+          <button type="button" id="btn-continue-last-session" class="btn-continue-session">
+            <span>▶ Continuar Trabajo</span>
+          </button>
+        </div>
+
         <div class="form-row">
           <div class="input-group">
             <label for="student-name">Nombre del Alumno <span class="required">*</span></label>
