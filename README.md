@@ -48,7 +48,7 @@ CodeGO incluye un explorador de archivos con soporte integral de jerarquías de 
 
 ## Ayuda, errores y hardware
 
-F1 abre un centro de ayuda con buscador para instalación, terminal, recursos externos, errores y Arduino/ESP32. Los errores de Python se muestran con el mensaje original, una explicación y acciones concretas. PySerial, PyFirmata2, PyUSB, esptool, SMBus2 y GPIO Zero forman parte del entorno autónomo; los controladores USB específicos de cada placa siguen correspondiendo al fabricante y al sistema operativo.
+F1 abre un centro de ayuda con buscador para instalación, terminal, recursos externos, errores y Arduino/ESP32. Los errores de Python se muestran con el mensaje original, una explicación y acciones concretas. PySerial, PyFirmata2, PyUSB, esptool, SMBus2 y GPIO Zero forman parte del entorno autónomo; SMBus2 accede al bus I²C únicamente en sistemas Unix compatibles, y los controladores USB específicos de cada placa siguen correspondiendo al fabricante y al sistema operativo.
 
 ## Herramienta Forense para Docentes (`🔍 Verificar Tarea/Examen`)
 

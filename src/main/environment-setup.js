@@ -64,7 +64,7 @@ async function selectPython(candidates,execute=run) {
   }
   return null;
 }
-function inspectScript() { return `import importlib, importlib.metadata, json\nresult={}\nfor dist,mod,version in ${JSON.stringify(PACKAGES.map(p=>[p.distribution,p.module,p.version]))}:\n try:\n  importlib.import_module(mod)\n  actual=importlib.metadata.version(dist)\n  result[mod]={"installed":actual==version,"version":actual,"desc":dist}\n except Exception as e:\n  result[mod]={"installed":False,"version":None,"desc":dist,"error":str(e)}\nprint(json.dumps(result))\n`; }
+function inspectScript() { return `import importlib, importlib.metadata, json, sys\nresult={}\nfor dist,mod,version in ${JSON.stringify(PACKAGES.map(p=>[p.distribution,p.module,p.version]))}:\n try:\n  actual=importlib.metadata.version(dist)\n  platform_limited = mod == "smbus2" and sys.platform == "win32"\n  if not platform_limited:\n   importlib.import_module(mod)\n  result[mod]={"installed":actual==version,"version":actual,"desc":dist,"platform_limited":platform_limited}\n except Exception as e:\n  result[mod]={"installed":False,"version":None,"desc":dist,"error":str(e)}\nprint(json.dumps(result))\n`; }
 const MICROTESTS = `import io, json, tempfile, pathlib, sqlite3, tkinter
 import numpy as np, pandas as pd, scipy.linalg, sympy, pygame, cv2, serial, requests, httpx, qrcode
 from PIL import Image

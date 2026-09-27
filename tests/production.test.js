@@ -94,6 +94,12 @@ test('Offline preparation installs only from the verified wheelhouse', async t =
   assert.ok(installs.every(call => !call.args.includes('https://pypi.org/simple')));
 });
 
+test('Windows validates the installed SMBus package without importing Unix fcntl', () => {
+  const script = environmentSetup.inspectScript();
+  assert.match(script, /mod == "smbus2" and sys\.platform == "win32"/);
+  assert.match(script, /if not platform_limited/);
+});
+
 test('Failed virtual environment never falls back to system pip', t => {
   const directory = path.join(temporary(t), 'entorno con acentos á');
   const calls = [];

@@ -771,7 +771,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
 BASE = Path(__file__).resolve().parent
 imagen = BASE / "recursos" / "nave.png"
 sonido = BASE / "recursos" / "salto.wav"</pre><p>Los archivos binarios aparecen en el explorador como recursos y no se abren como texto para evitar dañarlos.</p></div></details>
-        <details class="help-topic"><summary>Arduino, ESP32 y puertos seriales</summary><div><p>Conecta la placa por USB, cierra el Monitor Serial de otras aplicaciones y vuelve a comprobar los puertos. En Windows, algunas placas clon requieren el controlador CH340 o CP210x del fabricante; Arduino Uno original suele usar el controlador del sistema.</p><pre>from serial.tools import list_ports
+        <details class="help-topic"><summary>Arduino, ESP32 y puertos seriales</summary><div><p>Conecta la placa por USB, cierra el Monitor Serial de otras aplicaciones y vuelve a comprobar los puertos. En Windows, algunas placas clon requieren el controlador CH340 o CP210x del fabricante; Arduino Uno original suele usar el controlador del sistema. SMBus2 controla I²C directamente en Raspberry Pi y otros sistemas Unix compatibles; en Windows usa una placa mediante puerto serial.</p><pre>from serial.tools import list_ports
 import serial
 puertos = list(list_ports.comports())
 print([p.device for p in puertos])
