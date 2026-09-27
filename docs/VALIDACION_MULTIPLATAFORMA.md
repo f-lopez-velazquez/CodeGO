@@ -29,9 +29,9 @@ Android, iOS, ChromeOS, Windows ARM y Linux ARM no tienen instaladores validados
 
 CodeGO usa un Python 3.13.15 privado incluido en cada instalador. Antes de extraerlo verifica el manifiesto y SHA-256 de todos los componentes; instala 28 librerías solo desde ruedas locales, ejecuta `pip check` y supera micropruebas de Pygame, Tk, imágenes, gráficas, cálculo, datos, Excel, SQLite, recursos binarios relativos, serial virtual, HTTP, cifrado y entrada UTF-8. La creación del entorno, cada paquete y las micropruebas tienen reintentos acotados. Después de agotar la recuperación automática, la interfaz ofrece reanudar desde lo completado o reconstruir el runtime dentro del perfil para evitar montajes temporales y restos incompletos.
 
-## Primera distribución pública
+## Publicación autónoma 1.3.2
 
-[Consultar la ejecución de validación y empaquetado](https://github.com/f-lopez-velazquez/CodeGO/actions/runs/36097997904). Los instaladores indican su commit de origen en los archivos `provenance-*.json` de la Release.
+[Consultar la ejecución aprobada de validación y empaquetado](https://github.com/f-lopez-velazquez/CodeGO/actions/runs/36306820406). Los cuatro sistemas de construcción terminaron correctamente; cada instalador indica su commit de origen en los archivos `provenance-*.json` de la Release.
 
 ## Regresión 1.1.1: pantalla e input integrado
 
