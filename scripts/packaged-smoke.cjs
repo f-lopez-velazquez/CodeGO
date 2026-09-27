@@ -9,7 +9,8 @@ const executable = process.env.CODEGO_PACKAGED_EXECUTABLE || candidates.map(name
 if (!executable) throw new Error('Compila el paquete nativo antes de comprobarlo.');
 const report = path.resolve(`reports/packaged-${platform}-${process.arch}.json`);
 const env = {...process.env, DEBUG:''};
-delete env.ELECTRON_RUN_AS_NODE;
+if (platform === 'linux') env.ELECTRON_RUN_AS_NODE = '1';
+else delete env.ELECTRON_RUN_AS_NODE;
 const args = [`--self-test-report=${report}`, '--disable-gpu'];
 if (platform === 'linux') args.push('--ozone-platform=headless', `--ozone-override-screen-size=${process.env.CODEGO_TEST_SCREEN || '1440,900'}`, '--no-sandbox');
 if (process.env.CODEGO_TEST_SCALE) args.push(`--force-device-scale-factor=${process.env.CODEGO_TEST_SCALE}`);

@@ -17,8 +17,18 @@ const { locateOfflineBundle, verifyOfflineBundle } = require('./offline-bundle')
 const { setupDiagnostic } = require('./setup-diagnostics');
 const { classifyWorkspaceFile } = require('./file-types');
 const { moveDirectory } = require('./fs-operations');
+const { sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow } = require('./window-integration');
 const updater = require('./updater');
 const wifiControl = createWifiControl();
+
+// Native Wayland is supported, but Vulkan through Ozone still produces noisy
+// startup failures on some Mesa/Hyprland combinations. Chromium falls back to
+// its stable renderer while Pygame keeps using the system graphics stack.
+if (app.commandLine && process.platform === 'linux' && (process.env.WAYLAND_DISPLAY || /wayland/i.test(process.env.XDG_SESSION_TYPE || ''))) {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch('disable-vulkan');
+  app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE');
+}
 
 const packagedReportArgument = process.argv.find(argument => argument.startsWith('--self-test-report='));
 const diagnosticMode = Boolean(packagedReportArgument);
@@ -87,6 +97,52 @@ let activeProcess = null;
 let allowWindowClose = false;
 let closeRequestPending = false;
 let isNativeDialogActive = false;
+let activePythonGuiExpected = false;
+let activePythonWorkspace = null;
+let protectedWindowTemporarilyReleased = false;
+let pythonWindowTimers = [];
+
+function clearPythonWindowTimers() {
+  pythonWindowTimers.forEach(clearTimeout);
+  pythonWindowTimers = [];
+}
+
+function restoreMainWindowAfterPython() {
+  clearPythonWindowTimers();
+  if (!mainWindow || mainWindow.isDestroyed() || !protectedWindowTemporarilyReleased) return;
+  protectedWindowTemporarilyReleased = false;
+  if (activeSessionMode === 'exam' || activeSessionMode === 'task') {
+    try {
+      mainWindow.setFullScreen(true);
+      mainWindow.setKiosk(true);
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      mainWindow.focus();
+    } catch (_) {}
+  }
+}
+
+function prepareMainWindowForPythonGui(child) {
+  if (!activePythonGuiExpected || !child?.pid || !mainWindow || mainWindow.isDestroyed()) return;
+  protectedWindowTemporarilyReleased = activeSessionMode === 'exam' || activeSessionMode === 'task';
+  try {
+    mainWindow.setAlwaysOnTop(false);
+    if (mainWindow.isKiosk()) mainWindow.setKiosk(false);
+    if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
+    mainWindow.maximize();
+  } catch (_) {}
+
+  mainWindow.webContents.send('security:python-gui-active', {
+    message: 'Abriendo la ventana gráfica junto a CodeGO.'
+  });
+  if (activePythonWorkspace) {
+    [180, 450, 900, 1600, 2600].forEach(delay => {
+      pythonWindowTimers.push(setTimeout(() => {
+        if (activeProcess === child && !child.killed) placeHyprlandWindow(child.pid, activePythonWorkspace);
+      }, delay));
+    });
+  }
+}
+
 async function withNativeDialog(fn) {
   isNativeDialogActive = true;
   try {
@@ -100,14 +156,15 @@ async function withNativeDialog(fn) {
 const pythonRunner = new PythonRunner({
   send: (channel, data) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, data);
-    if (channel === 'python:finished' && isKioskActive && mainWindow && !mainWindow.isDestroyed()) {
-      try { mainWindow.setAlwaysOnTop(true, 'screen-saver'); } catch (_) {}
-    }
   },
   onProcess: child => {
     activeProcess = child;
-    if (child && isKioskActive && mainWindow && !mainWindow.isDestroyed()) {
-      try { mainWindow.setAlwaysOnTop(false); } catch (_) {}
+    if (child) {
+      prepareMainWindowForPythonGui(child);
+    } else {
+      restoreMainWindowAfterPython();
+      activePythonGuiExpected = false;
+      activePythonWorkspace = null;
     }
   }
 });
@@ -525,11 +582,11 @@ function createMainWindow() {
     if (activePipProcess || installationBusy) return;
 
     // Check if Python child process is actively running (e.g. Pygame, Tkinter, Matplotlib, Turtle, OpenCV window)
-    if (activeProcess && !activeProcess.killed) {
+    if (activePythonGuiExpected && activeProcess && !activeProcess.killed) {
       blurWhilePythonRunning = true;
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('security:python-gui-active', {
-          message: 'Ventana gráfica de Python (Pygame/GUI) activa legítimamente.'
+          message: 'La ventana gráfica de tu programa está activa.'
         });
       }
       return; // Do NOT trigger alarm or penalize student!
@@ -1417,7 +1474,9 @@ except Exception:
 
       if (mainWindow) {
         mainWindow.setKiosk(false);
+        mainWindow.setFullScreen(false);
         mainWindow.setAlwaysOnTop(false);
+        mainWindow.maximize();
         globalShortcut.unregisterAll();
         try {
           globalShortcut.registerAll(['VolumeMute', 'VolumeDown'], () => {
@@ -1799,7 +1858,15 @@ except Exception:
       const filePath = resolveWorkspacePath(currentWorkspace, relativePath);
       if (path.extname(filePath).toLowerCase() !== '.py') throw new Error('Selecciona un archivo Python (.py).');
       if (!fs.statSync(filePath).isFile()) throw new Error('El archivo no existe.');
-      return pythonRunner.run(resolvePythonBinary().command, filePath);
+      const source = fs.readFileSync(filePath, 'utf8');
+      activePythonGuiExpected = sourceLikelyOpensGui(source);
+      activePythonWorkspace = activePythonGuiExpected ? activeHyprlandWorkspace() : null;
+      const result = pythonRunner.run(resolvePythonBinary().command, filePath);
+      if (!result.success) {
+        activePythonGuiExpected = false;
+        activePythonWorkspace = null;
+      }
+      return result;
     } catch (error) {
       return { success: false, error: error.message };
     }

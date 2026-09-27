@@ -124,13 +124,14 @@ jobs:
           cat > release-notes.md <<EOF
           ## CodeGO ExamGuard v${VERSION}
 
-          Entorno educativo de Python multiplataforma listo para preparar el aula sin conexión.
+          Entorno educativo de Python para aprender, practicar y evaluar con una experiencia consistente en el aula.
 
-          - **Preparación autónoma**: Python 3.13 y todas las ruedas binarias viajan dentro del instalador.
-          - **Validación previa**: hashes SHA-256, importaciones y micropruebas antes de abrir el editor.
-          - **Recuperación integrada**: reintentos automáticos, reanudación del avance y reconstrucción alternativa sin borrar proyectos.
-          - **Ayuda accionable**: diagnósticos con código y solución concreta.
-          - **Aula y hardware**: archivos multimedia relativos, PySerial, PyFirmata2, PyUSB y pruebas de puerto virtual.
+          - **Preparación incluida**: Python 3.13 y las herramientas educativas viajan dentro del instalador.
+          - **Comprobación previa**: importaciones, gráficos, archivos, entrada interactiva y comunicación serial antes de abrir el editor.
+          - **Ventanas gráficas visibles**: mejor integración con Pygame y otros entornos gráficos, incluida la ubicación automática en Hyprland.
+          - **Errores para aprender**: explicación clara, detección de línea y acceso directo al código.
+          - **Edición asistida**: pares automáticos de símbolos y sangría o desangría de bloques.
+          - **Interfaz académica**: preparación adaptable, consejos útiles y lenguaje dirigido al usuario final.
           - **Tres modos**: Examen Blindado, Tarea Certificada y Actividad Libre.
 
           ### Instalación

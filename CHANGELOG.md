@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.3.3 · Ventanas gráficas, ayuda de Python y experiencia de aula
+
+- Inicia correctamente en Omarchy y otras sesiones Linux que exportan variables de desarrollo de Electron; el paquete limpia esas variables y conserva un registro técnico silencioso.
+- Reduce avisos del sistema gráfico en Wayland y añade integración con Hyprland 0.55 o posterior para abrir Pygame, Tkinter, Turtle y otras ventanas gráficas en el espacio de trabajo activo.
+- Libera temporalmente la pantalla para mostrar la ventana gráfica del programa y restaura la sesión protegida al terminar.
+- Convierte las trazas de Python en explicaciones claras, detecta el archivo y la línea, la resalta y permite saltar directamente al código.
+- Agrega pares automáticos de paréntesis, corchetes, llaves y comillas, borrado de pares, salto sobre cierres y sangría o desangría de bloques.
+- Rediseña la preparación inicial con lenguaje para estudiantes y docentes, consejos rotativos, detalles técnicos plegados y una composición que funciona en pantallas pequeñas y con escalado alto.
+- Sustituye colores, nombres y mensajes de estética técnica o lúdica por una interfaz académica sobria y mantiene los créditos de Zolvek y Francisco López Velázquez.
+- Amplía las pruebas de producción con el arranque Linux bajo `ELECTRON_RUN_AS_NODE=1`, integración de ventanas de Hyprland, navegación a errores y edición asistida.
+
 ## 1.3.2 · Recuperación automática de la preparación
 
 - Reintenta automáticamente la creación del entorno, cada librería y las micropruebas ante interrupciones transitorias.

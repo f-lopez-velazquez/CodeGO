@@ -1,7 +1,7 @@
 {
   "name": "codego-examguard",
-  "version": "1.3.2",
-  "description": "Entorno Blindado de Exámenes y Editor Python Multiplataforma",
+  "version": "1.3.3",
+  "description": "Entorno educativo de Python para aprender, practicar y evaluar",
   "homepage": "https://zolvek.com.mx/productos/codego",
   "author": {
     "name": "Francisco López Velázquez",
@@ -9,7 +9,7 @@
   },
   "main": "src/main/main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "node scripts/start.cjs",
     "test-run": "npm test",
     "build:linux": "electron-builder --linux AppImage tar.gz",
     "build:win": "electron-builder --win nsis portable",
@@ -27,7 +27,8 @@
     "test:browser": "node scripts/browser-tests.cjs",
     "build:release": "node scripts/build-release.cjs",
     "prepare:offline": "node scripts/prepare-offline-bundle.cjs",
-    "test:offline": "node scripts/verify-offline-bundle.cjs"
+    "test:offline": "node scripts/verify-offline-bundle.cjs",
+    "capture:ui": "node scripts/capture-ui.cjs"
   },
   "keywords": [
     "exam",
@@ -55,6 +56,7 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "afterPack": "scripts/after-pack.cjs",
     "files": [
       "src/**/*",
       "build/icon.png",
@@ -74,19 +76,20 @@
       "repo": "CodeGO"
     },
     "linux": {
+      "executableName": "codego-examguard",
       "maintainer": "Francisco López Velázquez",
       "target": [
         "AppImage",
         "deb"
       ],
       "category": "Education",
-      "synopsis": "Entorno blindado de exámenes y programación en Python",
-      "description": "Entorno seguro de evaluación práctica de Python con modo Kiosk, bloqueo anti-trampas, terminal interactiva y empaquetado de entregas.",
+      "synopsis": "Entorno educativo de programación en Python",
+      "description": "Editor educativo de Python con terminal interactiva, actividades, tareas certificadas y evaluación supervisada.",
       "icon": "build/icons",
       "desktop": {
         "entry": {
           "Name": "CodeGO ExamGuard",
-          "Comment": "Entorno Seguro para Exámenes de Python",
+          "Comment": "Aprende, practica y evalúa programación en Python",
           "Categories": "Education;Development;IDE;"
         }
       },

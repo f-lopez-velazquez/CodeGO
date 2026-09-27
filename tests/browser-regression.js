@@ -36,6 +36,8 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.locator('.auto-installer-card').evaluate(element => { element.scrollTop = element.scrollHeight; });
   const setupGeometry = await page.locator('.auto-installer-card').boundingBox();
   assert(setupGeometry && setupGeometry.y >= 0 && setupGeometry.y + setupGeometry.height <= 480, `Setup dialog clipped: ${JSON.stringify(setupGeometry)}`);
+  const setupCredits = await page.locator('.setup-credits').boundingBox();
+  assert(setupCredits && setupCredits.y >= 0 && setupCredits.y + setupCredits.height <= 480, `Setup actions or credits unreachable: ${JSON.stringify(setupCredits)}`);
   await page.evaluate(() => showSetupDiagnostic({ code: 'CG-SETUP-105', title: 'Librería incompleta', summary: 'Prueba', actions: ['Reintentar'], detail: 'pip test' }));
   assert(await page.locator('#setup-error-panel').isVisible(), 'Structured setup error is not visible');
   await page.evaluate(() => {
@@ -94,7 +96,26 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.evaluate(() => showRuntimeError('Traceback\n  File "main.py", line 1\npimport pygame\nSyntaxError: invalid syntax'));
   assert(await page.locator('#modal-runtime-error').isVisible(), 'Python error guide is not shown');
   assert((await page.locator('#runtime-error-title').innerText()).includes('instrucción'), 'Syntax error was not classified');
+  assert((await page.locator('#runtime-error-location-label').innerText()).includes('Línea 1'), 'Python line was not detected');
+  await page.locator('#btn-runtime-error-line').click();
+  assert(await page.locator('.editor-line-numbers .has-error').count() === 1, 'Python error line was not highlighted');
+  await page.evaluate(() => showRuntimeError('  File "main.py", line 2\n    print(1)\nIndentationError: unexpected indent'));
+  assert((await page.locator('#runtime-error-title').innerText()).includes('sangría'), 'Indentation error was not classified');
   await page.locator('#btn-close-runtime-error').click();
+  const editorPairs = await page.evaluate(() => {
+    DOM.codeTextarea.value = 'print';
+    DOM.codeTextarea.setSelectionRange(5, 5);
+    DOM.codeTextarea.dispatchEvent(new KeyboardEvent('keydown', { key: '(', bubbles: true, cancelable: true }));
+    const paired = DOM.codeTextarea.value === 'print()' && DOM.codeTextarea.selectionStart === 6;
+    DOM.codeTextarea.dispatchEvent(new KeyboardEvent('keydown', { key: ')', bubbles: true, cancelable: true }));
+    const skipped = DOM.codeTextarea.value === 'print()' && DOM.codeTextarea.selectionStart === 7;
+    DOM.codeTextarea.value = '""';
+    DOM.codeTextarea.setSelectionRange(1, 1);
+    DOM.codeTextarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+    const removed = DOM.codeTextarea.value === '';
+    return { paired, skipped, removed };
+  });
+  assert(editorPairs.paired && editorPairs.skipped && editorPairs.removed, `Editor pairs failed: ${JSON.stringify(editorPairs)}`);
   await page.locator('#btn-toggle-term-view').click();
   assert(await page.locator('#terminal-panel').isHidden(), 'Collapse failed');
   await page.locator('#btn-run-code').click();

@@ -91,7 +91,7 @@
         <div id="lobby-continue-card" class="continue-session-card hidden">
           <div class="continue-card-content">
             <div class="continue-badge-row">
-              <span class="continue-badge" id="continue-mode-badge">ACTIVIDAD EN CURSO</span>
+              <span class="continue-badge" id="continue-mode-badge">Actividad en curso</span>
               <span class="continue-time" id="continue-time-label">Guardado recientemente</span>
             </div>
             <div class="continue-meta-text">
@@ -267,7 +267,7 @@
         <!-- INDICADOR PROMINENTE DE MODO (PREVENCIÓN DE ENGAÑO DOCENTE) -->
         <div id="nav-mode-indicator" class="nav-mode-indicator mode-exam" title="Modo de Operación de la Sesión">
           <span class="mode-dot"></span>
-          <span id="nav-mode-text" class="mode-text">MODO EXAMEN SUPERVISADO</span>
+          <span id="nav-mode-text" class="mode-text">Examen supervisado</span>
         </div>
 
         <!-- BEACON PARPADEANTE POST-ENTREGA: ESPERANDO REVISIÓN DOCENTE -->
@@ -298,7 +298,7 @@
             <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
             <line x1="12" y1="20" x2="12.01" y2="20"></line>
           </svg>
-          <span id="wifi-status-text">WIFI: BLOQUEADO</span>
+          <span id="wifi-status-text">Red desconectada</span>
         </div>
 
         <!-- Contador de Incidencias -->
@@ -336,19 +336,19 @@
           <div class="theme-dropdown-menu hidden" id="theme-dropdown-menu">
             <div class="theme-menu-header">TEMAS DE INTERFAZ</div>
             <div class="theme-opt active" data-theme="theme-obsidian">
-              <span class="color-preview obsidian"></span> Cyber Obsidian
+              <span class="color-preview obsidian"></span> Grafito académico
             </div>
             <div class="theme-opt" data-theme="theme-dracula">
-              <span class="color-preview dracula"></span> Midnight Nebula
+              <span class="color-preview dracula"></span> Ciruela sobria
             </div>
             <div class="theme-opt" data-theme="theme-nord">
-              <span class="color-preview nord"></span> Nordic Slate
+              <span class="color-preview nord"></span> Azul pizarra
             </div>
             <div class="theme-opt" data-theme="theme-monokai">
-              <span class="color-preview monokai"></span> Monokai Charcoal
+              <span class="color-preview monokai"></span> Contraste cálido
             </div>
             <div class="theme-opt" data-theme="theme-paper">
-              <span class="color-preview paper"></span> Academic Paper (Claro)
+              <span class="color-preview paper"></span> Papel académico (claro)
             </div>
             <div class="theme-menu-divider"></div>
             <div class="theme-menu-header">TAMAÑO DE FUENTE EDITOR</div>
@@ -410,7 +410,7 @@
         </button>
 
         <!-- Botón Entregar Tarea Certificada (Exclusivo en Modo Tarea) -->
-        <button id="btn-submit-task" class="btn-action submit-task task-only-btn hidden" style="display: none !important;" title="Finalizar y entregar tarea con certificado de autoría irrefutable">
+        <button id="btn-submit-task" class="btn-action submit-task task-only-btn hidden" style="display: none !important;" title="Finalizar y guardar la tarea certificada">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           <span class="action-label" id="submit-task-label">Entregar Tarea</span>
         </button>
@@ -571,17 +571,17 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
   <div id="modal-auto-installer" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="environment-setup-title">
     <div class="dialog-card auto-installer-card">
       <div class="dialog-header">
-        <span class="dialog-icon">⚡</span>
+        <span class="setup-mark" aria-hidden="true">C</span>
         <div>
           <h3 id="environment-setup-title">Preparando CodeGO en este equipo</h3>
-          <p class="dialog-desc">Extrae Python y las librerías incluidas, reintenta interrupciones y ejecuta micropruebas. No necesita internet. CodeGO se habilita únicamente al llegar al 100 %.</p>
+          <p class="dialog-desc">Deja todo listo para escribir y ejecutar programas. Los componentes esenciales ya vienen incluidos y esta comprobación se realiza una sola vez.</p>
         </div>
       </div>
 
       <!-- Barra de progreso visual -->
       <div class="installer-progress-container">
         <div class="progress-info-row">
-          <span id="installer-current-step-label">Analizando requisitos del sistema...</span>
+          <span id="installer-current-step-label" role="status" aria-live="polite">Comprobando la compatibilidad del equipo…</span>
           <strong id="installer-percent-label">0%</strong>
         </div>
         <div class="progress-track">
@@ -594,8 +594,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <div class="installer-step-item" id="step-item-vc">
           <div class="step-num">1</div>
           <div class="step-details">
-            <div class="step-title">Requisitos del sistema</div>
-            <div class="step-sub">Arquitectura de 64 bits y Microsoft Visual C++ en Windows</div>
+            <div class="step-title">Compatibilidad del equipo</div>
+            <div class="step-sub">Comprobamos que CodeGO pueda trabajar de forma estable.</div>
           </div>
           <div class="step-badge pending" id="step-badge-vc">Pendiente</div>
         </div>
@@ -603,8 +603,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <div class="installer-step-item" id="step-item-py">
           <div class="step-num">2</div>
           <div class="step-details">
-            <div class="step-title">Python 3.13 privado y entorno aislado</div>
-            <div class="step-sub">Runtime de 64 bits incluido; no modifica el Python del equipo</div>
+            <div class="step-title">Motor de Python incluido</div>
+            <div class="step-sub">Preparamos una copia privada sin modificar otros programas.</div>
           </div>
           <div class="step-badge pending" id="step-badge-py">Pendiente</div>
         </div>
@@ -612,8 +612,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <div class="installer-step-item" id="step-item-venv">
           <div class="step-num">3</div>
           <div class="step-details">
-            <div class="step-title">Librerías educativas</div>
-            <div class="step-sub">Ruedas precompiladas y versionadas incluidas para trabajar sin internet</div>
+            <div class="step-title">Herramientas para aprender</div>
+            <div class="step-sub">Configuramos gráficos, datos, archivos y placas educativas.</div>
           </div>
           <div class="step-badge pending" id="step-badge-venv">Pendiente</div>
         </div>
@@ -621,12 +621,18 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <div class="installer-step-item" id="step-item-libs">
           <div class="step-num">4</div>
           <div class="step-details">
-            <div class="step-title">Micropruebas del equipo</div>
-            <div class="step-sub">Importaciones, Pygame, cálculo, gráficas, archivos, serial virtual, HTTP y entrada UTF-8</div>
+            <div class="step-title">Comprobación final</div>
+            <div class="step-sub">Probamos que escribir, ejecutar y abrir ventanas funcione bien.</div>
           </div>
           <div class="step-badge pending" id="step-badge-libs">Pendiente</div>
         </div>
       </div>
+
+      <aside class="setup-insight" aria-live="polite" aria-atomic="true">
+        <span>Mientras preparamos tu entorno</span>
+        <strong id="setup-insight-title">Tus proyectos siguen siendo tuyos</strong>
+        <p id="setup-insight-copy">CodeGO guarda tu trabajo en este equipo y no reemplaza la configuración de Python que ya tengas.</p>
+      </aside>
 
       <section id="setup-error-panel" class="setup-error-panel hidden" role="alert" aria-live="assertive">
         <div class="setup-error-heading">
@@ -641,16 +647,18 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         </details>
       </section>
 
-      <!-- Terminal de logs en vivo -->
-      <div class="pip-terminal-wrapper">
-        <div class="pip-term-header">
-          <span>SALIDA DE INSTALACIÓN EN TIEMPO REAL</span>
-          <button type="button" id="btn-clear-installer-log" class="btn-xs-ghost">Limpiar</button>
+      <details class="installer-log-details">
+        <summary>Ver detalles técnicos</summary>
+        <div class="pip-terminal-wrapper">
+          <div class="pip-term-header">
+            <span>Registro de preparación</span>
+            <button type="button" id="btn-clear-installer-log" class="btn-xs-ghost">Limpiar</button>
+          </div>
+          <div class="pip-terminal-output" id="installer-terminal-output">
+            <span class="pip-term-hint">Comenzando la preparación…</span>
+          </div>
         </div>
-        <div class="pip-terminal-output" id="installer-terminal-output">
-          <span class="pip-term-hint">Iniciando el proceso de descarga y configuración...</span>
-        </div>
-      </div>
+      </details>
 
       <div class="dialog-buttons">
         <button type="button" id="btn-close-auto-installer" class="btn-ghost hidden">Reintentar preparación</button>
@@ -671,7 +679,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <span class="dialog-icon">📦</span>
         <div>
           <h3>Gestor de Librerías de Python & Entorno</h3>
-          <p class="dialog-desc">Verifica y repara el entorno aislado con 28 librerías versionadas, micropruebas reales y paquetes precompilados compatibles.</p>
+          <p class="dialog-desc">Consulta las herramientas disponibles y vuelve a comprobarlas si alguna práctica lo necesita.</p>
         </div>
       </div>
 
@@ -766,7 +774,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <input id="help-search" class="help-search" type="search" placeholder="Ejemplo: Arduino, imagen, input, error…" autocomplete="off">
       <div class="compatibility-check"><button type="button" class="btn-tool-option" data-self-test>Comprobar este equipo</button><output role="status" aria-live="polite">Verifica guardado, Python y respuestas a input() sin modificar Wi-Fi ni audio.</output></div>
       <div id="help-topics" class="help-topics">
-        <details class="help-topic" open><summary>Primer inicio y trabajo sin internet</summary><div><p>Espera a que la barra llegue al 100 %. CodeGO verifica el Python 3.13 privado, instala desde las ruedas incluidas y ejecuta micropruebas. Puedes desconectar internet durante este proceso.</p><p>Si aparece un código <code>CG-SETUP</code>, sigue los pasos de la misma ventana. El editor permanece bloqueado para que nunca trabajes con una instalación parcial.</p></div></details>
+        <details class="help-topic" open><summary>Primer inicio y trabajo sin internet</summary><div><p>Espera a que la barra llegue al 100 %. CodeGO prepara sus herramientas incluidas y comprueba que puedan ejecutarse en tu equipo. Puedes realizar este proceso sin conexión.</p><p>Si aparece un código de ayuda, sigue los pasos de la misma ventana. El editor se abrirá cuando la comprobación haya terminado correctamente.</p></div></details>
         <details class="help-topic"><summary>Ejecutar y responder a input()</summary><div><p>Pulsa <kbd>F5</kbd> o Ejecutar. Cuando Python muestre una pregunta, el cursor aparece en esa misma línea de la terminal. Escribe la respuesta y pulsa Enter.</p><p>Detener cancela el programa actual. Limpiar borra el historial visual, sin cerrar el proceso que esté esperando entrada.</p></div></details>
         <details class="help-topic"><summary>Imágenes, sonidos, CSV y otros archivos</summary><div><p>Guarda los recursos dentro de la carpeta del proyecto. CodeGO ejecuta cada archivo con su propia carpeta como directorio de trabajo, por lo que <code>pygame.image.load("recursos/nave.png")</code> funciona igual en Windows, macOS y Linux.</p><pre>from pathlib import Path
 BASE = Path(__file__).resolve().parent
@@ -972,7 +980,7 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
         <span class="dialog-icon">📦</span>
         <div>
           <h3>Entregar Tarea Certificada</h3>
-          <p class="dialog-desc">Se generará un archivo protegido <code>.codego</code> con firma criptográfica HMAC-SHA256 y certificado de autoría irrefutable para tu profesor.</p>
+          <p class="dialog-desc">Se guardará un archivo <code>.codego</code> con la comprobación de integridad y el resumen de trabajo que podrá revisar tu docente.</p>
         </div>
       </div>
 
@@ -1112,6 +1120,10 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
       <div class="runtime-error-kicker">Python encontró un problema</div>
       <h3 id="runtime-error-title">Revisa la instrucción marcada</h3>
       <p id="runtime-error-explanation"></p>
+      <div id="runtime-error-location" class="runtime-error-location hidden">
+        <span id="runtime-error-location-label"></span>
+        <button type="button" id="btn-runtime-error-line" class="btn-ghost">Ir a la línea</button>
+      </div>
       <div class="runtime-error-solution"><strong>Cómo resolverlo</strong><ol id="runtime-error-actions"></ol></div>
       <details><summary>Ver mensaje original de Python</summary><pre id="runtime-error-raw"></pre></details>
       <div class="dialog-buttons">

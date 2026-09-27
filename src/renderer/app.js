@@ -160,7 +160,11 @@ const state = {
   isInternalModalOpen: false,
   availableUpdate: null,
   isUpdating: false,
-  executionError: ''
+  executionError: '',
+  editorErrorLine: null,
+  runtimeErrorLocation: null,
+  setupTipInterval: null,
+  setupTipIndex: 0
 };
 
 // DOM Elements
@@ -251,6 +255,8 @@ const DOM = {
   setupErrorSummary: document.getElementById('setup-error-summary'),
   setupErrorActions: document.getElementById('setup-error-actions'),
   setupErrorDetail: document.getElementById('setup-error-detail'),
+  setupInsightTitle: document.getElementById('setup-insight-title'),
+  setupInsightCopy: document.getElementById('setup-insight-copy'),
 
   // Countdown
   countdownNumber: document.getElementById('countdown-number'),
@@ -359,6 +365,9 @@ const DOM = {
   runtimeErrorExplanation: document.getElementById('runtime-error-explanation'),
   runtimeErrorActions: document.getElementById('runtime-error-actions'),
   runtimeErrorRaw: document.getElementById('runtime-error-raw'),
+  runtimeErrorLocation: document.getElementById('runtime-error-location'),
+  runtimeErrorLocationLabel: document.getElementById('runtime-error-location-label'),
+  btnRuntimeErrorLine: document.getElementById('btn-runtime-error-line'),
   btnCloseRuntimeError: document.getElementById('btn-close-runtime-error'),
   btnRuntimeErrorHelp: document.getElementById('btn-runtime-error-help'),
 
@@ -481,15 +490,15 @@ async function updateWifiStatus() {
     if (DOM.navWifiBadge && DOM.wifiStatusText) {
       if (status.disabled === null || status.known === false) {
         DOM.navWifiBadge.className = 'nav-wifi-badge';
-        DOM.wifiStatusText.textContent = 'WIFI: SIN VERIFICAR';
+        DOM.wifiStatusText.textContent = 'Red sin verificar';
         return;
       }
       if (status.disabled) {
         DOM.navWifiBadge.className = 'nav-wifi-badge wifi-off';
-        DOM.wifiStatusText.textContent = 'WIFI: BLOQUEADO';
+        DOM.wifiStatusText.textContent = 'Red desconectada';
       } else {
         DOM.navWifiBadge.className = 'nav-wifi-badge wifi-on';
-        DOM.wifiStatusText.textContent = state.appMode === 'activity' ? 'WIFI: ACTIVO' : '⚠️ WIFI ACTIVO';
+        DOM.wifiStatusText.textContent = state.appMode === 'activity' ? 'Red activa' : 'Red activa';
 
         // ONLY enforce Wi-Fi disconnect and penalty during an active, non-submitted EXAM!
         if (state.examSessionActive && state.appMode === 'exam' && !state.isExamSubmitted) {
@@ -893,6 +902,44 @@ function appendPipLog(text) {
 }
 
 // Auto-Installer Pipeline Helpers
+const SETUP_INSIGHTS = [
+  ['Tus proyectos siguen siendo tuyos', 'CodeGO guarda tu trabajo en este equipo y no reemplaza la configuración de Python que ya tengas.'],
+  ['Una terminal fácil de entender', 'Cuando Python pida un dato, podrás escribirlo junto al mensaje del programa, en la misma consola.'],
+  ['El mismo entorno para todo el grupo', 'Las herramientas incluidas ayudan a que una práctica se comporte igual en cada equipo compatible.'],
+  ['Ventanas gráficas siempre a la vista', 'CodeGO acompaña las ventanas de Pygame y otras interfaces para que no tengas que buscarlas.'],
+  ['Errores que ayudan a aprender', 'Si algo falla, CodeGO explica la causa, indica la línea y propone pasos claros para corregirla.'],
+  ['Preparado para proyectos físicos', 'El entorno incluye herramientas para comunicarte con Arduino, ESP32 y otros dispositivos seriales.']
+];
+
+function rotateSetupInsight() {
+  if (!DOM.setupInsightTitle || !DOM.setupInsightCopy) return;
+  const [title, copy] = SETUP_INSIGHTS[state.setupTipIndex % SETUP_INSIGHTS.length];
+  DOM.setupInsightTitle.textContent = title;
+  DOM.setupInsightCopy.textContent = copy;
+  state.setupTipIndex += 1;
+}
+
+function startSetupInsights() {
+  clearInterval(state.setupTipInterval);
+  state.setupTipIndex = 0;
+  rotateSetupInsight();
+  state.setupTipInterval = setInterval(rotateSetupInsight, 6000);
+}
+
+function stopSetupInsights() {
+  clearInterval(state.setupTipInterval);
+  state.setupTipInterval = null;
+}
+
+function setupProgressLabel(step) {
+  return {
+    1: 'Comprobando la compatibilidad del equipo…',
+    2: 'Preparando el motor de Python incluido…',
+    3: 'Configurando las herramientas educativas…',
+    4: 'Realizando la comprobación final…'
+  }[step] || 'Preparando CodeGO…';
+}
+
 async function startAutoRepairProcess({ strategy = 'resume' } = {}) {
   state.isInternalModalOpen = true;
   state.environmentSetupRequired = true;
@@ -905,8 +952,9 @@ async function startAutoRepairProcess({ strategy = 'resume' } = {}) {
   DOM.setupErrorPanel?.classList.add('hidden');
   DOM.installerProgressBar.style.width = '5%';
   DOM.installerPercentLabel.textContent = '5%';
-  DOM.installerCurrentStepLabel.textContent = 'Iniciando análisis del sistema y descarga de dependencias...';
-  DOM.installerTerminalOutput.innerHTML = '<span class="pip-term-hint">Iniciando asistente de configuración...</span>\n';
+  DOM.installerCurrentStepLabel.textContent = 'Comprobando la compatibilidad del equipo…';
+  DOM.installerTerminalOutput.innerHTML = '<span class="pip-term-hint">Comenzando la preparación…</span>\n';
+  startSetupInsights();
 
   resetAutoInstallerSteps();
 
@@ -1002,7 +1050,7 @@ function simulateAutoInstaller() {
       clearInterval(interval);
       DOM.installerProgressBar.style.width = '100%';
       DOM.installerPercentLabel.textContent = '100%';
-      DOM.installerCurrentStepLabel.textContent = '¡Entorno 100% Configurado y Validado!';
+      DOM.installerCurrentStepLabel.textContent = 'CodeGO está listo para comenzar';
       DOM.btnFinishAutoInstaller.classList.remove('hidden');
       return;
     }
@@ -1086,7 +1134,7 @@ function checkAndDisplayLastSession() {
     if (DOM.lobbyContinueCard && session.activeFilePath) {
       const modeLabel = session.appMode === 'task'
         ? 'TAREA EN CURSO'
-        : (session.appMode === 'activity' ? 'ACTIVIDAD EN CURSO' : 'EXAMEN EN CURSO');
+        : (session.appMode === 'activity' ? 'Actividad en curso' : 'Examen en curso');
       if (DOM.continueModeBadge) DOM.continueModeBadge.textContent = modeLabel;
       if (DOM.continueTimeLabel) DOM.continueTimeLabel.textContent = `Guardado: ${session.lastSavedDate || 'Recientemente'}`;
       if (DOM.continueSubjectTitle) DOM.continueSubjectTitle.textContent = `Materia: ${session.examSubject || 'Programación en Python'}`;
@@ -1123,9 +1171,9 @@ function setSessionMode(mode) {
 
   if (mode === 'exam') {
     document.body.classList.add('mode-exam-active');
-    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR EXAMEN';
+    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'Iniciar examen';
     if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo seguro';
-    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = 'DIRECTRICES DEL MODO EXAMEN:';
+    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante el examen';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
         <li><strong>Entorno Aislado:</strong> No hay acceso a proyectos previos ni carpetas externas del sistema.</li>
@@ -1152,10 +1200,10 @@ function setSessionMode(mode) {
     document.body.classList.add('mode-task-active');
     if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR TAREA';
     if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo certificado anti-copia';
-    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = 'DIRECTRICES DEL MODO TAREA CERTIFICADA:';
+    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante la tarea certificada';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
-        <li><strong>Bloqueo Anti-Copia/Pega Externo:</strong> El código debe escribirse en CodeGO para certificar su autoría irrefutable.</li>
+        <li><strong>Registro de autoría:</strong> El código debe escribirse en CodeGO para conservar un historial claro del trabajo.</li>
         <li><strong>Supervisión y Modo Seguro:</strong> Bloquea la apertura de otras aplicaciones o navegadores con alarma de 12s.</li>
         <li><strong>Telemetría de Pulsaciones:</strong> Se auditan teclas pulsadas, tiempo de edición activo y pruebas realizadas.</li>
         <li><strong>Certificado Criptográfico .codego:</strong> Genera un contenedor sellado con firma digital HMAC-SHA256 para el docente.</li>
@@ -1177,9 +1225,9 @@ function setSessionMode(mode) {
     }
   } else {
     document.body.classList.add('mode-activity-active');
-    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR ACTIVIDAD';
+    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'Iniciar actividad';
     if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo libre';
-    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.innerHTML = 'DIRECTRICES DEL MODO ACTIVIDAD:';
+    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante la actividad';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
         <li><strong>Gestión de Archivos:</strong> Puedes abrir cualquier carpeta en tu equipo o crear nuevos proyectos en Python.</li>
@@ -1296,6 +1344,7 @@ function setupEventListeners() {
       state.isInternalModalOpen = false;
       state.environmentSetupRequired = false;
       state.environmentReady = true;
+      stopSetupInsights();
       document.body.classList.remove('environment-setup-required');
       await loadEnvironmentDiagnostics();
       startWifiMonitoring();
@@ -1319,6 +1368,9 @@ function setupEventListeners() {
     DOM.helpEmpty.classList.toggle('hidden', visible > 0);
   });
   DOM.btnCloseRuntimeError?.addEventListener('click', () => DOM.modalRuntimeError.classList.add('hidden'));
+  DOM.btnRuntimeErrorLine?.addEventListener('click', () => {
+    if (state.runtimeErrorLocation?.line) goToEditorLine(state.runtimeErrorLocation.line);
+  });
   DOM.btnRuntimeErrorHelp?.addEventListener('click', () => {
     DOM.modalRuntimeError.classList.add('hidden');
     openHelpCenter();
@@ -1701,7 +1753,7 @@ function setupElectronListeners() {
   window.electronAPI.onSetupProgress((data) => {
     DOM.installerProgressBar.style.width = `${data.percent}%`;
     DOM.installerPercentLabel.textContent = `${data.percent}%`;
-    DOM.installerCurrentStepLabel.textContent = data.title;
+    DOM.installerCurrentStepLabel.textContent = setupProgressLabel(data.step);
 
     updateAutoInstallerStep(1, DOM.stepItemVc, DOM.stepBadgeVc, data.step);
     updateAutoInstallerStep(2, DOM.stepItemPy, DOM.stepBadgePy, data.step);
@@ -1718,12 +1770,13 @@ function setupElectronListeners() {
       DOM.setupErrorPanel?.classList.add('hidden');
       DOM.installerProgressBar.style.width = '100%';
       DOM.installerPercentLabel.textContent = '100%';
-      DOM.installerCurrentStepLabel.textContent = '¡Entorno 100% Configurado y Validado!';
+      DOM.installerCurrentStepLabel.textContent = 'CodeGO está listo para comenzar';
       updateAutoInstallerStep(4, DOM.stepItemLibs, DOM.stepBadgeLibs, 5);
       DOM.btnCloseAutoInstaller.classList.add('hidden');
       DOM.btnRebuildEnvironment?.classList.add('hidden');
       DOM.btnFinishAutoInstaller.classList.remove('hidden');
       state.environmentReady = true;
+      stopSetupInsights();
       await loadEnvironmentDiagnostics();
     } else {
       state.environmentReady = false;
@@ -1768,7 +1821,7 @@ function setupElectronListeners() {
   if (window.electronAPI.onPythonGuiActive) {
     window.electronAPI.onPythonGuiActive((data) => {
       state.pythonGuiActive = true;
-      appendTerminalOutput(`\n[Entorno Gráfico]: Ventana externa de Python activa legítimamente.\n`, 'system');
+      appendTerminalOutput(`\n${data?.message || 'La ventana gráfica de tu programa está abierta.'}\n`, 'system');
     });
   }
 
@@ -1940,7 +1993,7 @@ function enterIdeWorkspace() {
       DOM.navModeIndicator.title = 'Sesión de Examen Supervisada con Auditoría de Integridad Activa';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = 'MODO EXAMEN SUPERVISADO';
+      DOM.navModeText.textContent = 'Examen supervisado';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.remove('hidden');
@@ -1978,7 +2031,7 @@ function enterIdeWorkspace() {
       DOM.navModeIndicator.title = 'Sesión de Tarea Certificada con Auditoría Forense y Bloqueo Anti-Copia';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = 'MODO TAREA CERTIFICADA';
+      DOM.navModeText.textContent = 'Tarea certificada';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.remove('hidden');
@@ -2018,7 +2071,7 @@ function enterIdeWorkspace() {
       DOM.navModeIndicator.title = 'Modo Práctica Libre: Sin bloqueos, proyectos y carpetas habilitados';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = 'MODO ACTIVIDAD';
+      DOM.navModeText.textContent = 'Actividad libre';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.add('hidden'); // Sin contador
@@ -2797,16 +2850,70 @@ function handleEditorKeydown(e) {
     state.taskTelemetry.lastKeystrokeTime = now;
   }
 
-  // Support Tab key for 4-space Python indentation
+  const editor = DOM.codeTextarea;
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  const value = editor.value;
+
+  // Indent or outdent the current line or complete selection with four spaces.
   if (e.key === 'Tab') {
     e.preventDefault();
-    const start = DOM.codeTextarea.selectionStart;
-    const end = DOM.codeTextarea.selectionEnd;
-    const value = DOM.codeTextarea.value;
-
-    DOM.codeTextarea.value = value.substring(0, start) + '    ' + value.substring(end);
-    DOM.codeTextarea.selectionStart = DOM.codeTextarea.selectionEnd = start + 4;
+    const blockStart = value.lastIndexOf('\n', start - 1) + 1;
+    const selectionEndsAtLineStart = end > start && value[end - 1] === '\n';
+    const blockEnd = selectionEndsAtLineStart ? end - 1 : (value.indexOf('\n', end) === -1 ? value.length : value.indexOf('\n', end));
+    const block = value.slice(blockStart, blockEnd);
+    const lines = block.split('\n');
+    let transformed;
+    let newStart;
+    let newEnd;
+    if (e.shiftKey) {
+      const removed = lines.map(line => (line.match(/^(?: {1,4}|\t)/) || [''])[0].length);
+      transformed = lines.map((line, index) => line.slice(removed[index])).join('\n');
+      newStart = Math.max(blockStart, start - removed[0]);
+      newEnd = Math.max(newStart, end - removed.reduce((sum, count) => sum + count, 0));
+    } else {
+      transformed = lines.map(line => `    ${line}`).join('\n');
+      newStart = start + 4;
+      newEnd = end + (4 * lines.length);
+    }
+    editor.value = value.slice(0, blockStart) + transformed + value.slice(blockEnd);
+    editor.setSelectionRange(newStart, newEnd);
     handleEditorInput();
+    return;
+  }
+
+  const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+  const closing = new Set(Object.values(pairs));
+  if (pairs[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (start === end && value[start] === e.key && (e.key === '"' || e.key === "'")) {
+      e.preventDefault();
+      editor.setSelectionRange(start + 1, start + 1);
+      updateCursorStats();
+      return;
+    }
+    if ((e.key === '"' || e.key === "'") && value[start - 1] === '\\') return;
+    e.preventDefault();
+    const selected = value.slice(start, end);
+    editor.value = value.slice(0, start) + e.key + selected + pairs[e.key] + value.slice(end);
+    if (selected) editor.setSelectionRange(start + 1, end + 1);
+    else editor.setSelectionRange(start + 1, start + 1);
+    handleEditorInput();
+    return;
+  }
+
+  if (closing.has(e.key) && start === end && value[start] === e.key) {
+    e.preventDefault();
+    editor.setSelectionRange(start + 1, start + 1);
+    updateCursorStats();
+    return;
+  }
+
+  if (e.key === 'Backspace' && start === end && start > 0 && pairs[value[start - 1]] === value[start]) {
+    e.preventDefault();
+    editor.value = value.slice(0, start - 1) + value.slice(start + 1);
+    editor.setSelectionRange(start - 1, start - 1);
+    handleEditorInput();
+    return;
   }
 
   // Support smart Enter indentation
@@ -2825,6 +2932,7 @@ function handleEditorKeydown(e) {
       DOM.codeTextarea.value = value.substring(0, cursorPos) + insert + value.substring(cursorPos);
       DOM.codeTextarea.selectionStart = DOM.codeTextarea.selectionEnd = cursorPos + insert.length;
       handleEditorInput();
+      return;
     }
   }
 }
@@ -2855,7 +2963,7 @@ function showPasteBlockedToast() {
     `;
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<span style="font-size: 1.5rem;">⚠️</span><div><strong>Pegado bloqueado en Modo Tarea</strong><br><span style="font-size: 0.76rem; color: #c7d2fe;">El código debe escribirse directamente en CodeGO para certificar su autoría irrefutable.</span></div>`;
+  toast.innerHTML = `<span aria-hidden="true">Aviso</span><div><strong>No se puede pegar durante una tarea certificada</strong><br><span>Escribe el código en CodeGO para conservar el registro de autoría.</span></div>`;
   toast.style.opacity = '1';
   toast.style.transform = 'translateY(0)';
   try { sounds.playCountdownTick(true); } catch (_) {}
@@ -2870,7 +2978,7 @@ function updateLineNumbers() {
   const lines = DOM.codeTextarea.value.split('\n').length;
   let numbersHtml = '';
   for (let i = 1; i <= lines; i++) {
-    numbersHtml += `<div>${i}</div>`;
+    numbersHtml += `<div${state.editorErrorLine === i ? ' class="has-error" title="Python encontró el problema en esta línea"' : ''}>${i}</div>`;
   }
   DOM.editorLineNumbers.innerHTML = numbersHtml;
 }
@@ -2916,6 +3024,9 @@ async function runCurrentPythonCode() {
     if (!state.isExamSubmitted && !await saveAllFiles()) throw new Error('Guarda los cambios antes de ejecutar.');
     state.isRunning = true;
     state.executionError = '';
+    state.editorErrorLine = null;
+    state.runtimeErrorLocation = null;
+    updateLineNumbers();
     state.isStopping = false;
     if (state.appMode === 'task') {
       state.taskTelemetry.runsCount++;
@@ -2931,7 +3042,10 @@ async function runCurrentPythonCode() {
     focusTerminalInput();
     appendTerminalOutput(`Ejecutando ${state.activeFilePath}\n`, 'system');
     const result = await window.electronAPI.runPython({ relativePath: state.activeFilePath });
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) {
+      state.executionError = `File "${state.activeFilePath}", line 1\nRuntimeError: ${result.error}`;
+      throw new Error(result.error);
+    }
   } catch (error) {
     appendTerminalOutput(`No se pudo ejecutar: ${error.message}\n`, 'stderr');
     state.isRunning = true;
@@ -2999,11 +3113,50 @@ function explainPythonError(raw) {
     : { title: 'El programa terminó con un error', explanation: 'La última línea del mensaje indica el tipo de problema; las líneas anteriores muestran el camino hasta él.', actions: ['Busca la última referencia a tu archivo .py y abre esa línea.', 'Corrige una causa a la vez y vuelve a ejecutar con F5.'] };
 }
 
+function parsePythonLocation(raw) {
+  const locations = [...String(raw).matchAll(/File ["']([^"']+)["'], line (\d+)/g)];
+  const lastLocation = locations.at(-1);
+  const finalError = [...String(raw).matchAll(/^([A-Za-z_][\w.]*(?:Error|Exception)):\s*(.*)$/gm)].at(-1);
+  if (!lastLocation && !finalError) return null;
+  return {
+    file: lastLocation?.[1]?.split(/[\\/]/).pop() || state.activeFilePath,
+    line: lastLocation ? Number(lastLocation[2]) : null,
+    type: finalError?.[1] || 'Error de Python',
+    message: finalError?.[2] || ''
+  };
+}
+
+function goToEditorLine(lineNumber) {
+  const lines = DOM.codeTextarea.value.split('\n');
+  const line = Math.max(1, Math.min(Number(lineNumber) || 1, lines.length));
+  let start = 0;
+  for (let index = 1; index < line; index += 1) start += lines[index - 1].length + 1;
+  const end = start + lines[line - 1].length;
+  state.editorErrorLine = line;
+  updateLineNumbers();
+  DOM.modalRuntimeError.classList.add('hidden');
+  DOM.codeTextarea.focus({ preventScroll: true });
+  DOM.codeTextarea.setSelectionRange(start, end);
+  const lineHeight = parseFloat(getComputedStyle(DOM.codeTextarea).lineHeight) || 22;
+  DOM.codeTextarea.scrollTop = Math.max(0, (line - 3) * lineHeight);
+  syncEditorScroll();
+  updateCursorStats();
+}
+
 function showRuntimeError(raw) {
   const guide = explainPythonError(raw);
+  const location = parsePythonLocation(raw);
+  state.runtimeErrorLocation = location;
+  state.editorErrorLine = location?.line || null;
+  updateLineNumbers();
   DOM.runtimeErrorTitle.textContent = guide.title;
   DOM.runtimeErrorExplanation.textContent = guide.explanation;
   DOM.runtimeErrorRaw.textContent = raw;
+  DOM.runtimeErrorLocation.classList.toggle('hidden', !location?.line);
+  if (location?.line) {
+    DOM.runtimeErrorLocationLabel.textContent = `${location.file} · Línea ${location.line} · ${location.type}`;
+    DOM.btnRuntimeErrorLine.textContent = `Ir a la línea ${location.line}`;
+  }
   DOM.runtimeErrorActions.replaceChildren(...guide.actions.map(action => {
     const item = document.createElement('li');
     item.textContent = action;
@@ -3145,7 +3298,7 @@ function lockExamEnvironment() {
   // Crucial: Keep Run Code enabled so student/teacher can execute and demonstrate!
   DOM.btnRunCode.disabled = false;
 
-  appendTerminalOutput('\n>>> [EXAMEN ENTREGADO DEFINITIVAMENTE - MODO SOLO LECTURA]', 'success');
+  appendTerminalOutput('\nExamen entregado. El código queda disponible en modo de lectura.', 'success');
   appendTerminalOutput('>>> El código ha sido sellado contra modificaciones, copia y pegado.', 'system');
   appendTerminalOutput('>>> Estado: Esperando revisión del profesor en su pupitre.', 'system');
   appendTerminalOutput('>>> La ejecución sigue habilitada con "▶ Ejecutar" (F5) para validación del docente.\n', 'system');
@@ -3248,7 +3401,7 @@ async function handleTaskFinalSubmit() {
     DOM.receiptChecksum.textContent = res.sha256;
     DOM.modalSubmissionSuccess.classList.remove('hidden');
 
-    appendTerminalOutput(`\n>>> [TAREA CERTIFICADA ENTREGADA CON ÉXITO]`, 'success');
+    appendTerminalOutput(`\nTarea certificada guardada correctamente.`, 'success');
     appendTerminalOutput(`>>> Archivo generado: ${res.fileName}`, 'system');
     appendTerminalOutput(`>>> Firma Digital HMAC-SHA256: ${res.manifest?.signature ? 'Válida' : 'Generada'}`, 'system');
     appendTerminalOutput(`>>> Entrega este archivo .codego a tu profesor para certificar tu autoría.\n`, 'system');

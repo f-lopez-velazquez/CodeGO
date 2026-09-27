@@ -1,0 +1,67 @@
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const { chromium } = require('playwright');
+
+const rendererRoot = path.resolve('src/renderer');
+const output = path.resolve('docs/verification');
+const server = http.createServer((request, response) => {
+  const pathname = new URL(request.url, 'http://localhost').pathname;
+  const file = path.resolve(rendererRoot, `.${pathname === '/' ? '/index.html' : pathname}`);
+  if (path.relative(rendererRoot, file).startsWith('..')) return response.writeHead(403).end();
+  fs.readFile(file, (error, data) => {
+    if (error) return response.writeHead(404).end();
+    response.setHeader('Content-Type', ({ '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.png': 'image/png' })[path.extname(file)] || 'application/octet-stream');
+    response.end(data);
+  });
+});
+
+(async () => {
+  let browser;
+  try {
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+    await page.goto(`http://127.0.0.1:${server.address().port}`);
+    await page.evaluate(() => {
+      document.body.classList.add('environment-setup-required');
+      DOM.modalAutoInstaller.classList.remove('hidden');
+      DOM.installerProgressBar.style.width = '67%';
+      DOM.installerPercentLabel.textContent = '67%';
+      DOM.installerCurrentStepLabel.textContent = setupProgressLabel(3);
+      updateAutoInstallerStep(1, DOM.stepItemVc, DOM.stepBadgeVc, 3);
+      updateAutoInstallerStep(2, DOM.stepItemPy, DOM.stepBadgePy, 3);
+      updateAutoInstallerStep(3, DOM.stepItemVenv, DOM.stepBadgeVenv, 3);
+      updateAutoInstallerStep(4, DOM.stepItemLibs, DOM.stepBadgeLibs, 3);
+    });
+    fs.mkdirSync(output, { recursive: true });
+    await page.screenshot({ path: path.join(output, 'setup-current.png') });
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.screenshot({ path: path.join(output, 'setup-current-compact.png') });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => {
+      document.body.classList.remove('environment-setup-required');
+      DOM.modalAutoInstaller.classList.add('hidden');
+      setSessionMode('activity');
+      enterIdeWorkspace();
+      DOM.navSubjectLabel.textContent = 'Fundamentos de programación';
+      DOM.navStudentLabel.textContent = 'Práctica guiada';
+      DOM.codeTextarea.value = 'nombre = input("¿Cómo te llamas? ")\nprint(f"Hola, {nombre}")\n';
+      handleEditorInput();
+      clearTerminal();
+      appendTerminalOutput('Ejecutando main.py\n', 'system');
+      appendTerminalOutput('¿Cómo te llamas? ', 'stdout');
+      DOM.terminalStdinInput.disabled = false;
+      DOM.terminalStdinInput.value = 'Ana';
+      resizeTerminalInput();
+    });
+    await page.screenshot({ path: path.join(output, 'ide-current.png') });
+    console.log(`Capturas guardadas en ${output}`);
+  } finally {
+    await browser?.close();
+    server.close();
+  }
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

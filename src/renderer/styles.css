@@ -11,25 +11,25 @@
   --terminal-font-size: 13.5px;
 
   /* Theme: Slate Academic (Default) */
-  --bg-primary: #090d16;
-  --bg-secondary: #0f1420;
-  --bg-tertiary: #161e2e;
-  --bg-surface: #1e283d;
-  --bg-hover: #26334d;
+  --bg-primary: #0b1017;
+  --bg-secondary: #111822;
+  --bg-tertiary: #182230;
+  --bg-surface: #223044;
+  --bg-hover: #2b3a4d;
 
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-medium: rgba(255, 255, 255, 0.16);
-  --border-focus: #3b82f6;
+  --border-focus: #7c9cbb;
 
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
-  --text-highlight: #60a5fa;
+  --text-highlight: #9ab3c9;
 
-  --accent-cyan: #38bdf8;
-  --accent-blue: #2563eb;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
+  --accent-cyan: #7897b7;
+  --accent-blue: #6685a5;
+  --accent-emerald: #3f8b73;
+  --accent-amber: #b6935f;
   --accent-crimson: #ef4444;
   --accent-hazard: #dc2626;
 
@@ -44,8 +44,8 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.7);
-  --shadow-glow-cyan: 0 0 15px rgba(56, 189, 248, 0.2);
-  --shadow-glow-emerald: 0 0 15px rgba(16, 185, 129, 0.25);
+  --shadow-glow-cyan: 0 4px 14px rgba(0, 0, 0, 0.22);
+  --shadow-glow-emerald: 0 4px 14px rgba(0, 0, 0, 0.22);
   --shadow-glow-danger: 0 0 25px rgba(239, 68, 68, 0.45);
 }
 
@@ -58,10 +58,10 @@ body.theme-dracula {
   --bg-tertiary: #1c1d30;
   --bg-surface: #262740;
   --bg-hover: #323455;
-  --accent-cyan: #c084fc;
-  --accent-blue: #818cf8;
-  --text-highlight: #c084fc;
-  --border-focus: #a855f7;
+  --accent-cyan: #9a8aad;
+  --accent-blue: #81799d;
+  --text-highlight: #b5a9c2;
+  --border-focus: #9a8aad;
 }
 
 body.theme-nord {
@@ -70,11 +70,11 @@ body.theme-nord {
   --bg-tertiary: #1b2636;
   --bg-surface: #243247;
   --bg-hover: #2f415c;
-  --accent-cyan: #38bdf8;
-  --accent-blue: #0284c7;
-  --accent-emerald: #2dd4bf;
-  --text-highlight: #38bdf8;
-  --border-focus: #38bdf8;
+  --accent-cyan: #7897aa;
+  --accent-blue: #65839a;
+  --accent-emerald: #4f8b82;
+  --text-highlight: #9bb3c1;
+  --border-focus: #7897aa;
 }
 
 body.theme-monokai {
@@ -83,11 +83,11 @@ body.theme-monokai {
   --bg-tertiary: #222429;
   --bg-surface: #2d3036;
   --bg-hover: #3b3f47;
-  --accent-cyan: #eab308;
-  --accent-blue: #a3e635;
-  --accent-emerald: #84cc16;
-  --text-highlight: #facc15;
-  --border-focus: #eab308;
+  --accent-cyan: #ad956b;
+  --accent-blue: #8e9872;
+  --accent-emerald: #758d68;
+  --text-highlight: #c1ad86;
+  --border-focus: #ad956b;
 }
 
 body.theme-paper {
@@ -857,7 +857,7 @@ body.mode-activity-active .btn-giant-start:hover {
   position: absolute;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at center, rgba(0, 242, 254, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle at center, rgba(120, 151, 183, 0.09) 0%, transparent 70%);
 }
 
 .countdown-card {
@@ -916,7 +916,7 @@ body.mode-activity-active .btn-giant-start:hover {
   stroke-dasharray: 440;
   stroke-dashoffset: 0;
   transition: stroke-dashoffset 1s linear;
-  filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.8));
+  filter: none;
 }
 
 .radial-number {
@@ -925,8 +925,8 @@ body.mode-activity-active .btn-giant-start:hover {
   font-weight: 800;
   font-family: var(--font-mono);
   color: var(--text-primary);
-  text-shadow: 0 0 20px rgba(0, 242, 254, 0.6);
-  animation: pulse-num 1s infinite alternate;
+  text-shadow: none;
+  animation: none;
 }
 
 @keyframes pulse-num {
@@ -1838,7 +1838,7 @@ body.screen-compact .incidents-pill {
 
 .splitter-vertical:hover, .splitter-vertical.dragging {
   background: var(--accent-cyan);
-  box-shadow: 0 0 8px var(--accent-cyan);
+  box-shadow: none;
 }
 
 /* Workspace Area (Default: Side-by-Side Vertical Split - Editor on Left, Terminal on Right) */
@@ -2439,9 +2439,9 @@ body.theme-paper #code-textarea::selection {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(7, 11, 18, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   justify-content: center;
   align-items: flex-start !important;
@@ -2467,14 +2467,25 @@ body.environment-setup-required #modal-auto-installer {
 
 /* Auto Installer Modal Card */
 .auto-installer-card {
+  width: min(760px, calc(100vw - 32px));
   max-width: 760px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  gap: 16px;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.15);
+  max-height: calc(100dvh - 32px);
+  min-width: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  gap: 14px;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid #334155;
+  background: #111827;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
 }
+
+.auto-installer-card .dialog-header { align-items: flex-start; min-width: 0; }
+.auto-installer-card .dialog-header > div { min-width: 0; }
+.auto-installer-card h3 { text-wrap: balance; }
+.auto-installer-card .dialog-desc { max-width: 64ch; overflow-wrap: anywhere; }
+.setup-mark { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border-radius: 10px; border: 1px solid #47617c; background: #182536; color: #dbe8f5; font: 750 1rem var(--font-ui); }
 
 .setup-credits {
   margin: 0;
@@ -2501,12 +2512,33 @@ body.environment-setup-required #modal-auto-installer {
 .setup-error-panel summary { cursor: pointer; color: #fca5a5; font-size: 0.75rem; }
 .setup-error-panel pre { margin: 8px 0 0; max-height: 110px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-secondary); font: 0.7rem/1.45 var(--font-mono); user-select: text; }
 
+.setup-insight {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3px;
+  min-width: 0;
+  padding: 12px 14px 12px 16px;
+  border-left: 3px solid #7897b7;
+  background: #0d1521;
+  border-radius: 0 8px 8px 0;
+}
+.setup-insight > span { color: #91a4b8; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.setup-insight strong { color: #eef3f8; font-size: 0.86rem; }
+.setup-insight p { margin: 0; color: #aebdca; font-size: 0.76rem; line-height: 1.45; overflow-wrap: anywhere; }
+
+.installer-log-details { min-width: 0; border: 1px solid #283548; border-radius: 8px; background: #0d1521; }
+.installer-log-details > summary { padding: 10px 12px; color: #aebdca; cursor: pointer; font-size: 0.76rem; font-weight: 650; }
+.installer-log-details[open] > summary { border-bottom: 1px solid #283548; }
+.installer-log-details .pip-terminal-wrapper { margin: 0; border: 0; border-radius: 0 0 8px 8px; }
+.installer-log-details .pip-terminal-output { max-height: 126px; overflow-wrap: anywhere; }
+
 .installer-progress-container {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-subtle);
+  min-width: 0;
+  background: #0d1521;
+  border: 1px solid #283548;
   border-radius: var(--radius-md);
   padding: 12px 16px;
 }
@@ -2519,6 +2551,8 @@ body.environment-setup-required #modal-auto-installer {
 }
 
 .progress-info-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--text-primary);
   font-weight: 600;
 }
@@ -2530,8 +2564,8 @@ body.environment-setup-required #modal-auto-installer {
 
 .progress-track {
   width: 100%;
-  height: 10px;
-  background: var(--bg-primary);
+  height: 7px;
+  background: #202b3b;
   border-radius: var(--radius-full);
   overflow: hidden;
   border: 1px solid var(--border-medium);
@@ -2539,10 +2573,10 @@ body.environment-setup-required #modal-auto-installer {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #38bdf8, #10b981);
+  background: #7897b7;
   border-radius: var(--radius-full);
   transition: width 0.35s ease;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+  box-shadow: none;
 }
 
 .installer-steps-list {
@@ -2555,21 +2589,22 @@ body.environment-setup-required #modal-auto-installer {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-subtle);
+  min-width: 0;
+  background: #151f2f;
+  border: 1px solid #2a374a;
   border-radius: var(--radius-md);
   padding: 10px 14px;
-  transition: all 0.25s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .installer-step-item.active {
-  border-color: var(--accent-cyan);
-  background: rgba(56, 189, 248, 0.08);
+  border-color: #7897b7;
+  background: #19283a;
 }
 
 .installer-step-item.done {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.06);
+  border-color: #42695e;
+  background: #162823;
 }
 
 .step-num {
@@ -2588,9 +2623,9 @@ body.environment-setup-required #modal-auto-installer {
 }
 
 .installer-step-item.active .step-num {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+  border-color: #7897b7;
+  color: #c9daea;
+  box-shadow: none;
 }
 
 .installer-step-item.done .step-num {
@@ -2604,6 +2639,7 @@ body.environment-setup-required #modal-auto-installer {
   flex-direction: column;
   flex: 1;
   gap: 2px;
+  min-width: 0;
 }
 
 .step-title {
@@ -2615,6 +2651,7 @@ body.environment-setup-required #modal-auto-installer {
 .step-sub {
   font-size: 0.74rem;
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .step-badge {
@@ -2622,6 +2659,7 @@ body.environment-setup-required #modal-auto-installer {
   font-weight: 700;
   padding: 3px 8px;
   border-radius: var(--radius-full);
+  flex: 0 0 auto;
 }
 
 .step-badge.pending {
@@ -2630,10 +2668,10 @@ body.environment-setup-required #modal-auto-installer {
 }
 
 .step-badge.active {
-  background: rgba(56, 189, 248, 0.2);
-  color: var(--accent-cyan);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  animation: pulseBadge 1.5s infinite;
+  background: #243a50;
+  color: #c9daea;
+  border: 1px solid #47617c;
+  animation: none;
 }
 
 @keyframes pulseBadge {
@@ -3207,6 +3245,8 @@ body.theme-paper .academic-title {
   box-sizing: border-box;
 }
 
+.dialog-card.auto-installer-card { max-width: 760px; }
+
 .dialog-header {
   display: flex;
   align-items: center;
@@ -3272,7 +3312,7 @@ body.theme-paper .academic-title {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-cyan), #4facfe);
+  background: var(--accent-cyan);
   border: none;
   color: #07090e;
   border-radius: var(--radius-md);
@@ -3284,7 +3324,7 @@ body.theme-paper .academic-title {
 }
 
 .btn-primary:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.06);
 }
 
 /* Shortcuts Modal Grid */
@@ -3310,10 +3350,14 @@ body.theme-paper .academic-title {
 .runtime-error-kicker { color: #fca5a5; font: 700 0.7rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
 .runtime-error-card h3 { margin: 0; font-size: 1.2rem; }
 .runtime-error-card > p { margin: 0; color: var(--text-secondary); line-height: 1.55; }
+.runtime-error-location { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid rgba(248, 113, 113, 0.35); border-radius: 8px; background: rgba(127, 29, 29, 0.1); }
+.runtime-error-location span { min-width: 0; overflow-wrap: anywhere; color: var(--text-primary); font: 600 0.78rem var(--font-mono); }
+.runtime-error-location .btn-ghost { flex: 0 0 auto; padding: 7px 10px; }
 .runtime-error-solution { display: grid; gap: 8px; padding: 13px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-tertiary); }
 .runtime-error-solution ol { margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.82rem; line-height: 1.6; }
 .runtime-error-card details summary { cursor: pointer; color: var(--accent-cyan); font-size: 0.78rem; }
 .runtime-error-card pre { max-height: 180px; margin: 8px 0 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 6px; background: var(--bg-primary); color: #fca5a5; font: 0.72rem/1.5 var(--font-mono); user-select: text; }
+.editor-line-numbers > .has-error { color: #fecaca; background: rgba(190, 24, 93, 0.14); box-shadow: inset -2px 0 #f87171; }
 
 .shortcuts-grid {
   display: flex;
@@ -3770,6 +3814,23 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
   .auto-installer-card .dialog-buttons { grid-template-columns: minmax(0, 1fr); }
   .diag-item { min-width: 0; }
   .diag-info { overflow-wrap: anywhere; }
+  .modal-overlay { padding: 8px !important; }
+  .auto-installer-card { width: 100%; max-height: calc(100dvh - 16px); padding: 16px; gap: 12px; }
+  .installer-step-item { align-items: flex-start; flex-wrap: wrap; }
+  .step-details { flex: 1 1 calc(100% - 42px); }
+  .step-badge { margin-left: 38px; }
+  .runtime-error-location { align-items: stretch; flex-direction: column; }
+  .runtime-error-location .btn-ghost { width: 100%; }
+}
+
+@media (min-width: 700px) and (max-height: 650px) {
+  .modal-overlay { padding: 8px 16px !important; }
+  .auto-installer-card { max-height: calc(100dvh - 16px); gap: 10px; padding: 16px 20px; }
+  .auto-installer-card .dialog-desc { line-height: 1.35; }
+  .installer-steps-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .installer-step-item { padding: 8px 10px; }
+  .step-badge { align-self: flex-start; }
+  .setup-insight { padding-block: 9px; }
 }
 
 .app-credits { display: grid; gap: 4px; margin-top: 14px; text-align: center; font-size: 11px; line-height: 1.5; color: var(--text-secondary); }
