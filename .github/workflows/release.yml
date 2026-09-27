@@ -77,6 +77,8 @@ jobs:
           npx electron-builder --mac dmg zip --$ARCH --publish never
 
       - name: Test packaged application
+        env:
+          CODEGO_REQUIRE_OFFLINE_BUNDLE: '1'
         run: npm run test:packaged
 
       - name: Install or extract deliverable and test it

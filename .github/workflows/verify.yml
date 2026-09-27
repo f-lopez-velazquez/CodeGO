@@ -26,13 +26,16 @@ jobs:
         with:
           python-version: '3.13'
       - run: npm ci
-      - run: npm run test:environment
+      - name: Assemble the native offline classroom bundle
+        run: npm run prepare:offline
+      - name: Reproduce first launch without internet
+        run: npm run test:offline
       - name: Save preparation evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: environment-${{ matrix.os }}
-          path: reports/environment-*.json
+          path: reports/offline-*.json
           if-no-files-found: warn
           retention-days: 30
 

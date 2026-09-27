@@ -8,10 +8,14 @@ async function runPackagedCheck({ window, command, directory, version, reportPat
   const report = await runSelfTest({ command, directory, version });
   console.info('CodeGO: Python comprobado.');
   report.packaged = packaged === true;
+  const bundle = locateOfflineBundle(process.resourcesPath);
   try {
-    const bundle = locateOfflineBundle(process.resourcesPath);
-    const verified = verifyOfflineBundle(bundle);
-    report.checks.push({ name: 'Python y librerías autónomas dentro del paquete', success: true, files: bundle.manifest.files.length, packages: bundle.manifest.packages.length, runtime: verified.manifest.runtime.version });
+    if (!bundle) {
+      if (process.env.CODEGO_REQUIRE_OFFLINE_BUNDLE === '1') throw new Error('No se encontró el paquete autónomo dentro de la aplicación.');
+    } else {
+      const verified = verifyOfflineBundle(bundle);
+      report.checks.push({ name: 'Python y librerías autónomas dentro del paquete', success: true, files: bundle.manifest.files.length, packages: bundle.manifest.packages.length, runtime: verified.manifest.runtime.version });
+    }
   } catch (error) {
     report.checks.push({ name: 'Python y librerías autónomas dentro del paquete', success: false, detail: error.message });
   }
