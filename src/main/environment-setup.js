@@ -53,6 +53,20 @@ function run(command,args,{timeout=120000,onLog=()=>{},env={},input}={}) {
   });
 }
 function parseResult(output) { const line=output.trim().split(/\r?\n/).reverse().find(line=>line.startsWith('{')); if(!line)throw Error('El intérprete no devolvió un diagnóstico válido.'); return JSON.parse(line); }
+function wait(milliseconds) { return new Promise(resolve => setTimeout(resolve, milliseconds)); }
+async function retryOperation(operation,{attempts=3,delayMs=750,onRetry=()=>{},shouldRetry=()=>true}={}) {
+  let lastError;
+  for(let attempt=1;attempt<=attempts;attempt++) {
+    try { return await operation({attempt,attempts}); }
+    catch(error) {
+      lastError=error;
+      if(attempt>=attempts||!shouldRetry(error))throw error;
+      onRetry({attempt,nextAttempt:attempt+1,attempts,error});
+      await wait(delayMs*attempt);
+    }
+  }
+  throw lastError;
+}
 async function probe(command,execute=run) { return parseResult(await execute(command,['-I','-c',PROBE],{timeout:15000})); }
 async function selectPython(candidates,execute=run) {
   for(const item of candidates) {
@@ -140,8 +154,11 @@ async function prepareEnvironment({directory,selectInterpreter,execute=run,onPro
   onProgress(25,'Preparando el entorno aislado…');
   let valid=false;
   try {valid=compatible(await probe(python,execute));} catch(_){}
-  if(!valid)await execute(base.executable,['-I','-m','venv',venv],{timeout:180000});
   const progressLog=text=>onProgress(null,null,text);
+  if(!valid)await retryOperation(async ({attempt})=>{
+    if(attempt>1)fs.rmSync(venv,{recursive:true,force:true,maxRetries:5,retryDelay:200});
+    await execute(base.executable,['-I','-m','venv',venv],{timeout:180000});
+  },{attempts:2,delayMs:900,onRetry:({nextAttempt,error})=>onProgress(25,`Reintentando entorno aislado (${nextAttempt}/2)…`,`>>> La creación del entorno se interrumpió: ${error.message}\n>>> CodeGO limpiará el intento incompleto y continuará automáticamente.\n`)});
   const offline = Boolean(wheelhouse);
   if (offline && (!fs.existsSync(wheelhouse) || !fs.statSync(wheelhouse).isDirectory())) throw Error('No se encontró el almacén interno de librerías.');
   if (!offline) {
@@ -155,12 +172,20 @@ async function prepareEnvironment({directory,selectInterpreter,execute=run,onPro
     const percent=30+Math.floor(i/PACKAGES.length*58);
     onProgress(percent,`Librería ${i+1}/${PACKAGES.length}: ${p.distribution}`);
     // Wheels only: no compiler/toolchain needed and no silent source fallback.
-    try { await execute(python,['-I','-m','pip','--isolated','install',...packageSourceArgs,'--only-binary=:all:','--disable-pip-version-check',`${p.distribution}==${p.version}`],{timeout:300000,onLog:progressLog}); }
+    try { await retryOperation(()=>execute(python,['-I','-m','pip','--isolated','install',...packageSourceArgs,'--only-binary=:all:','--disable-pip-version-check',`${p.distribution}==${p.version}`],{timeout:300000,onLog:progressLog}),{
+      attempts:3,
+      delayMs:1000,
+      onRetry:({nextAttempt,error})=>onProgress(percent,`Recuperando ${p.distribution} (${nextAttempt}/3)…`,`>>> ${p.distribution} se interrumpió: ${error.message}\n>>> Reintentando automáticamente sin perder las librerías completadas.\n`)
+    }); }
     catch(error){throw Error(`No se completó ${p.distribution}. ${error.message}`);}
   }
-  const report=await verifyEnvironment(python,{execute,directory,onProgress,selfTest});
+  const report=await retryOperation(()=>verifyEnvironment(python,{execute,directory,onProgress,selfTest}),{
+    attempts:2,
+    delayMs:1000,
+    onRetry:({nextAttempt,error})=>onProgress(92,`Repitiendo micropruebas (${nextAttempt}/2)…`,`>>> Una comprobación no terminó: ${error.message}\n>>> CodeGO repetirá la validación completa.\n`)
+  });
   fs.writeFileSync(marker,JSON.stringify({schema:2,completedAt:new Date().toISOString(),command:python,source:offline?'offline-bundle':'online-repair',...report},null,2));
   onProgress(100,offline?'Entorno autónomo listo. Todas las micropruebas pasaron.':'Entorno listo. Todas las micropruebas pasaron.');
   return {success:true,command:python,source:offline?'offline-bundle':'online-repair',...report};
 }
-module.exports={PACKAGES,OPTIONAL_HARDWARE,PROBE,compatible,probe,selectPython,pythonPath,readyPath,environmentStatus,run,inspectScript,parseResult,verifyEnvironment,prepareEnvironment};
+module.exports={PACKAGES,OPTIONAL_HARDWARE,PROBE,compatible,probe,selectPython,pythonPath,readyPath,environmentStatus,run,inspectScript,parseResult,retryOperation,verifyEnvironment,prepareEnvironment};

@@ -243,6 +243,7 @@ const DOM = {
   installerTerminalOutput: document.getElementById('installer-terminal-output'),
   btnClearInstallerLog: document.getElementById('btn-clear-installer-log'),
   btnCloseAutoInstaller: document.getElementById('btn-close-auto-installer'),
+  btnRebuildEnvironment: document.getElementById('btn-rebuild-environment'),
   btnFinishAutoInstaller: document.getElementById('btn-finish-auto-installer'),
   setupErrorPanel: document.getElementById('setup-error-panel'),
   setupErrorTitle: document.getElementById('setup-error-title'),
@@ -892,7 +893,7 @@ function appendPipLog(text) {
 }
 
 // Auto-Installer Pipeline Helpers
-async function startAutoRepairProcess() {
+async function startAutoRepairProcess({ strategy = 'resume' } = {}) {
   state.isInternalModalOpen = true;
   state.environmentSetupRequired = true;
   state.environmentReady = false;
@@ -900,6 +901,7 @@ async function startAutoRepairProcess() {
   DOM.modalAutoInstaller.classList.remove('hidden');
   DOM.btnFinishAutoInstaller.classList.add('hidden');
   DOM.btnCloseAutoInstaller.classList.add('hidden');
+  DOM.btnRebuildEnvironment?.classList.add('hidden');
   DOM.setupErrorPanel?.classList.add('hidden');
   DOM.installerProgressBar.style.width = '5%';
   DOM.installerPercentLabel.textContent = '5%';
@@ -910,16 +912,18 @@ async function startAutoRepairProcess() {
 
   if (window.electronAPI?.prepareEnvironment) {
     try {
-      const result = await window.electronAPI.prepareEnvironment();
+      const result = await window.electronAPI.prepareEnvironment({ strategy });
       if (!result.success) {
         DOM.btnCloseAutoInstaller.textContent = 'Reintentar preparación';
         DOM.btnCloseAutoInstaller.classList.remove('hidden');
+        DOM.btnRebuildEnvironment?.classList.remove('hidden');
       }
     } catch (e) {
       appendInstallerLog(`\nError en auto-instalador: ${e.message}\n`);
       DOM.installerCurrentStepLabel.textContent = 'No se completó la preparación';
       DOM.btnCloseAutoInstaller.textContent = 'Reintentar preparación';
       DOM.btnCloseAutoInstaller.classList.remove('hidden');
+      DOM.btnRebuildEnvironment?.classList.remove('hidden');
     }
   } else {
     // Simulator fallback
@@ -1281,7 +1285,10 @@ function setupEventListeners() {
     DOM.btnAutoRepairAll.addEventListener('click', startAutoRepairProcess);
   }
   if (DOM.btnCloseAutoInstaller) {
-    DOM.btnCloseAutoInstaller.addEventListener('click', () => startAutoRepairProcess());
+    DOM.btnCloseAutoInstaller.addEventListener('click', () => startAutoRepairProcess({ strategy: 'resume' }));
+  }
+  if (DOM.btnRebuildEnvironment) {
+    DOM.btnRebuildEnvironment.addEventListener('click', () => startAutoRepairProcess({ strategy: 'rebuild' }));
   }
   if (DOM.btnFinishAutoInstaller) {
     DOM.btnFinishAutoInstaller.addEventListener('click', async () => {
@@ -1714,6 +1721,7 @@ function setupElectronListeners() {
       DOM.installerCurrentStepLabel.textContent = '¡Entorno 100% Configurado y Validado!';
       updateAutoInstallerStep(4, DOM.stepItemLibs, DOM.stepBadgeLibs, 5);
       DOM.btnCloseAutoInstaller.classList.add('hidden');
+      DOM.btnRebuildEnvironment?.classList.add('hidden');
       DOM.btnFinishAutoInstaller.classList.remove('hidden');
       state.environmentReady = true;
       await loadEnvironmentDiagnostics();
@@ -1724,6 +1732,7 @@ function setupElectronListeners() {
       showSetupDiagnostic(result.diagnostic, result.error);
       DOM.btnCloseAutoInstaller.textContent = 'Reintentar preparación';
       DOM.btnCloseAutoInstaller.classList.remove('hidden');
+      DOM.btnRebuildEnvironment?.classList.remove('hidden');
     }
   });
 

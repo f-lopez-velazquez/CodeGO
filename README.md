@@ -18,14 +18,14 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Descarga directa 1.3.1 autónoma | Alternativa |
+| Sistema | Descarga directa 1.3.2 autónoma | Alternativa |
 | --- | --- | --- |
-| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.1/CodeGO-1.3.1-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.1/CodeGO-1.3.1-portable-x64.exe) |
-| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.1/CodeGO-1.3.1-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.1/CodeGO-1.3.1-linux-x64.tar.gz) |
-| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.1/CodeGO-1.3.1-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.1/CodeGO-1.3.1-mac-arm64.zip) |
-| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.1/CodeGO-1.3.1-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.1/CodeGO-1.3.1-mac-x64.zip) |
+| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.2/CodeGO-1.3.2-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.2/CodeGO-1.3.2-portable-x64.exe) |
+| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.2/CodeGO-1.3.2-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.2/CodeGO-1.3.2-linux-x64.tar.gz) |
+| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.2/CodeGO-1.3.2-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.2/CodeGO-1.3.2-mac-arm64.zip) |
+| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.2/CodeGO-1.3.2-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.2/CodeGO-1.3.2-mac-x64.zip) |
 
-Cada instalador 1.3.1 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura extrae el entorno sin internet, verifica SHA-256, ejecuta importaciones y micropruebas, y mantiene bloqueado el editor hasta completar el 100 %. La preparación admite que `/tmp` y el perfil del usuario estén en particiones distintas. Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado, por lo que el sistema puede advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones.
+Cada instalador 1.3.2 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura extrae el entorno sin internet, verifica SHA-256, ejecuta importaciones y micropruebas, y mantiene bloqueado el editor hasta completar el 100 %. Si una operación se interrumpe, CodeGO la reintenta y conserva los paquetes terminados. Si el problema persiste, la misma ventana permite reanudar o reconstruir solo el entorno interno sin borrar proyectos ni entregas. Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado, por lo que el sistema puede advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones.
 
 ## Modalidades de Trabajo
 

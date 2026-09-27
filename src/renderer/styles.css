@@ -3250,6 +3250,10 @@ body.theme-paper .academic-title {
   grid-template-columns: 1fr;
 }
 
+.auto-installer-card .dialog-buttons {
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+}
+
 .btn-ghost {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-subtle);
@@ -3763,6 +3767,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
 @media (max-width: 650px) {
   #view-lobby { padding: 12px; }
   .form-row, .mode-cards-grid, .diag-grid, .packages-grid, .dialog-buttons { grid-template-columns: minmax(0, 1fr); }
+  .auto-installer-card .dialog-buttons { grid-template-columns: minmax(0, 1fr); }
   .diag-item { min-width: 0; }
   .diag-info { overflow-wrap: anywhere; }
 }

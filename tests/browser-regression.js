@@ -39,6 +39,22 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.evaluate(() => showSetupDiagnostic({ code: 'CG-SETUP-105', title: 'Librería incompleta', summary: 'Prueba', actions: ['Reintentar'], detail: 'pip test' }));
   assert(await page.locator('#setup-error-panel').isVisible(), 'Structured setup error is not visible');
   await page.evaluate(() => {
+    window.repairStrategies = [];
+    window.electronAPI.prepareEnvironment = async options => {
+      window.repairStrategies.push(options.strategy);
+      return { success: false, error: 'simulated recovery failure' };
+    };
+    DOM.btnCloseAutoInstaller.classList.remove('hidden');
+    DOM.btnRebuildEnvironment.classList.remove('hidden');
+  });
+  assert(await page.locator('#btn-close-auto-installer').isVisible(), 'Resume recovery action is not visible');
+  assert(await page.locator('#btn-rebuild-environment').isVisible(), 'Alternative rebuild action is not visible');
+  await page.locator('#btn-rebuild-environment').click();
+  await page.waitForFunction(() => window.repairStrategies.includes('rebuild'));
+  await page.locator('#btn-close-auto-installer').click();
+  await page.waitForFunction(() => window.repairStrategies.includes('resume'));
+  await page.evaluate(() => {
+    state.isInternalModalOpen = false;
     state.environmentSetupRequired = false;
     state.environmentReady = true;
     document.body.classList.remove('environment-setup-required');

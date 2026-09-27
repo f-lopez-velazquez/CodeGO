@@ -9,6 +9,30 @@ const { createWifiControl } = require('../src/main/wifi-control');
 const { ensurePythonEnvironment } = require('../src/main/python-environment');
 const environmentSetup = require('../src/main/environment-setup');
 
+test('Interrupted setup operations recover automatically and preserve their retry limit', async () => {
+  let attempts = 0;
+  const retries = [];
+  const value = await environmentSetup.retryOperation(async () => {
+    attempts += 1;
+    if (attempts < 3) throw new Error(`interrupción ${attempts}`);
+    return 'recuperado';
+  }, {
+    attempts: 3,
+    delayMs: 0,
+    onRetry: event => retries.push(event.nextAttempt)
+  });
+  assert.equal(value, 'recuperado');
+  assert.equal(attempts, 3);
+  assert.deepEqual(retries, [2, 3]);
+
+  attempts = 0;
+  await assert.rejects(() => environmentSetup.retryOperation(async () => {
+    attempts += 1;
+    throw new Error('falla persistente');
+  }, { attempts: 2, delayMs: 0 }), /falla persistente/);
+  assert.equal(attempts, 2);
+});
+
 test('Python selection rejects 3.14 and resolves a compatible 64-bit interpreter', async () => {
   const calls = [];
   const execute = async (command, args) => {
@@ -25,6 +49,7 @@ test('Python selection rejects 3.14 and resolves a compatible 64-bit interpreter
 test('Preparation uses pinned wheels and writes readiness only after microtests', async t => {
   const directory = temporary(t);
   const calls = [];
+  let interruptedPackageRecovered = false;
   const execute = async (command, args, options = {}) => {
     const input = options.input || '';
     calls.push({ command, args, input });
@@ -34,6 +59,10 @@ test('Preparation uses pinned wheels and writes readiness only after microtests'
       fs.mkdirSync(path.dirname(executable), { recursive: true });
       fs.writeFileSync(executable, 'test');
       return '';
+    }
+    if (args.includes('install') && args.includes(`${environmentSetup.PACKAGES[0].distribution}==${environmentSetup.PACKAGES[0].version}`) && !interruptedPackageRecovered) {
+      interruptedPackageRecovered = true;
+      throw new Error('interrupción transitoria simulada');
     }
     if (input.includes('importlib.metadata')) {
       return JSON.stringify(Object.fromEntries(environmentSetup.PACKAGES.map(item => [item.module, { installed: true, version: item.version, desc: item.distribution }]))) + '\n';
@@ -49,9 +78,10 @@ test('Preparation uses pinned wheels and writes readiness only after microtests'
     selfTest: async () => ({ success: true, checks: [{ name: 'stdin UTF-8', success: true }] })
   });
   assert.equal(result.success, true);
+  assert.equal(interruptedPackageRecovered, true);
   assert.equal(environmentSetup.environmentStatus(directory).ready, true);
-  const installs = calls.filter(call => call.args.includes('install'));
-  assert.ok(installs.length >= environmentSetup.PACKAGES.length);
+  const installs = calls.filter(call => call.args.includes('install') && call.args.some(arg => /^.+==.+$/.test(arg)));
+  assert.equal(installs.length, environmentSetup.PACKAGES.length + 1);
   assert.ok(installs.every(call => call.args.includes('--only-binary=:all:')));
   for (const item of environmentSetup.PACKAGES) {
     assert.ok(installs.some(call => call.args.includes(`${item.distribution}==${item.version}`)), item.distribution);

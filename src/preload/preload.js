@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // System diagnostics & Package Management
   runSelfTest: () => ipcRenderer.invoke('system:self-test'),
   getEnvironmentStatus: () => ipcRenderer.invoke('system:environment-status'),
-  prepareEnvironment: () => ipcRenderer.invoke('system:prepare-environment'),
+  prepareEnvironment: (options = {}) => ipcRenderer.invoke('system:prepare-environment', options),
   checkPython: () => ipcRenderer.invoke('system:check-python'),
   checkFullEnvironment: () => ipcRenderer.invoke('system:check-full-environment'),
 

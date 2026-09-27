@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.3.2 · Recuperación automática de la preparación
+
+- Reintenta automáticamente la creación del entorno, cada librería y las micropruebas ante interrupciones transitorias.
+- Reanuda desde los paquetes completados sin borrar el avance ni requerir internet.
+- Agrega `Reconstruir entorno` como segunda ruta de reparación: sustituye únicamente Python y las librerías internas, conserva proyectos y entregas, y extrae dentro del perfil para evitar restricciones de directorios temporales.
+- Mantiene visibles las acciones de recuperación en pantallas pequeñas y muestra diagnósticos estables cuando se agotan los intentos.
+
 ## 1.3.1 · Preparación compatible con particiones separadas
 
 - Corrige `CG-SETUP-106` en Linux cuando `/tmp` y el perfil del usuario están en sistemas de archivos distintos.

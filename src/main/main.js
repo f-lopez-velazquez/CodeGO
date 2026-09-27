@@ -730,8 +730,9 @@ function ensurePreparationDiskSpace(directory, minimumBytes = 5 * 1024 ** 3) {
   if (available < minimumBytes) throw new Error(`Espacio insuficiente: hay ${(available / 1024 ** 3).toFixed(1)} GB disponibles y se requieren al menos 5 GB.`);
 }
 
-async function installBundledPython(verifiedBundle, onProgress) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-python-offline-'));
+async function installBundledPython(verifiedBundle, onProgress, { stagingBase = os.tmpdir() } = {}) {
+  fs.mkdirSync(stagingBase, { recursive: true });
+  const directory = fs.mkdtempSync(path.join(stagingBase, '.codego-python-offline-'));
   try {
     const extractDirectory = path.join(directory, 'extract');
     fs.mkdirSync(extractDirectory);
@@ -778,11 +779,11 @@ async function installPortablePython(onProgress) {
   }
 }
 
-async function findCompatiblePython(onProgress, verifiedBundle = null) {
+async function findCompatiblePython(onProgress, verifiedBundle = null, { stagingBase = os.tmpdir() } = {}) {
   const managed = path.join(app.getPath('userData'), 'python313', process.platform === 'win32' ? 'python.exe' : 'bin/python3');
   const managedPython = await environmentSetup.selectPython([managed]);
   if (managedPython) return managedPython;
-  if (verifiedBundle) return installBundledPython(verifiedBundle, onProgress);
+  if (verifiedBundle) return installBundledPython(verifiedBundle, onProgress, { stagingBase });
   const candidates = process.platform === 'win32'
     ? [managed, { command: 'py.exe', args: ['-3.13'] }, { command: 'py.exe', args: ['-3.12'] }, 'python3.13.exe', 'python3.12.exe', 'python.exe']
     : [managed, 'python3.13', 'python3.12', 'python3'];
@@ -813,7 +814,23 @@ async function findCompatiblePython(onProgress, verifiedBundle = null) {
   }
 }
 
-async function prepareAppEnvironment() {
+function automaticSetupRetryAllowed(error) {
+  const detail = String(error?.message || error || '').toLowerCase();
+  return !/enospc|no space|espacio insuficiente|eacces|eperm|access.*denied|sha-?256|firma.*no válida|manifiesto|corrupt/.test(detail);
+}
+
+function resetInternalEnvironment() {
+  const userData = app.getPath('userData');
+  const targets = [preparedEnvironmentDirectory, path.join(userData, 'python313')];
+  for (const target of targets) fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 250 });
+  for (const name of fs.readdirSync(userData)) {
+    if (/^(?:python313|codego-runtime)\.installing-/.test(name)) {
+      fs.rmSync(path.join(userData, name), { recursive: true, force: true, maxRetries: 5, retryDelay: 250 });
+    }
+  }
+}
+
+async function prepareAppEnvironment({ strategy = 'resume', automaticAttempt = 1 } = {}) {
   if (isKioskActive || workspaceSealed) return { success: false, error: 'La preparación se realiza antes de iniciar una sesión.' };
   environmentReady = false;
   let lastPercent = 0;
@@ -837,6 +854,10 @@ async function prepareAppEnvironment() {
       verifiedBundle = verifyOfflineBundle(locatedBundle, {
         onFile: ({ index, total, relative }) => progress(2 + Math.round(index / total * 8), `Verificando paquete local ${index}/${total}…`, `Verificado: ${relative}\n`)
       });
+    }
+    if (strategy === 'rebuild' && automaticAttempt === 1) {
+      progress(11, 'Reconstruyendo el entorno interno…', '>>> Reparación completa: se reemplazarán únicamente Python y las librerías internas. Tus proyectos y entregas se conservarán.\n');
+      resetInternalEnvironment();
     }
     if (process.platform === 'win32') {
       const vc = checkWindowsVCRedist();
@@ -863,7 +884,11 @@ async function prepareAppEnvironment() {
     }
     const result = await environmentSetup.prepareEnvironment({
       directory: preparedEnvironmentDirectory,
-      selectInterpreter: () => findCompatiblePython(progress, verifiedBundle),
+      selectInterpreter: () => findCompatiblePython(progress, verifiedBundle, {
+        // The alternative repair extracts beside the final destination. This
+        // avoids temporary mounts, cross-device moves and restrictive /tmp.
+        stagingBase: strategy === 'rebuild' ? app.getPath('userData') : os.tmpdir()
+      }),
       onProgress: progress,
       wheelhouse: verifiedBundle?.wheelhouse || null
     });
@@ -871,6 +896,11 @@ async function prepareAppEnvironment() {
     sendSetupEvent('setup:finished', { success: true, report: result });
     return result;
   } catch (error) {
+    if (automaticAttempt < 2 && automaticSetupRetryAllowed(error)) {
+      progress(lastPercent, 'Recuperación automática en curso…', `>>> El intento ${automaticAttempt}/2 se interrumpió: ${error.message}\n>>> CodeGO conservará lo completado y reanudará en 2 segundos.\n`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return prepareAppEnvironment({ strategy, automaticAttempt: automaticAttempt + 1 });
+    }
     const offlineAvailable = Boolean(locateOfflineBundle(process.resourcesPath));
     const diagnostic = setupDiagnostic(error, { offlineAvailable });
     sendSetupEvent('setup:finished', { success: false, error: diagnostic.detail, diagnostic });
@@ -911,7 +941,9 @@ function setupIpcHandlers() {
     environmentReady = diagnosticMode || status.ready;
     return { success: true, ready: environmentReady, command: status.command, report: status.report };
   });
-  handle('system:prepare-environment', async () => prepareAppEnvironment());
+  handle('system:prepare-environment', async (_event, options = {}) => prepareAppEnvironment({
+    strategy: options?.strategy === 'rebuild' ? 'rebuild' : 'resume'
+  }));
   // Comprehensive Python & Environment Diagnostics
   handle('system:check-full-environment', async () => {
     const pythonInfo = resolvePythonBinary();

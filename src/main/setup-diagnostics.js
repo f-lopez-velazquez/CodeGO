@@ -5,7 +5,7 @@ function setupDiagnostic(error, { offlineAvailable = false } = {}) {
     code: 'CG-SETUP-900',
     title: 'No se pudo terminar la preparación',
     summary: 'CodeGO mantuvo bloqueado el editor para evitar un entorno incompleto.',
-    actions: ['Pulsa Reintentar preparación.', 'Si vuelve a ocurrir, copia el diagnóstico y repórtalo en GitHub.'],
+    actions: ['Pulsa Reintentar preparación para continuar desde lo completado.', 'Si persiste, usa Reconstruir entorno; no elimina proyectos ni entregas.'],
     detail,
     offlineAvailable
   };
@@ -22,10 +22,10 @@ function setupDiagnostic(error, { offlineAvailable = false } = {}) {
     return { ...diagnostic, code: 'CG-SETUP-104', title: 'Visual C++ necesita atención', summary: 'Windows no confirmó el componente nativo requerido por algunas librerías.', actions: ['Reinicia Windows si el instalador lo solicitó.', 'Abre CodeGO y pulsa Reintentar preparación.'] };
   }
   if (/pip|wheel|librería|dependenc|no matching distribution/.test(lower)) {
-    return { ...diagnostic, code: 'CG-SETUP-105', title: 'Una librería no pudo instalarse', summary: offlineAvailable ? 'La rueda binaria incluida no pudo instalarse en el entorno aislado.' : 'La descarga o instalación de una librería no terminó.', actions: offlineAvailable ? ['Comprueba que el antivirus no haya puesto archivos de CodeGO en cuarentena.', 'Pulsa Reintentar; no se requiere conexión a internet.'] : ['Comprueba la conexión a internet.', 'Pulsa Reintentar preparación.'] };
+    return { ...diagnostic, code: 'CG-SETUP-105', title: 'Una librería no pudo instalarse', summary: offlineAvailable ? 'La rueda binaria incluida no pudo instalarse después de los reintentos automáticos.' : 'La descarga o instalación de una librería no terminó.', actions: offlineAvailable ? ['Comprueba que el antivirus no haya puesto archivos de CodeGO en cuarentena.', 'Pulsa Reintentar para reanudar o Reconstruir entorno para comenzar con un runtime limpio.'] : ['Comprueba la conexión a internet.', 'Pulsa Reintentar preparación.'] };
   }
   if (/python|intérprete|runtime|venv/.test(lower)) {
-    return { ...diagnostic, code: 'CG-SETUP-106', title: 'Python no pudo prepararse', summary: offlineAvailable ? 'El Python privado incluido no pudo extraerse o iniciarse.' : 'No se encontró un Python compatible y no se pudo obtener el runtime privado.', actions: offlineAvailable ? ['Comprueba espacio libre y permisos en tu perfil de usuario.', 'Pulsa Reintentar preparación.'] : ['Conéctate a internet para completar la reparación.', 'Pulsa Reintentar preparación.'] };
+    return { ...diagnostic, code: 'CG-SETUP-106', title: 'Python no pudo prepararse', summary: offlineAvailable ? 'El Python privado incluido no pudo extraerse o iniciarse después de la recuperación automática.' : 'No se encontró un Python compatible y no se pudo obtener el runtime privado.', actions: offlineAvailable ? ['Comprueba espacio libre y permisos en tu perfil de usuario.', 'Usa Reconstruir entorno para extraer Python directamente dentro de tu perfil.'] : ['Conéctate a internet para completar la reparación.', 'Pulsa Reintentar preparación.'] };
   }
   if (/timeout|tiempo agotado|enotfound|econn|http|red|conexi/.test(lower)) {
     return { ...diagnostic, code: 'CG-SETUP-107', title: 'La reparación en línea no respondió', summary: 'No se pudo completar una descarga de respaldo.', actions: ['Comprueba internet, proxy y fecha/hora del equipo.', 'Vuelve a intentar o instala la edición autónoma completa.'] };
