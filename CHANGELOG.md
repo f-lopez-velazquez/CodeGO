@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.4.1 · Interfaz refinada y organización accesible
+
+- Sustituye los iconos emoji del inicio, explorador y gestor de librerías por un sistema SVG y abreviaturas consistentes entre sistemas operativos.
+- Mantiene la entrada de Python visible después de cambios de zoom o distribución y espera a que Chromium termine el ajuste antes de comprobar su geometría.
+- Añade una acción accesible para mover archivos y carpetas, además del arrastre, con validación del destino y conservación de pestañas abiertas.
+- Mejora nombres accesibles, foco de teclado y acciones del explorador.
+- Incorpora un enlace secundario y discreto para apoyar el desarrollo desde la pantalla de inicio.
+
 ## 1.4.0 · Proyectos reales y explorador reorganizado
 
 - El inicio exige abrir una carpeta existente o crear un proyecto vacío antes de entrar al editor; las sesiones nuevas ya no generan ni abren `main.py` automáticamente.

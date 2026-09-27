@@ -984,6 +984,11 @@ function setupIpcHandlers() {
     if (isKioskActive || activeProcess) return { success: false, checks: [{ name: 'Disponibilidad', success: false, detail: 'Detén Python y termina el examen antes de comprobar el equipo.' }] };
     return runSelfTest({ command: resolvePythonBinary().command, directory: app.getPath('userData'), version: app.getVersion() });
   });
+  handle('system:open-support-page', async () => {
+    if (isKioskActive || activeSessionMode) return { success: false, error: 'Disponible desde la pantalla de inicio.' };
+    await shell.openExternal('https://paypal.me/FranciscoLopezVzqz');
+    return { success: true };
+  });
   handle('system:environment-status', async () => {
     const status = environmentSetup.environmentStatus(preparedEnvironmentDirectory);
     environmentReady = diagnosticMode || status.ready;

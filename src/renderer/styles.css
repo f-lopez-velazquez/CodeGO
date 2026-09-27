@@ -843,6 +843,41 @@ body.mode-activity-active .btn-giant-start:hover {
   margin-top: 4px;
 }
 
+.support-link {
+  width: fit-content;
+  margin: 1px auto 0;
+  padding: 2px 0;
+  color: var(--text-secondary);
+  font: inherit;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.78;
+}
+
+.support-link:hover {
+  color: var(--text-primary);
+  border-bottom-color: currentColor;
+  opacity: 1;
+}
+
+.mode-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dialog-brand-mark {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+}
+
 
 /* ==============================================================
    2. COUNTDOWN VIEW
@@ -1800,7 +1835,8 @@ body.screen-compact .incidents-pill {
   gap: 4px;
 }
 
-.tree-item:hover .tree-item-actions {
+.tree-item:hover .tree-item-actions,
+.tree-item:focus-within .tree-item-actions {
   display: flex;
 }
 
@@ -1817,6 +1853,24 @@ body.screen-compact .incidents-pill {
 .btn-tree-action:hover {
   color: var(--accent-crimson);
   background: rgba(239, 68, 68, 0.15);
+}
+
+.btn-tree-action svg,
+.btn-tree-subaction svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.btn-tree-action.danger:hover,
+.btn-tree-subaction.danger:hover {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.38);
+  background: rgba(127, 29, 29, 0.22);
 }
 
 .sidebar-footer {
@@ -3962,7 +4016,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
   align-items: center;
   gap: 2px;
 }
-.tree-folder:hover .tree-folder-actions {
+.tree-folder:hover .tree-folder-actions,
+.tree-folder:focus-within .tree-folder-actions {
   display: flex;
 }
 .btn-tree-subaction {

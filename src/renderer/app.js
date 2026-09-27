@@ -702,42 +702,42 @@ function setupSplitters() {
 // ==============================================================
 const PKG_CONFIG = {
   // --- Fundamentales ---
-  pygame:    { icon: '🎮', name: 'Pygame',               cat: 'games'    },
-  numpy:     { icon: '🔢', name: 'NumPy',                cat: 'math'     },
-  matplotlib:{ icon: '📊', name: 'Matplotlib',           cat: 'data'     },
-  pandas:    { icon: '🐼', name: 'Pandas',               cat: 'data'     },
-  requests:  { icon: '🌐', name: 'Requests',             cat: 'net'      },
-  PIL:       { icon: '🖼️', name: 'Pillow (PIL)',         cat: 'games'    },
-  scipy:     { icon: '🔬', name: 'SciPy',                cat: 'math'     },
-  seaborn:   { icon: '📈', name: 'Seaborn',              cat: 'data'     },
-  openpyxl:  { icon: '📑', name: 'OpenPyXL (Excel)',     cat: 'data'     },
-  sympy:     { icon: '📐', name: 'SymPy (Álgebra)',      cat: 'math'     },
-  colorama:  { icon: '🎨', name: 'Colorama (Consola)',   cat: 'net'      },
+  pygame:    { icon: 'PG', name: 'Pygame',               cat: 'games'    },
+  numpy:     { icon: 'NP', name: 'NumPy',                cat: 'math'     },
+  matplotlib:{ icon: 'MP', name: 'Matplotlib',           cat: 'data'     },
+  pandas:    { icon: 'PD', name: 'Pandas',               cat: 'data'     },
+  requests:  { icon: 'RQ', name: 'Requests',             cat: 'net'      },
+  PIL:       { icon: 'PL', name: 'Pillow (PIL)',         cat: 'games'    },
+  scipy:     { icon: 'SP', name: 'SciPy',                cat: 'math'     },
+  seaborn:   { icon: 'SB', name: 'Seaborn',              cat: 'data'     },
+  openpyxl:  { icon: 'XL', name: 'OpenPyXL (Excel)',     cat: 'data'     },
+  sympy:     { icon: 'SY', name: 'SymPy (Álgebra)',      cat: 'math'     },
+  colorama:  { icon: 'CL', name: 'Colorama (Consola)',   cat: 'net'      },
   // --- Hardware: Arduino / ESP32 / Microcontroladores ---
-  serial:    { icon: '🔌', name: 'PySerial (Arduino / ESP32)',  cat: 'hardware' },
-  esptool:   { icon: '⚡', name: 'ESPTool (Flash ESP32/ESP8266)', cat: 'hardware' },
-  pyfirmata2:{ icon: '🤖', name: 'PyFirmata2 (Arduino Firmata)', cat: 'hardware' },
-  usb:       { icon: '🔗', name: 'PyUSB (USB directo)',  cat: 'hardware' },
+  serial:    { icon: 'SR', name: 'PySerial (Arduino / ESP32)',  cat: 'hardware' },
+  esptool:   { icon: 'ES', name: 'ESPTool (Flash ESP32/ESP8266)', cat: 'hardware' },
+  pyfirmata2:{ icon: 'PF', name: 'PyFirmata2 (Arduino Firmata)', cat: 'hardware' },
+  usb:       { icon: 'US', name: 'PyUSB (USB directo)',  cat: 'hardware' },
   // --- Raspberry Pi / SBC ---
-  smbus2:    { icon: '🍓', name: 'SMBus2 (I2C / RPi)',  cat: 'hardware' },
-  gpiozero:  { icon: '🍓', name: 'GPIOZero (RPi GPIO)', cat: 'hardware' },
-  board:     { icon: '🔧', name: 'Adafruit Blinka (CircuitPython)', cat: 'hardware' },
+  smbus2:    { icon: 'I2', name: 'SMBus2 (I2C / RPi)',  cat: 'hardware' },
+  gpiozero:  { icon: 'GP', name: 'GPIOZero (RPi GPIO)', cat: 'hardware' },
+  board:     { icon: 'BL', name: 'Adafruit Blinka (CircuitPython)', cat: 'hardware' },
   // --- Machine Learning y Visión ---
-  sklearn:   { icon: '🧠', name: 'Scikit-learn (ML)',   cat: 'math'     },
-  cv2:       { icon: '👁️', name: 'OpenCV (Visión)',     cat: 'math'     },
+  sklearn:   { icon: 'ML', name: 'Scikit-learn (ML)',   cat: 'math'     },
+  cv2:       { icon: 'CV', name: 'OpenCV (Visión)',     cat: 'math'     },
   // --- Web y Redes ---
-  websockets:{ icon: '🔄', name: 'WebSockets (IoT)',    cat: 'net'      },
-  flask:     { icon: '🍶', name: 'Flask (Servidor Web)', cat: 'net'     },
-  httpx:     { icon: '🌐', name: 'HTTPX (HTTP moderno)', cat: 'net'     },
+  websockets:{ icon: 'WS', name: 'WebSockets (IoT)',    cat: 'net'      },
+  flask:     { icon: 'FL', name: 'Flask (Servidor Web)', cat: 'net'     },
+  httpx:     { icon: 'HX', name: 'HTTPX (HTTP moderno)', cat: 'net'     },
   // --- Utilidades educativas ---
-  tqdm:      { icon: '⏳', name: 'TQDM (Progreso)',     cat: 'net'      },
-  rich:      { icon: '✨', name: 'Rich (Terminal bonita)', cat: 'net'   },
-  qrcode:    { icon: '📱', name: 'QRCode (Códigos QR)', cat: 'data'    },
-  cryptography:{ icon: '🔒', name: 'Cryptography (Cifrado)', cat: 'net' },
-  pydantic:  { icon: '📋', name: 'Pydantic (Validación)', cat: 'data'  },
+  tqdm:      { icon: 'TD', name: 'TQDM (Progreso)',     cat: 'net'      },
+  rich:      { icon: 'RI', name: 'Rich (Terminal)', cat: 'net'   },
+  qrcode:    { icon: 'QR', name: 'QRCode (Códigos QR)', cat: 'data'    },
+  cryptography:{ icon: 'CR', name: 'Cryptography (Cifrado)', cat: 'net' },
+  pydantic:  { icon: 'PY', name: 'Pydantic (Validación)', cat: 'data'  },
   // --- Sistema (built-in) ---
-  sqlite3:   { icon: '🗄️', name: 'SQLite3 (SQL)',       cat: 'data'     },
-  tkinter:   { icon: '🖥️', name: 'Tkinter (GUI)',       cat: 'games'    },
+  sqlite3:   { icon: 'SQ', name: 'SQLite3 (SQL)',       cat: 'data'     },
+  tkinter:   { icon: 'TK', name: 'Tkinter (GUI)',       cat: 'games'    },
 };
 
 
@@ -842,7 +842,7 @@ function renderPackagesGrid(packages, category = 'all') {
   DOM.packagesGridContainer.innerHTML = '';
 
   Object.entries(packages).forEach(([key, info]) => {
-    const config = PKG_CONFIG[key] || { icon: '📦', name: key, cat: 'other' };
+    const config = PKG_CONFIG[key] || { icon: key.slice(0, 2).toUpperCase(), name: key, cat: 'other' };
 
     // Apply category filter if active
     if (category !== 'all' && config.cat !== category) {
@@ -1395,6 +1395,17 @@ function setupEventListeners() {
     requestAnimationFrame(() => DOM.helpSearch?.focus());
   };
   DOM.btnHelpLobby?.addEventListener('click', openHelpCenter);
+  document.querySelectorAll('[data-support-link]').forEach(button => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        const result = await window.electronAPI?.openSupportPage?.();
+        if (result && !result.success) alert(result.error);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
   DOM.helpSearch?.addEventListener('input', () => {
     const query = DOM.helpSearch.value.trim().toLocaleLowerCase('es');
     let visible = 0;
@@ -2448,7 +2459,7 @@ function updateBreadcrumbs(relativePath) {
 
   let html = `<span class="crumb-root">${escapeHtml(state.workspaceName || 'Proyecto')}</span>`;
   for (const part of parts) {
-    html += `<span class="crumb-sep">/</span><span class="crumb-folder">📁 ${escapeHtml(part)}</span>`;
+    html += `<span class="crumb-sep">/</span><span class="crumb-folder">${escapeHtml(part)}</span>`;
   }
   if (fileName) html += `<span class="crumb-sep">/</span><span class="crumb-file" id="crumb-current-file">${escapeHtml(fileName)}</span>`;
   DOM.navBreadcrumbs.innerHTML = html;
@@ -2516,6 +2527,28 @@ async function moveWorkspaceItem(sourcePath, targetDirectory = '') {
   appendTerminalOutput(`Movido a ${result.path}\n`, 'system');
 }
 
+function workspaceFolderPaths(tree = state.filesTree, paths = []) {
+  for (const item of tree || []) {
+    if (item.type !== 'directory') continue;
+    const folderPath = String(item.path || '').replace(/\\/g, '/');
+    paths.push(folderPath);
+    workspaceFolderPaths(item.children, paths);
+  }
+  return paths;
+}
+
+async function chooseAndMoveWorkspaceItem(sourcePath) {
+  const available = workspaceFolderPaths().filter(folder => folder !== sourcePath && !folder.startsWith(`${sourcePath}/`));
+  const answer = prompt(`Mover “${sourcePath}” a otra carpeta.\n\nEscribe / para la raíz o una de estas rutas:\n${available.join('\n') || '(no hay otras carpetas)'}`, '/');
+  if (answer === null) return;
+  const targetDirectory = answer.trim().replace(/^\.\/?/, '').replace(/^\/+|\/+$/g, '');
+  if (targetDirectory && !available.includes(targetDirectory)) {
+    alert('Esa carpeta no existe dentro del proyecto. Revisa la ruta e inténtalo de nuevo.');
+    return;
+  }
+  await moveWorkspaceItem(sourcePath, targetDirectory);
+}
+
 function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
   if (depth === 0) {
     container.innerHTML = '';
@@ -2550,9 +2583,10 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
           <span class="folder-name">${escapeHtml(item.name)}</span>
         </div>
         <div class="tree-folder-actions">
-          <button class="btn-tree-subaction" title="Crear archivo en esta carpeta" data-action="new-file-in-folder" data-path="${escapeHtml(itemPath)}">+</button>
-          <button class="btn-tree-subaction" title="Crear subcarpeta en esta carpeta" data-action="new-subfolder-in-folder" data-path="${escapeHtml(itemPath)}">📁+</button>
-          <button class="btn-tree-subaction" title="Eliminar carpeta" data-action="delete-folder" data-path="${escapeHtml(itemPath)}">🗑️</button>
+          <button class="btn-tree-subaction" title="Crear archivo en esta carpeta" aria-label="Crear archivo en ${escapeHtml(item.name)}" data-action="new-file-in-folder" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="btn-tree-subaction" title="Crear subcarpeta" aria-label="Crear subcarpeta en ${escapeHtml(item.name)}" data-action="new-subfolder-in-folder" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7h6l2 2h9v10h-17z"/><path d="M12 12v5M9.5 14.5h5"/></svg></button>
+          <button class="btn-tree-subaction" title="Mover carpeta" aria-label="Mover ${escapeHtml(item.name)}" data-action="move-folder" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M14 8l4 4-4 4"/></svg></button>
+          <button class="btn-tree-subaction danger" title="Eliminar carpeta" aria-label="Eliminar ${escapeHtml(item.name)}" data-action="delete-folder" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M8 10v8M12 10v8M16 10v8M6 7l1 14h10l1-14"/></svg></button>
         </div>
       `;
 
@@ -2613,6 +2647,11 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
       }
 
       const deleteFolderBtn = folderEl.querySelector('[data-action="delete-folder"]');
+      const moveFolderBtn = folderEl.querySelector('[data-action="move-folder"]');
+      moveFolderBtn?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await chooseAndMoveWorkspaceItem(itemPath);
+      });
       if (deleteFolderBtn) {
         deleteFolderBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -2671,12 +2710,13 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
           <span class="tree-item-name">${escapeHtml(item.name)}</span>
         </div>
         <div class="tree-item-actions">
-          <button class="btn-tree-action" title="Eliminar" data-action="delete" data-path="${escapeHtml(itemPath)}">🗑️</button>
+          <button class="btn-tree-action" title="Mover archivo" aria-label="Mover ${escapeHtml(item.name)}" data-action="move" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M14 8l4 4-4 4"/></svg></button>
+          <button class="btn-tree-action danger" title="Eliminar archivo" aria-label="Eliminar ${escapeHtml(item.name)}" data-action="delete" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M8 10v8M12 10v8M16 10v8M6 7l1 14h10l1-14"/></svg></button>
         </div>
       `;
 
       itemEl.addEventListener('click', (e) => {
-        if (e.target.closest('[data-action="delete"]')) return;
+        if (e.target.closest('.btn-tree-action')) return;
         if (item.editable === false) {
           appendTerminalOutput(`${itemPath} es un recurso ${item.kind}. Python puede usarlo mediante una ruta relativa; no se abrirá como texto.\n`, 'system');
           return;
@@ -2690,6 +2730,10 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
       });
 
       const deleteBtn = itemEl.querySelector('[data-action="delete"]');
+      itemEl.querySelector('[data-action="move"]')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await chooseAndMoveWorkspaceItem(itemPath);
+      });
       if (deleteBtn) {
         deleteBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
