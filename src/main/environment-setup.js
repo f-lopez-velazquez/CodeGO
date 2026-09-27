@@ -12,7 +12,7 @@ const PACKAGES = [
   ['pyfirmata2','pyfirmata2','2.5.1'], ['pyusb','usb','1.3.1'], ['scikit-learn','sklearn','1.9.1'],
   ['opencv-python-headless','cv2','5.0.0.93'], ['websockets','websockets','17.1'], ['flask','flask','3.1.3'],
   ['httpx','httpx','0.28.1'], ['tqdm','tqdm','4.70.1'], ['rich','rich','15.0.0'], ['qrcode','qrcode','8.2'],
-  ['cryptography','cryptography','50.0.1'], ['python-dotenv','dotenv','1.2.3'], ['pydantic','pydantic','2.13.5'],
+  ['cryptography','cryptography','48.0.1'], ['python-dotenv','dotenv','1.2.3'], ['pydantic','pydantic','2.13.5'],
   ['esptool','esptool','5.4.0'], ['smbus2','smbus2','0.6.1'], ['gpiozero','gpiozero','2.0.1.post3']
 ].map(([distribution,module,version]) => ({distribution,module,version}));
 const OPTIONAL_HARDWARE = ['adafruit-blinka'];
