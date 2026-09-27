@@ -27,9 +27,22 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       saveFile: async data => { window.testWrites.push(data); return { success: true }; },
       runPython: async () => ({ success: true }),
       sendPythonStdin: async value => { window.testInputs.push(value); return { success: true }; },
-      killPython: async () => { setTimeout(() => handleExecutionFinished({ exitCode: null, signal: 'SIGKILL', duration: 1 }), 10); return { success: true }; }
+      killPython: async () => { setTimeout(() => handleExecutionFinished({ exitCode: null, signal: 'SIGKILL', duration: 1 }), 10); return { success: true }; },
+      setInternalInteraction: async active => { (window.testInternalInteractions ||= []).push(active); return { success: true }; }
     };
   });
+  const dragSupervision = await page.evaluate(async () => {
+    const item = document.createElement('div');
+    document.body.appendChild(item);
+    wireTreeDragSource(item, 'main.py', 'file');
+    const dataTransfer = new DataTransfer();
+    item.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+    item.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
+    await Promise.resolve();
+    item.remove();
+    return window.testInternalInteractions;
+  });
+  assert(JSON.stringify(dragSupervision) === '[true,false]', `File drag was not marked as an internal operation: ${JSON.stringify(dragSupervision)}`);
   await page.setViewportSize({width:1024,height:480});
   await page.evaluate(() => {
     state.environmentSetupRequired = true;
@@ -209,6 +222,18 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     sounds.stopAlarmSiren = () => {};
     handleSecurityViolation({type:'TEST',durationSeconds:2});
   });
+  const beacon = await page.locator('#modal-focus-warning').evaluate(element => {
+    const overlay = getComputedStyle(element);
+    const card = getComputedStyle(element.querySelector('.modal-academic-warning-box'));
+    return {
+      animation: overlay.animationName,
+      duration: overlay.animationDuration,
+      backdrop: overlay.backdropFilter,
+      cardAnimation: card.animationName
+    };
+  });
+  assert(beacon.animation.includes('hazard-teacher-beacon'), `Strong warning beacon missing: ${JSON.stringify(beacon)}`);
+  assert(beacon.duration === '0.8s' && beacon.backdrop === 'none' && beacon.cardAnimation === 'none', `Warning beacon is not lightweight: ${JSON.stringify(beacon)}`);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm can be dismissed immediately');
   await page.clock.runFor(11999);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm unlocks before 12 seconds');

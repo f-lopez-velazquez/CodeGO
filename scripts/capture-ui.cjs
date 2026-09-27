@@ -21,7 +21,7 @@ const server = http.createServer((request, response) => {
   try {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     fs.mkdirSync(output, { recursive: true });
     await page.screenshot({ path: path.join(output, 'lobby-current.png') });
@@ -39,7 +39,7 @@ const server = http.createServer((request, response) => {
     await page.screenshot({ path: path.join(output, 'setup-current.png') });
     await page.setViewportSize({ width: 1024, height: 600 });
     await page.screenshot({ path: path.join(output, 'setup-current-compact.png') });
-    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.setViewportSize({ width: 1920, height: 1080 });
     await page.evaluate(() => {
       document.body.classList.remove('environment-setup-required');
       DOM.modalAutoInstaller.classList.add('hidden');
@@ -71,6 +71,15 @@ const server = http.createServer((request, response) => {
       resizeTerminalInput();
     });
     await page.screenshot({ path: path.join(output, 'ide-current.png') });
+    await page.evaluate(() => {
+      sounds.startAlarmSiren = () => {};
+      sounds.stopAlarmSiren = () => {};
+      state.workspaceSessionActive = true;
+      handleSecurityViolation({ timestamp: '10:24:18', durationSeconds: 2.4, totalIncidents: 1 });
+      DOM.modalFocusWarning.style.animationPlayState = 'paused';
+      DOM.modalFocusWarning.style.animationDelay = '-0.1s';
+    });
+    await page.screenshot({ path: path.join(output, 'warning-current.png') });
     console.log(`Capturas guardadas en ${output}`);
   } finally {
     await browser?.close();

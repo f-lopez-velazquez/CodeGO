@@ -7,7 +7,39 @@ const { createSubmission, createCertifiedTaskSubmission, verifySubmission, extra
 const { runSelfTest } = require('../src/main/self-test');
 const { createWifiControl } = require('../src/main/wifi-control');
 const { ensurePythonEnvironment } = require('../src/main/python-environment');
+const { createFocusGuard } = require('../src/main/focus-guard');
 const environmentSetup = require('../src/main/environment-setup');
+
+test('Focus guard ignores internal file moves and focus events without a recorded exit', () => {
+  let clock = 1000;
+  const guard = createFocusGuard({ now: () => clock, internalGraceMs: 500, maximumInternalMs: 5000 });
+
+  assert.equal(guard.focus({ sessionActive: true }).violation, false);
+  guard.setInternalInteraction(true);
+  assert.equal(guard.blur({ sessionActive: true }).reason, 'internal-interaction');
+  clock += 300;
+  guard.setInternalInteraction(false);
+  assert.equal(guard.focus({ sessionActive: true }).violation, false);
+
+  clock += 600;
+  assert.equal(guard.focus({ sessionActive: true }).reason, 'no-recorded-blur');
+});
+
+test('Focus guard records one real application exit and preserves Python GUI exceptions', () => {
+  let clock = 5000;
+  const guard = createFocusGuard({ now: () => clock });
+
+  assert.equal(guard.blur({ sessionActive: true, pythonWindow: true }).reason, 'python-window');
+  assert.equal(guard.focus({ sessionActive: true }).violation, false);
+
+  const blur = guard.blur({ sessionActive: true });
+  assert.equal(blur.violation, true);
+  clock += 2750;
+  const focus = guard.focus({ sessionActive: true });
+  assert.equal(focus.violation, true);
+  assert.equal(focus.durationSeconds, 2.75);
+  assert.equal(guard.focus({ sessionActive: true }).violation, false);
+});
 
 test('Interrupted setup operations recover automatically and preserve their retry limit', async () => {
   let attempts = 0;

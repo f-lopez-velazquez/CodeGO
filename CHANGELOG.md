@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.4.2 · Rendimiento, supervisión precisa e identidad propia
+
+- Evita alertas falsas al mover archivos o recuperar foco después de una operación interna.
+- Registra una sola incidencia por salida real y mantiene las excepciones para ventanas gráficas de Python.
+- Sustituye los comandos de audio bloqueantes por comprobaciones asíncronas y reduce su frecuencia.
+- Conserva aceleración gráfica en Wayland/Hyprland con Vulkan desactivado y ofrece `CODEGO_SOFTWARE_RENDERING=1` como alternativa.
+- Renueva el logotipo con una ruta circular, avance y un indicador de terminal propios de codeGO.
+- Refuerza la señal docente con alternancia sólida roja y blanca durante 12 segundos, sin desenfoques ni sombras animadas costosas.
+
 ## 1.4.1 · Interfaz refinada y organización accesible
 
 - Sustituye los iconos emoji del inicio, explorador y gestor de librerías por un sistema SVG y abreviaturas consistentes entre sistemas operativos.

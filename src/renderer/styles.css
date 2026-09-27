@@ -3556,37 +3556,32 @@ body.resizing-row {
 }
 
 /* ==============================================================
-   12-SECOND MINIMALIST WARNING SYSTEM (CLEAN SLEEK PULSE)
+   12-SECOND CLASSROOM BEACON
+   A solid two-color signal avoids expensive blur and giant animated
+   shadows while remaining visible across a classroom.
    ============================================================== */
 .modal-overlay.hazard-luminescent {
-  background: rgba(14, 5, 8, 0.94) !important;
-  backdrop-filter: blur(14px) !important;
-  animation: hazard-teacher-beacon 0.32s infinite ease-in-out !important;
+  background: #f40000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  isolation: isolate;
+  animation: hazard-teacher-beacon 0.8s infinite steps(1, end) !important;
 }
 
 @keyframes hazard-teacher-beacon {
-  0%, 15% {
-    background: rgba(12, 4, 6, 0.96) !important;
-    box-shadow: inset 0 0 0 6px #ef4444, inset 0 0 50px rgba(239, 68, 68, 0.4);
-  }
-  50%, 65% {
-    background: rgba(220, 20, 40, 0.98) !important;
-    box-shadow: inset 0 0 0 26px #ff1a1a, inset 0 0 320px rgba(255, 30, 30, 1), 0 0 140px rgba(255, 50, 50, 0.95);
-  }
-  100% {
-    background: rgba(12, 4, 6, 0.96) !important;
-    box-shadow: inset 0 0 0 6px #ef4444, inset 0 0 50px rgba(239, 68, 68, 0.4);
-  }
+  0%, 49% { background-color: #f40000; }
+  50%, 100% { background-color: #ffffff; }
 }
 
 .modal-academic-warning-box {
-  background: #0f131d !important;
-  border: 1px solid rgba(239, 68, 68, 0.4) !important;
-  border-radius: 14px !important;
-  padding: 24px 28px !important;
-  max-width: 420px !important;
+  background: #0a0f17 !important;
+  border: 3px solid #ffffff !important;
+  border-radius: 16px !important;
+  padding: 26px 30px !important;
+  max-width: 440px !important;
   width: 90% !important;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.72) !important;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -3595,25 +3590,7 @@ body.resizing-row {
 }
 
 .modal-academic-warning-box.luminescent-box {
-  animation: hazard-box-teacher-strobe 0.32s infinite ease-in-out !important;
-}
-
-@keyframes hazard-box-teacher-strobe {
-  0%, 15% {
-    border-color: #ef4444;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), 0 25px 60px rgba(0, 0, 0, 0.9);
-    transform: scale(0.995);
-  }
-  50%, 65% {
-    border-color: #ffffff;
-    box-shadow: 0 0 70px rgba(255, 255, 255, 0.95), 0 0 130px rgba(255, 40, 40, 0.95);
-    transform: scale(1.02);
-  }
-  100% {
-    border-color: #ef4444;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), 0 25px 60px rgba(0, 0, 0, 0.9);
-    transform: scale(0.995);
-  }
+  animation: none !important;
 }
 
 .academic-strobe-strip {
@@ -3621,15 +3598,15 @@ body.resizing-row {
   align-self: center;
   align-items: center;
   gap: 8px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: #d90000;
+  border: 1px solid #ff5a5a;
   border-radius: var(--radius-full);
   padding: 3px 12px;
   font-family: var(--font-sans);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #fca5a5;
+  color: #ffffff;
   text-transform: uppercase;
 }
 
@@ -3637,14 +3614,9 @@ body.resizing-row {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #ef4444;
-  box-shadow: 0 0 6px #ef4444;
-  animation: dot-pulse 0.7s infinite alternate;
-}
-
-@keyframes dot-pulse {
-  0% { opacity: 0.4; transform: scale(0.85); }
-  100% { opacity: 1; transform: scale(1.15); }
+  background: #ffffff;
+  box-shadow: none;
+  animation: none;
 }
 
 .academic-warning-header {
@@ -3738,9 +3710,10 @@ body.resizing-row {
 
 .btn-academic-confirm.waiting {
   background: rgba(239, 68, 68, 0.12) !important;
-  color: #fca5a5 !important;
-  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #ffd7d7 !important;
+  border-color: rgba(255, 82, 82, 0.58) !important;
   cursor: not-allowed !important;
+  opacity: 1 !important;
 }
 
 .btn-academic-confirm.ready-to-resume {

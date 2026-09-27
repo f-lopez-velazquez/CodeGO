@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Kiosk & Security
   startKiosk: (studentData) => ipcRenderer.invoke('security:start-kiosk', studentData),
   exitKiosk: (pin) => ipcRenderer.invoke('security:exit-kiosk', pin),
+  setInternalInteraction: (active) => ipcRenderer.invoke('security:internal-interaction', active === true),
   beep: () => ipcRenderer.invoke('system:beep'),
   enforceAudio: () => ipcRenderer.invoke('system:enforce-audio'),
 

@@ -1876,16 +1876,12 @@ function setupElectronListeners() {
   // Blur detected (student switched away to another application)
   window.electronAPI.onBlurDetected((data) => {
     if (!state.workspaceSessionActive || state.isExamSubmitted) return;
-    if (data && data.totalIncidents) state.incidentsCount = data.totalIncidents;
-    updateIncidentsDisplay();
     handleSecurityViolation(data || {});
   });
 
   // Focus regained (student returned to the window)
   window.electronAPI.onFocusRegained((data) => {
     if (!state.workspaceSessionActive || state.isExamSubmitted) return;
-    if (data && data.totalIncidents) state.incidentsCount = data.totalIncidents;
-    updateIncidentsDisplay();
     handleSecurityViolation(data || {});
   });
 
@@ -2294,6 +2290,12 @@ function handleSecurityViolation(incidentData = {}) {
     return;
   }
 
+  const reportedIncidents = Number(incidentData.totalIncidents);
+  if (Number.isFinite(reportedIncidents) && reportedIncidents >= 0) {
+    state.incidentsCount = Math.max(state.incidentsCount, reportedIncidents);
+    updateIncidentsDisplay();
+  }
+
   // If already counting down and modal is visible, update duration without resetting the 12s countdown
   if (state.hazardCountdownInterval && !DOM.modalFocusWarning.classList.contains('hidden')) {
     if (incidentData && incidentData.durationSeconds) {
@@ -2302,7 +2304,7 @@ function handleSecurityViolation(incidentData = {}) {
     return;
   }
 
-  state.incidentsCount++;
+  if (!Number.isFinite(reportedIncidents)) state.incidentsCount++;
   updateIncidentsDisplay();
 
   const isActivity = state.appMode === 'activity';
@@ -2395,8 +2397,8 @@ function handleSecurityViolation(incidentData = {}) {
       }
       if (DOM.hazardBtnLabel) {
         DOM.hazardBtnLabel.textContent = isActivity
-          ? '✓ Continuar Actividad'
-          : '✓ Reanudar Examen';
+          ? 'Continuar actividad'
+          : 'Reanudar examen';
       }
     }
   }, 1000);
@@ -2471,12 +2473,14 @@ function wireTreeDragSource(element, itemPath, itemType) {
   element.dataset.itemType = itemType;
   element.addEventListener('dragstart', event => {
     if (state.isExamSubmitted) { event.preventDefault(); return; }
+    window.electronAPI?.setInternalInteraction?.(true).catch(() => {});
     state.draggedTreeItem = { path: itemPath, type: itemType };
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', itemPath);
     requestAnimationFrame(() => element.classList.add('is-dragging'));
   });
   element.addEventListener('dragend', () => {
+    window.electronAPI?.setInternalInteraction?.(false).catch(() => {});
     state.draggedTreeItem = null;
     element.classList.remove('is-dragging');
     document.querySelectorAll('.tree-drop-target').forEach(target => target.classList.remove('tree-drop-target'));

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
-const { spawn, execSync, execFileSync, execFile, exec } = require('child_process');
+const { spawn, execSync, execFileSync, execFile } = require('child_process');
 const executeFile = require('node:util').promisify(execFile);
 const crypto = require('crypto');
 const { resolveWorkspacePath } = require('./workspace-path');
@@ -18,16 +18,18 @@ const { setupDiagnostic } = require('./setup-diagnostics');
 const { classifyWorkspaceFile } = require('./file-types');
 const { moveDirectory } = require('./fs-operations');
 const { sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow } = require('./window-integration');
+const { createFocusGuard } = require('./focus-guard');
 const updater = require('./updater');
 const wifiControl = createWifiControl();
 
-// Native Wayland is supported, but Vulkan through Ozone still produces noisy
-// startup failures on some Mesa/Hyprland combinations. Chromium falls back to
-// its stable renderer while Pygame keeps using the system graphics stack.
+// Native Wayland keeps GPU compositing for a responsive editor. Vulkan remains
+// disabled because some Mesa/Hyprland combinations report noisy startup errors;
+// CODEGO_SOFTWARE_RENDERING=1 is an explicit fallback for incompatible drivers.
 if (app.commandLine && process.platform === 'linux' && (process.env.WAYLAND_DISPLAY || /wayland/i.test(process.env.XDG_SESSION_TYPE || ''))) {
-  app.disableHardwareAcceleration();
+  if (process.env.CODEGO_SOFTWARE_RENDERING === '1') app.disableHardwareAcceleration();
   app.commandLine.appendSwitch('disable-vulkan');
   app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE');
+  app.commandLine.appendSwitch('use-angle', 'gl');
 }
 
 const packagedReportArgument = process.argv.find(argument => argument.startsWith('--self-test-report='));
@@ -174,7 +176,7 @@ const preparedEnvironmentDirectory = path.join(app.getPath('userData'), 'codego-
 let environmentReady = diagnosticMode || environmentSetup.environmentStatus(preparedEnvironmentDirectory).ready;
 let isKioskActive = false;
 let activeSessionMode = null; // 'exam', 'activity', or null
-let blurStartTime = null;
+const focusGuard = createFocusGuard();
 let securityAuditLog = [];
 let monitorWatchdogTimer = null;
 const teacherPin = process.env.CODEGO_TEACHER_PIN || '';
@@ -192,23 +194,35 @@ let workspaceSealed = false;
 // HARDWARE/OS AUDIO ANTI-MUTE WATCHDOG & WI-FI ENFORCEMENT
 // ==============================================================
 let audioWatchdogInterval = null;
+let audioEnforcementInFlight = false;
+let lastAudioEnforcementAt = 0;
+
+function runAudioCommand(command, args, done) {
+  execFile(command, args, { windowsHide: true, timeout: 2500 }, error => done(!error));
+}
 
 function enforceSystemAudioUnmute(targetVolume = 0.85) {
+  const currentTime = Date.now();
+  if (audioEnforcementInFlight || currentTime - lastAudioEnforcementAt < 1200) return;
+  audioEnforcementInFlight = true;
+  lastAudioEnforcementAt = currentTime;
+  const finish = () => { audioEnforcementInFlight = false; };
   const platform = process.platform;
   if (platform === 'linux') {
-    // PipeWire / WirePlumber
-    try { execSync(`wpctl set-mute @DEFAULT_AUDIO_SINK@ 0 && wpctl set-volume @DEFAULT_AUDIO_SINK@ ${targetVolume}`, { stdio: 'ignore' }); } catch (_) {}
-    // PulseAudio
-    try { execSync(`pactl set-sink-mute @DEFAULT_SINK@ 0 && pactl set-sink-volume @DEFAULT_SINK@ ${Math.round(targetVolume * 100)}%`, { stdio: 'ignore' }); } catch (_) {}
-    // ALSA
-    try { execSync(`amixer set Master unmute ${Math.round(targetVolume * 100)}%`, { stdio: 'ignore' }); } catch (_) {}
+    runAudioCommand('wpctl', ['set-mute', '@DEFAULT_AUDIO_SINK@', '0'], success => {
+      if (success) return runAudioCommand('wpctl', ['set-volume', '@DEFAULT_AUDIO_SINK@', String(targetVolume)], finish);
+      runAudioCommand('pactl', ['set-sink-mute', '@DEFAULT_SINK@', '0'], pulseSuccess => {
+        if (pulseSuccess) return runAudioCommand('pactl', ['set-sink-volume', '@DEFAULT_SINK@', `${Math.round(targetVolume * 100)}%`], finish);
+        runAudioCommand('amixer', ['set', 'Master', 'unmute', `${Math.round(targetVolume * 100)}%`], finish);
+      });
+    });
   } else if (platform === 'win32') {
-    try {
-      const psCmd = `$wscript = New-Object -ComObject WScript.Shell; $wscript.SendKeys([char]175); $wscript.SendKeys([char]175)`;
-      exec(`powershell -NoProfile -Command "${psCmd}"`, () => {});
-    } catch (_) {}
+    const psCmd = '$wscript = New-Object -ComObject WScript.Shell; $wscript.SendKeys([char]175); $wscript.SendKeys([char]175)';
+    runAudioCommand('powershell', ['-NoProfile', '-NonInteractive', '-Command', psCmd], finish);
   } else if (platform === 'darwin') {
-    try { execSync(`osascript -e "set volume output volume ${Math.round(targetVolume * 100)}"`, { stdio: 'ignore' }); } catch (_) {}
+    runAudioCommand('osascript', ['-e', `set volume output volume ${Math.round(targetVolume * 100)}`], finish);
+  } else {
+    finish();
   }
 }
 
@@ -219,7 +233,7 @@ function startAudioWatchdog() {
     if (activeSessionMode) {
       enforceSystemAudioUnmute(0.85);
     }
-  }, 1000);
+  }, 4000);
 }
 
 function stopAudioWatchdog() {
@@ -559,32 +573,22 @@ function createMainWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
-  // Handle window focus and blur for supervision (active in both Exam and Activity sessions)
-  let blurWhilePythonRunning = false;
-
   mainWindow.on('blur', () => {
-    // Only detect blur when a session is active in the workspace (Exam, Task or Activity)
-    if (!activeSessionMode) return;
-
-    // Check if a native OS dialog is active (e.g. Open Folder, Save Task, Verify Certificate)
-    if (isNativeDialogActive) return;
-
-    // Check if pip package installation or system auto-install is active
-    if (activePipProcess || installationBusy) return;
-
-    // Check if Python child process is actively running (e.g. Pygame, Tkinter, Matplotlib, Turtle, OpenCV window)
-    if (activePythonGuiExpected && activeProcess && !activeProcess.killed) {
-      blurWhilePythonRunning = true;
-      if (mainWindow && !mainWindow.isDestroyed()) {
+    const pythonWindow = Boolean(activePythonGuiExpected && activeProcess && !activeProcess.killed);
+    const decision = focusGuard.blur({
+      sessionActive: Boolean(activeSessionMode),
+      ignored: isNativeDialogActive || Boolean(activePipProcess) || installationBusy,
+      pythonWindow
+    });
+    if (!decision.violation) {
+      if (decision.reason === 'python-window' && mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('security:python-gui-active', {
           message: 'La ventana gráfica de tu programa está activa.'
         });
       }
-      return; // Do NOT trigger alarm or penalize student!
+      return;
     }
 
-    blurWhilePythonRunning = false;
-    blurStartTime = Date.now();
     enforceSystemAudioUnmute(0.95);
 
     const incident = logSecurityIncident('WINDOW_BLUR', {
@@ -599,26 +603,16 @@ function createMainWindow() {
       mainWindow.webContents.send('security:blur-detected', {
         incident,
         mode: activeSessionMode,
-        totalIncidents: securityAuditLog.length,
+        totalIncidents: securityAuditLog.filter(entry => entry.type === 'WINDOW_BLUR').length,
         durationSeconds: 1.0
       });
     }
   });
 
   mainWindow.on('focus', () => {
-    // Only handle refocus when a session is active
-    if (!activeSessionMode) return;
-
-    // If focus was lost to a Python GUI window and returned, ignore penalty
-    if (blurWhilePythonRunning) {
-      blurWhilePythonRunning = false;
-      return;
-    }
-
-    const durationSeconds = blurStartTime
-      ? ((Date.now() - blurStartTime) / 1000).toFixed(1)
-      : '1.0';
-    blurStartTime = null;
+    const decision = focusGuard.focus({ sessionActive: Boolean(activeSessionMode) });
+    if (!decision.violation) return;
+    const durationSeconds = decision.durationSeconds.toFixed(1);
 
     enforceSystemAudioUnmute(0.95);
     try { shell.beep(); } catch (_) {}
@@ -635,7 +629,7 @@ function createMainWindow() {
       mainWindow.webContents.send('security:focus-regained', {
         incident,
         durationSeconds: parseFloat(durationSeconds),
-        totalIncidents: securityAuditLog.length,
+        totalIncidents: securityAuditLog.filter(entry => entry.type === 'WINDOW_BLUR').length,
         mode: activeSessionMode
       });
     }
@@ -971,6 +965,10 @@ function setupIpcHandlers() {
       finally { installationBusy = false; }
     }
     return callback(event, ...args);
+  });
+  handle('security:internal-interaction', async (_event, active) => {
+    focusGuard.setInternalInteraction(active === true);
+    return { success: true };
   });
   handle('app:confirm-close', async (_event, saved) => {
     closeRequestPending = false;
@@ -1465,6 +1463,7 @@ except Exception:
     if (isKioskActive) return { success: false, error: 'El examen ya está activo.' };
     if (!workspaceExplicitlySelected && !diagnosticMode) return { success: false, error: 'Elige una carpeta de proyecto o crea un proyecto vacío antes de iniciar.' };
     workspaceSealed = false;
+    focusGuard.reset();
     const isActivity = studentData && studentData.mode === 'activity';
 
     if (isActivity) {
@@ -1578,6 +1577,7 @@ except Exception:
     if (enteredPin === teacherPin) {
       isKioskActive = false;
       activeSessionMode = null;
+      focusGuard.reset();
       stopAudioWatchdog();
       enableSystemWifi();
 
@@ -1598,7 +1598,6 @@ except Exception:
   // Native Hardware/OS Speaker Beep + Forced Unmute
   handle('system:beep', async () => {
     try {
-      enforceSystemAudioUnmute(0.95);
       shell.beep();
       return { success: true };
     } catch (_) {
