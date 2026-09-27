@@ -79,6 +79,10 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       for (const layout of ['side', 'bottom']) {
         await page.evaluate(value => { state.termLayout = value; DOM.terminalPanel.style.removeProperty('--terminal-size'); updateTerminalLayout(); }, layout);
         await page.evaluate(() => focusTerminalInput());
+        // CSS zoom and a flex-direction change settle on the next layout frame
+        // in Chromium. Measure the interface once the user-visible frame exists,
+        // rather than during the transient geometry between both operations.
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const geometry = await page.evaluate(() => {
           const input = DOM.terminalStdinInput.getBoundingClientRect();
           const status = document.querySelector('.editor-statusbar').getBoundingClientRect();
