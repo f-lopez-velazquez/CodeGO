@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.5.0 · Identidad oficial y revisión docente por grupo
+
+- Incorpora la identidad oficial de codeGO al inicio, la aplicación y los instaladores, con una composición más clara y adaptable.
+- Separa Tarea certificada del examen: elimina kiosk, vigilancia de foco, audio forzado y alertas; mantiene bloqueadas las acciones de copiar, cortar y pegar.
+- Firma cada tarea con Ed25519 mediante una identidad local protegida y conserva la validación de archivos con SHA-256.
+- Permite seleccionar o arrastrar todas las entregas de un grupo y señala archivos duplicados, código equivalente y similitud estructural para revisión docente.
+- Acelera la baliza exclusiva de supervisión a una alternancia sólida roja y blanca de 0.7 segundos durante los 12 segundos reglamentarios.
+- Renueva el inicio, los diálogos, el explorador, el editor y la consola con una jerarquía académica más clara y superficies sobrias.
+
 ## 1.4.2 · Rendimiento, supervisión precisa e identidad propia
 
 - Evita alertas falsas al mover archivos o recuperar foco después de una operación interna.

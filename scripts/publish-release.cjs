@@ -20,7 +20,7 @@ const RELEASE_NOTES = `# codeGO v${VERSION} — Versión oficial
 Entorno educativo de Python multiplataforma con tres modos especializados:
 
 - **🛡️ Modo Examen Blindado**: Kiosk, desconexión Wi-Fi, alerta estroboscópica de 12 s, entrega ZIP con sello SHA-256.
-- **📦 Modo Tarea Certificada**: Bloqueo de copia/pegado, telemetría forense, entrega \`.codego\` firmada con HMAC-SHA256.
+- **📦 Modo Tarea Certificada**: Trabajo sin alarmas, portapapeles bloqueado, registro de autoría y entrega \`.codego\` con sello Ed25519.
 - **📘 Modo Actividad Libre**: Editor completo con árbol jerárquico de carpetas y consola interactiva.
 
 ## Novedades en v${VERSION}
@@ -28,7 +28,7 @@ Entorno educativo de Python multiplataforma con tres modos especializados:
 - ✅ Python y todas las dependencias se instalan automáticamente al primer inicio
 - ✅ Soporte para hardware: Arduino, ESP32, Raspberry Pi (pyserial, smbus2, etc.)
 - ✅ Árbol de carpetas jerárquico mejorado con navegación por subcarpetas
-- ✅ Sistema de Modo Tarea Certificada (.codego) con HMAC-SHA256
+- ✅ Tareas .codego con sello Ed25519 y revisión grupal de similitud
 - ✅ Anti-trampas mejorado: alerta estroboscópica visible a distancia
 - ✅ Auto-guardado, resolución dinámica y soporte multimonitor
 - ✅ Consola interactiva con \`input()\` en línea

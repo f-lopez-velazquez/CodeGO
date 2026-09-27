@@ -20,23 +20,22 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Descarga directa 1.4.2 autónoma | Alternativa |
+| Sistema | Descarga directa 1.5.0 autónoma | Alternativa |
 | --- | --- | --- |
-| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.4.2/CodeGO-1.4.2-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.4.2/CodeGO-1.4.2-portable-x64.exe) |
-| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.4.2/CodeGO-1.4.2-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.4.2/CodeGO-1.4.2-linux-x64.tar.gz) |
-| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.4.2/CodeGO-1.4.2-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.4.2/CodeGO-1.4.2-mac-arm64.zip) |
-| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.4.2/CodeGO-1.4.2-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.4.2/CodeGO-1.4.2-mac-x64.zip) |
+| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.0/CodeGO-1.5.0-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.0/CodeGO-1.5.0-portable-x64.exe) |
+| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.0/CodeGO-1.5.0-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.0/CodeGO-1.5.0-linux-x64.tar.gz) |
+| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.0/CodeGO-1.5.0-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.0/CodeGO-1.5.0-mac-arm64.zip) |
+| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.0/CodeGO-1.5.0-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.0/CodeGO-1.5.0-mac-x64.zip) |
 
-Cada instalador 1.4.2 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura prepara y comprueba el entorno sin internet antes de habilitar el editor. Si una operación se interrumpe, codeGO reintenta y conserva el avance; también permite reconstruir sus componentes sin borrar proyectos ni entregas. En Linux, el lanzador protege el arranque frente a variables globales de Electron y, en Hyprland, mantiene las ventanas de Pygame y otras interfaces en el espacio de trabajo activo. Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado, por lo que el sistema puede advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones.
+Cada instalador 1.5.0 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura prepara y comprueba el entorno sin internet antes de habilitar el editor. Si una operación se interrumpe, codeGO reintenta y conserva el avance; también permite reconstruir sus componentes sin borrar proyectos ni entregas. En Linux, el lanzador protege el arranque frente a variables globales de Electron y, en Hyprland, mantiene las ventanas de Pygame y otras interfaces en el espacio de trabajo activo. Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado, por lo que el sistema puede advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones.
 
 ## Modalidades de Trabajo
 
 1. **🛡️ Modo Examen Blindado**: Kiosk absoluto a pantalla completa, Wi-Fi deshabilitado automáticamente, watchdog de audio anti-silenciamiento y alerta estroboscópica de 12 segundos ante cualquier intento de cambio de ventana. Entrega sellada en ZIP auditado con sello SHA-256.
-2. **📦 Modo Tarea Certificada (Prueba de Autoría Irrefutable)**:
-   - **Anticopia estricto**: Prohíbe el pegado de código externo (`ctrl+v`, menús contextuales). Todo el código debe ser digitado directamente en codeGO.
-   - **Supervisión académica**: Modo kiosk y alarma visual/acústica si se intenta cambiar a otras aplicaciones o navegadores (ChatGPT, editores externos, etc.).
-   - **Telemetría forense continua**: Registra pulsaciones de teclas, caracteres digitados, tiempo activo de tipeo, 0 intentos de pegado externo, ejecuciones de prueba e incidencias.
-   - **Contenedor `.codego` firmado con HMAC-SHA256**: Certificado criptográfico irrefutable + reporte visual auto-contenido `CERTIFICADO_DOCENTE.html`.
+2. **📦 Modo Tarea Certificada**:
+   - **Autoría sin interrupciones**: desactiva copiar, cortar y pegar, pero permite consultar materiales y cambiar de aplicación sin alarmas ni modo kiosk.
+   - **Registro de trabajo**: conserva pulsaciones, caracteres redactados, tiempo activo, intentos de portapapeles bloqueados y ejecuciones de prueba.
+   - **Contenedor `.codego` con sello Ed25519**: cada instalación mantiene una identidad criptográfica local; cualquier cambio posterior en el certificado o el código invalida la firma y los hashes.
 3. **📘 Modo Actividad / Tarea Libre**: Entorno de programación sin restricciones para prácticas en clase o casa. Los botones de entrega (`#btn-finish-exam` y `#btn-submit-task`) permanecen estrictamente ocultos.
 
 ## Manejo de Carpetas y Subcarpetas
@@ -56,9 +55,10 @@ F1 abre un centro de ayuda con buscador para instalación, terminal, recursos ex
 ## Herramienta Forense para Docentes (`🔍 Verificar Tarea/Examen`)
 
 Disponible en el lobby y dentro del IDE:
-- Permite arrastrar o examinar archivos `.codego` o `.zip`.
-- Verifica la firma criptográfica HMAC y los hashes SHA-256 de cada archivo individual y del contenedor.
-- Despliega tarjeta del estudiante, telemetría de digitación auditada, visor de código con resaltado y botón para **ejecutar el código entregado** o **extraerlo limpiamente**.
+- Permite arrastrar o seleccionar de una vez todas las entregas `.codego` o `.zip` de un grupo.
+- Verifica el sello Ed25519, la identidad local firmante y los hashes SHA-256 de cada archivo.
+- Detecta el mismo contenedor, código equivalente y similitud estructural aun cuando cambien identificadores; estos indicadores ayudan al docente a revisar, no sustituyen su criterio académico.
+- Despliega la ficha del estudiante, registro de autoría, visor de código y acciones para **ejecutar** o **extraer** la entrega.
 
 ## Desarrollo y comprobación
 

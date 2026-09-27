@@ -25,11 +25,13 @@
 
     <div class="lobby-card">
       <div class="lobby-header">
+        <span class="lobby-eyebrow">APRENDER · PRACTICAR · EVALUAR</span>
+        <img src="assets/codego-official.png" alt="" class="lobby-official-symbol">
         <div class="lobby-brand-row">
-          <img src="assets/codego-mark.svg" alt="" class="brand-app-logo">
           <h1 class="lobby-title">code<span class="highlight">GO</span></h1>
         </div>
-        <p class="lobby-subtitle">Entorno Académico Python</p>
+        <p class="lobby-subtitle">Tu espacio para aprender Python con claridad.</p>
+        <p class="lobby-value">Un mismo entorno en cada equipo, desde el primer ejercicio hasta una evaluación formal.</p>
       </div>
 
       <!-- Segmented Mode Control -->
@@ -1041,8 +1043,8 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
           <strong id="task-submit-runs">0</strong>
         </div>
         <div class="summary-item">
-          <span>Salidas de ventana:</span>
-          <strong id="task-submit-incidents" class="clean">0 (Limpio)</strong>
+          <span>Sello de autoría:</span>
+          <strong id="task-submit-incidents" class="clean">Listo para firmar</strong>
         </div>
       </div>
 
@@ -1061,10 +1063,10 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
         <span class="dialog-icon">🔍</span>
         <div style="flex: 1;">
           <div class="verifier-header-row">
-            <h3>Verificador Forense Docente codeGO</h3>
+            <h3>Mesa de revisión docente</h3>
             <span id="verifier-status-badge" class="badge-status-waiting">Esperando archivo</span>
           </div>
-          <p class="dialog-desc">Arrastra y suelta un archivo <code>.codego</code> o <code>.zip</code> aquí o búscalo en tu equipo para auditar su autenticidad y autoría.</p>
+          <p class="dialog-desc">Revisa una entrega o todo un grupo. codeGO valida los sellos y compara los programas para señalar duplicados y similitudes que conviene revisar.</p>
         </div>
       </div>
 
@@ -1072,10 +1074,20 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
       <div class="verifier-dropzone" id="verifier-dropzone">
         <div class="dropzone-content">
           <span class="dropzone-icon">📥</span>
-          <p>Arrastra aquí la tarea <strong>.codego</strong> o examen <strong>.zip</strong></p>
-          <button type="button" id="btn-select-submission-file" class="btn-tool-option">Seleccionar Archivo del Equipo</button>
+          <p>Arrastra aquí todas las entregas <strong>.codego</strong> o <strong>.zip</strong></p>
+          <button type="button" id="btn-select-submission-file" class="btn-tool-option">Seleccionar entregas</button>
         </div>
       </div>
+
+      <section id="verifier-batch-summary" class="verifier-batch-summary hidden" aria-live="polite">
+        <div class="batch-overview">
+          <div><strong id="batch-verified-count">0</strong><span>sellos válidos</span></div>
+          <div><strong id="batch-flagged-count">0</strong><span>entregas señaladas</span></div>
+          <div><strong id="batch-error-count">0</strong><span>archivos inválidos</span></div>
+        </div>
+        <div id="batch-comparison-list" class="batch-comparison-list"></div>
+        <div id="batch-submission-list" class="batch-submission-list"></div>
+      </section>
 
       <!-- Result Container (hidden until a file is loaded) -->
       <div id="verifier-result-container" class="verifier-result-container hidden">
@@ -1090,7 +1102,7 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
               <span class="meta-sep">•</span>
               <span id="verif-date">Fecha: --</span>
               <span class="meta-sep">•</span>
-              <span id="verif-os">SO: --</span>
+            <span id="verif-os">Sello: --</span>
             </div>
           </div>
           <div class="verifier-hmac-badge" id="verif-hmac-badge">
@@ -1123,8 +1135,8 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
             <strong class="telemetry-value" id="verif-runs">0 veces</strong>
           </div>
           <div class="telemetry-card">
-            <span class="telemetry-label">⚠️ Salidas de Foco</span>
-            <strong class="telemetry-value" id="verif-incidents">0</strong>
+            <span class="telemetry-label">🔏 Sello de autoría</span>
+            <strong class="telemetry-value" id="verif-incidents">Verificado</strong>
           </div>
         </div>
 

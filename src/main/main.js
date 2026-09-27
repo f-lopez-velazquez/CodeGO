@@ -8,7 +8,14 @@ const executeFile = require('node:util').promisify(execFile);
 const crypto = require('crypto');
 const { resolveWorkspacePath } = require('./workspace-path');
 const { PythonRunner } = require('./python-runner');
-const { createSubmission } = require('./submission');
+const {
+  createSubmission,
+  createCertifiedTaskSubmission,
+  verifySubmission,
+  analyzeSubmissionBatch,
+  extractSubmissionFiles,
+  ensureSigningIdentity
+} = require('./submission');
 const { runSelfTest } = require('./self-test');
 const { createWifiControl } = require('./wifi-control');
 const { ensurePythonEnvironment } = require('./python-environment');
@@ -113,7 +120,7 @@ function restoreMainWindowAfterPython() {
   clearPythonWindowTimers();
   if (!mainWindow || mainWindow.isDestroyed() || !protectedWindowTemporarilyReleased) return;
   protectedWindowTemporarilyReleased = false;
-  if (activeSessionMode === 'exam' || activeSessionMode === 'task') {
+  if (activeSessionMode === 'exam') {
     try {
       mainWindow.setFullScreen(true);
       mainWindow.setKiosk(true);
@@ -125,7 +132,7 @@ function restoreMainWindowAfterPython() {
 
 function prepareMainWindowForPythonGui(child) {
   if (!activePythonGuiExpected || !child?.pid || !mainWindow || mainWindow.isDestroyed()) return;
-  protectedWindowTemporarilyReleased = activeSessionMode === 'exam' || activeSessionMode === 'task';
+  protectedWindowTemporarilyReleased = activeSessionMode === 'exam';
   try {
     mainWindow.setAlwaysOnTop(false);
     if (mainWindow.isKiosk()) mainWindow.setKiosk(false);
@@ -575,8 +582,9 @@ function createMainWindow() {
 
   mainWindow.on('blur', () => {
     const pythonWindow = Boolean(activePythonGuiExpected && activeProcess && !activeProcess.killed);
+    const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'activity';
     const decision = focusGuard.blur({
-      sessionActive: Boolean(activeSessionMode),
+      sessionActive: focusSupervisionActive,
       ignored: isNativeDialogActive || Boolean(activePipProcess) || installationBusy,
       pythonWindow
     });
@@ -610,7 +618,8 @@ function createMainWindow() {
   });
 
   mainWindow.on('focus', () => {
-    const decision = focusGuard.focus({ sessionActive: Boolean(activeSessionMode) });
+    const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'activity';
+    const decision = focusGuard.focus({ sessionActive: focusSupervisionActive });
     if (!decision.violation) return;
     const durationSeconds = decision.durationSeconds.toFixed(1);
 
@@ -1492,34 +1501,22 @@ except Exception:
     }
 
     if (studentData && studentData.mode === 'task') {
-      isKioskActive = true;
+      isKioskActive = false;
       activeSessionMode = 'task';
       if (!fs.existsSync(currentWorkspace)) {
         fs.mkdirSync(currentWorkspace, { recursive: true });
       }
-      startAudioWatchdog();
       logSecurityIncident('TASK_MODE_STARTED', {
         student: studentData,
         startTime: new Date().toISOString()
       });
 
       if (mainWindow) {
-        mainWindow.setMenu(null);
-        mainWindow.setMenuBarVisibility(false);
-        mainWindow.setFullScreen(true);
-        mainWindow.setKiosk(true);
-        mainWindow.setAlwaysOnTop(true, 'screen-saver');
-
-        try {
-          const forbiddenKeys = ['Alt+Tab', 'Super', 'Alt+F4', 'F11', 'VolumeMute', 'VolumeDown'];
-          globalShortcut.registerAll(forbiddenKeys, () => {
-            enforceSystemAudioUnmute(0.95);
-            try { shell.beep(); } catch (_) {}
-            logSecurityIncident('GLOBAL_SHORTCUT_INTERCEPTED', {});
-          });
-        } catch (err) {
-          console.warn('Global shortcuts registration note in task mode:', err);
-        }
+        mainWindow.setKiosk(false);
+        mainWindow.setFullScreen(false);
+        mainWindow.setAlwaysOnTop(false);
+        mainWindow.maximize();
+        globalShortcut.unregisterAll();
       }
 
       return { success: true, mode: 'task' };
@@ -1968,7 +1965,8 @@ except Exception:
         outputDirectory: app.getPath('downloads'),
         student: student || {},
         telemetry: telemetry || {},
-        version: app.getVersion()
+        version: app.getVersion(),
+        signingIdentity: ensureSigningIdentity(path.join(app.getPath('userData'), 'identity'))
       });
 
       workspaceSealed = true;
@@ -1995,14 +1993,24 @@ except Exception:
     if (!mainWindow) return { canceled: true };
     const { canceled, filePaths } = await withNativeDialog(() => dialog.showOpenDialog(mainWindow, {
       title: 'Seleccionar tarea o examen de codeGO (.codego / .zip)',
-      properties: ['openFile'],
+      properties: ['openFile', 'multiSelections'],
       filters: [
         { name: 'Archivos de codeGO (*.codego, *.zip)', extensions: ['codego', 'zip'] },
         { name: 'Todos los archivos', extensions: ['*'] }
       ]
     }));
     if (canceled || !filePaths || filePaths.length === 0) return { canceled: true };
-    return { success: true, filePath: filePaths[0] };
+    return { success: true, filePath: filePaths[0], filePaths };
+  });
+
+  handle('submission:verify-batch', async (event, filePaths) => {
+    try {
+      const paths = Array.isArray(filePaths) ? filePaths.filter(Boolean) : [];
+      if (!paths.length) return { success: false, error: 'Selecciona al menos una entrega.' };
+      return analyzeSubmissionBatch(paths);
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
   });
 
   handle('submission:verify-file', async (event, filePath) => {
@@ -2016,8 +2024,10 @@ except Exception:
     }
   });
 
-  handle('submission:extract-code', async (event, { filePath }) => {
+  handle('submission:extract-code', async (event, payload) => {
     try {
+      const filePath = typeof payload === 'string' ? payload : payload?.filePath;
+      if (!filePath || !fs.existsSync(filePath)) return { success: false, error: 'No se encontró la entrega seleccionada.' };
       if (!mainWindow) return { canceled: true };
       const { canceled, filePaths } = await withNativeDialog(() => dialog.showOpenDialog(mainWindow, {
         title: 'Seleccionar carpeta de destino para extraer el código entregado',

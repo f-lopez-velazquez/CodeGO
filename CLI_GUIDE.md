@@ -4,7 +4,7 @@ Consulta el documento principal de arquitectura técnica y reglas para asistente
 
 ### Resumen de Intervención Segura:
 1. **Modo Actividad**: Jamás mostrar botones de entrega (`#btn-finish-exam` y `#btn-submit-task` ocultos con `display: none !important;`).
-2. **Modo Tarea Certificada**: Kiosk activo, anti-copia/pega estricto de código externo, telemetría continua de tipeo y firma criptográfica HMAC-SHA256 (`.codego`).
+2. **Modo Tarea Certificada**: Trabajo libre de alarmas con copiar/cortar/pegar bloqueados, registro continuo de autoría y sello Ed25519 (`.codego`).
 3. **Manejo de Carpetas**: Soporte recursivo de subcarpetas en todos los SOs, con árbol colapsable y barra de breadcrumbs.
 4. **Terminal e Input**: La entrada se dibuja junto al prompt de Python dentro de `.terminal-output`, sin barra separada. Mantener `min-height: 0` y comprobar también los límites de la ventana contra la pantalla con escalado del SO.
 5. **Pantalla Completa**: Siempre activa por defecto.

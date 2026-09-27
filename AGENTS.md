@@ -1,4 +1,4 @@
-# 🛡️ CodeGO ExamGuard - Guía Técnica para Agentes y Desarrolladores CLI
+# codeGO - Guía Técnica para Agentes y Desarrolladores CLI
 
 > **Propósito de este archivo**: Esta guía documenta la arquitectura completa, convenciones de seguridad, flujo de datos y directrices inviolables de **CodeGO ExamGuard** para que cualquier asistente de inteligencia artificial, agente de código o desarrollador CLI pueda intervenir el proyecto de forma segura, práctica y sin introducir regresiones.
 
@@ -19,13 +19,13 @@ La aplicación opera bajo **tres modalidades especializadas**:
    - **Excepciones legítimas**: NO se alarma si se abren ventanas gráficas de Python (Pygame, Tkinter, Turtle, Matplotlib).
    - **Entrega Sellada**: Al presionar "Entregar", el código se bloquea contra modificación, copia y pegado, y se empaqueta en un archivo ZIP auditado con sello SHA-256.
 
-2. **📦 MODO TAREA CERTIFICADA (Prueba de Autoría Irrefutable)**:
+2. **📦 MODO TAREA CERTIFICADA**:
    - **Objetivo**: Garantizar fehacientemente al docente que las tareas para casa o entregables fueron escritas a mano por el alumno dentro de CodeGO, sin copia/pega externo y sin alternar con ChatGPT u otras apps.
-   - **Bloqueo Estricto de Copiado/Pegado**: Se intercepta y prohíbe el pegado de código externo (`ctrl+v`, portapapeles). Todo el código debe ser digitado manualmente en el entorno.
-   - **Supervisión de Enfoque y Anti-Mute**: Kiosk activo, prohibición de cambio de ventana con alerta estroboscópica de 12 segundos y watchdog de audio para evitar mute.
+   - **Bloqueo Estricto de Portapapeles**: Se intercepta y prohíbe copiar, cortar y pegar. Todo el código debe ser digitado manualmente en el entorno.
+   - **Trabajo sin interrupciones**: No usa kiosk, vigilancia de foco, watchdog de audio ni alertas; el alumno puede consultar materiales durante la tarea.
    - **Conectividad**: Wi-Fi habilitado para consultas o recursos permitidos según la actividad.
    - **Telemetría Forense**: Mide pulsaciones de teclas, caracteres digitados, tiempo activo de tipeo, 0 intentos de pegado externo, ejecuciones nativas de prueba y registro de incidencias.
-   - **Entrega Criptográfica (`.codego`)**: Empaqueta el workspace jerárquico completo en un contenedor `.codego` firmado con **HMAC-SHA256**, acompañado de un `CERTIFICADO_DOCENTE.html` auto-contenido y un archivo de sello `.sha256`.
+   - **Entrega Criptográfica (`.codego`)**: Empaqueta el workspace jerárquico completo en un contenedor `.codego` con sello **Ed25519**, acompañado de un `CERTIFICADO_DOCENTE.html` auto-contenido y un archivo de sello `.sha256`.
 
 3. **📘 MODO ACTIVIDAD / TAREA LIBRE**:
    - **Objetivo**: Práctica educativa en clase o casa con gestión libre de proyectos locales.
@@ -82,8 +82,9 @@ Todos los canales IPC se comunican de forma segura a través de `window.electron
 | `fs:list-workspace` | Renderer ➔ Main | Lista recursivamente los archivos del workspace activo. |
 | `fs:save-file` | Renderer ➔ Main | Guarda el contenido del archivo abierto en disco. |
 | `exam:submit` | Renderer ➔ Main | Empaqueta el código y bitácora en ZIP con sello SHA-256. |
-| `task:submit` | Renderer ➔ Main | Empaqueta workspace jerárquico y telemetría en contenedor `.codego` firmado con HMAC-SHA256. |
-| `submission:verify-file` | Renderer ➔ Main | Audita integridad forense, firma HMAC y SHA-256 de archivos `.codego` y `.zip`. |
+| `task:submit` | Renderer ➔ Main | Empaqueta workspace jerárquico y registro de autoría en un contenedor `.codego` con sello Ed25519. |
+| `submission:verify-file` | Renderer ➔ Main | Audita integridad, sello Ed25519 y SHA-256 de archivos `.codego` y `.zip`. |
+| `submission:verify-batch` | Renderer ➔ Main | Verifica un grupo y compara duplicados, código equivalente y similitud estructural. |
 | `submission:extract-code` | Renderer ➔ Main | Extrae el código fuente del contenedor entregado a una carpeta local elegida por el profesor. |
 | `hardware:list-serial-ports` | Renderer ➔ Main | Detecta puertos COM/USB seriales conectados (Arduino, ESP32, microcontroladores). |
 

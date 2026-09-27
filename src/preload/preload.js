@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   submitExam: (studentData) => ipcRenderer.invoke('exam:submit', studentData),
   submitTask: (payload) => ipcRenderer.invoke('task:submit', payload),
   verifySubmissionFile: (filePath) => ipcRenderer.invoke('submission:verify-file', filePath),
+  verifySubmissionBatch: (filePaths) => ipcRenderer.invoke('submission:verify-batch', filePaths),
   openSubmissionFileDialog: () => ipcRenderer.invoke('submission:open-file-dialog'),
   extractSubmissionCode: (filePath) => ipcRenderer.invoke('submission:extract-code', filePath),
 

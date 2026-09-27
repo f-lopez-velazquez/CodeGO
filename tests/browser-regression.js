@@ -214,6 +214,13 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   assert(colors.output === 'rgb(248, 250, 252)' && colors.text === 'rgb(15, 23, 42)', 'Light terminal theme broken');
   // Freeze browser time so runner load cannot move the 11,999 ms assertion past 12 s.
   await page.clock.pauseAt(new Date(Date.now() + 1000));
+  const taskWarningSuppressed = await page.evaluate(() => {
+    setSessionMode('task');
+    state.workspaceSessionActive = true;
+    handleSecurityViolation({type:'TEST_TASK',durationSeconds:2});
+    return DOM.modalFocusWarning.classList.contains('hidden');
+  });
+  assert(taskWarningSuppressed, 'Task mode must never show the focus warning');
   await page.evaluate(() => {
     setTheme('theme-obsidian');
     setSessionMode('exam');
@@ -233,7 +240,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     };
   });
   assert(beacon.animation.includes('hazard-teacher-beacon'), `Strong warning beacon missing: ${JSON.stringify(beacon)}`);
-  assert(beacon.duration === '0.8s' && beacon.backdrop === 'none' && beacon.cardAnimation === 'none', `Warning beacon is not lightweight: ${JSON.stringify(beacon)}`);
+  assert(beacon.duration === '0.7s' && beacon.backdrop === 'none' && beacon.cardAnimation === 'none', `Warning beacon is not lightweight: ${JSON.stringify(beacon)}`);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm can be dismissed immediately');
   await page.clock.runFor(11999);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm unlocks before 12 seconds');

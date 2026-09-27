@@ -43,6 +43,25 @@ const server = http.createServer((request, response) => {
     await page.evaluate(() => {
       document.body.classList.remove('environment-setup-required');
       DOM.modalAutoInstaller.classList.add('hidden');
+      openVerifySubmissionModal();
+      renderBatchVerification({
+        verifiedCount: 28,
+        flaggedCount: 3,
+        errorCount: 1,
+        comparisons: [
+          { leftStudent: 'Ana Torres', rightStudent: 'Luis Pérez', percentage: 100, classification: 'codigo_identico' },
+          { leftStudent: 'María López', rightStudent: 'Diego Ruiz', percentage: 84, classification: 'similitud_alta' }
+        ],
+        submissions: [
+          { filePath: '/entregas/ana.codego', fileName: 'ana.codego', student: { name: 'Ana Torres', id: 'A-014' }, files: 3, officialSealValid: true },
+          { filePath: '/entregas/luis.codego', fileName: 'luis.codego', student: { name: 'Luis Pérez', id: 'A-021' }, files: 2, officialSealValid: true }
+        ],
+        errors: [{ fileName: 'archivo_incompleto.codego', error: 'El sello no coincide con el contenido.' }]
+      });
+    });
+    await page.screenshot({ path: path.join(output, 'review-current.png') });
+    await page.evaluate(() => {
+      DOM.modalVerifySubmission.classList.add('hidden');
       setSessionMode('activity');
       state.workspaceSelected = true;
       state.workspaceName = 'Fundamentos';
@@ -72,6 +91,20 @@ const server = http.createServer((request, response) => {
     });
     await page.screenshot({ path: path.join(output, 'ide-current.png') });
     await page.evaluate(() => {
+      setSessionMode('task');
+      state.workspaceSessionActive = true;
+      DOM.navSubjectLabel.textContent = 'Tarea: algoritmos de sensores';
+      DOM.navStudentLabel.textContent = 'Ana Torres';
+      DOM.codeTextarea.value = 'lecturas = [21.4, 22.1, 21.8]\npromedio = sum(lecturas) / len(lecturas)\nprint(f"Promedio: {promedio:.1f} °C")\n';
+      handleEditorInput();
+      clearTerminal();
+      appendTerminalOutput('Tarea certificada · autoría protegida\n', 'system');
+      appendTerminalOutput('Ejecutando main.py\nPromedio: 21.8 °C\n', 'stdout');
+      appendTerminalOutput('Finalizó sin errores · 0.08 s\n', 'success');
+    });
+    await page.screenshot({ path: path.join(output, 'task-current.png') });
+    await page.evaluate(() => {
+      setSessionMode('activity');
       sounds.startAlarmSiren = () => {};
       sounds.stopAlarmSiren = () => {};
       state.workspaceSessionActive = true;

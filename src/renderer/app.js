@@ -424,6 +424,12 @@ const DOM = {
   verifierStatusBadge: document.getElementById('verifier-status-badge'),
   verifierDropzone: document.getElementById('verifier-dropzone'),
   btnSelectSubmissionFile: document.getElementById('btn-select-submission-file'),
+  verifierBatchSummary: document.getElementById('verifier-batch-summary'),
+  batchVerifiedCount: document.getElementById('batch-verified-count'),
+  batchFlaggedCount: document.getElementById('batch-flagged-count'),
+  batchErrorCount: document.getElementById('batch-error-count'),
+  batchComparisonList: document.getElementById('batch-comparison-list'),
+  batchSubmissionList: document.getElementById('batch-submission-list'),
   verifierResultContainer: document.getElementById('verifier-result-container'),
   verifStudentName: document.getElementById('verif-student-name'),
   verifStudentId: document.getElementById('verif-student-id'),
@@ -1240,9 +1246,9 @@ function setSessionMode(mode) {
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
         <li><strong>Registro de autoría:</strong> El código debe escribirse en codeGO para conservar un historial claro del trabajo.</li>
-        <li><strong>Supervisión y Modo Seguro:</strong> Bloquea la apertura de otras aplicaciones o navegadores con alarma de 12s.</li>
-        <li><strong>Telemetría de Pulsaciones:</strong> Se auditan teclas pulsadas, tiempo de edición activo y pruebas realizadas.</li>
-        <li><strong>Certificado Criptográfico .codego:</strong> Genera un contenedor sellado con firma digital HMAC-SHA256 para el docente.</li>
+        <li><strong>Trabajo sin interrupciones:</strong> Puedes consultar materiales o cambiar de ventana sin alertas.</li>
+        <li><strong>Autoría verificable:</strong> Copiar, cortar y pegar quedan desactivados; se registran tiempo de edición y pruebas.</li>
+        <li><strong>Sello criptográfico .codego:</strong> Genera un contenedor firmado con Ed25519 para la revisión docente.</li>
       `;
     }
     if (DOM.btnFinishExam) {
@@ -1328,14 +1334,25 @@ function setupEventListeners() {
 
   // Global clipboard protections after submission
   document.addEventListener('copy', (e) => {
-    if (state.isExamSubmitted) {
+    const taskClipboardLocked = state.appMode === 'task' && (state.workspaceSessionActive || state.isTaskSubmitted);
+    if (state.isExamSubmitted || taskClipboardLocked) {
       e.preventDefault();
-      appendTerminalOutput('🔒 Código protegido contra copia tras la entrega.', 'system');
+      if (state.appMode === 'task' && !state.isTaskSubmitted) {
+        state.taskTelemetry.externalPasteAttempts++;
+        showPasteBlockedToast('La copia está desactivada en Tarea certificada.');
+      } else {
+        appendTerminalOutput('🔒 Código protegido contra copia tras la entrega.', 'system');
+      }
     }
   });
   document.addEventListener('cut', (e) => {
-    if (state.isExamSubmitted) {
+    const taskClipboardLocked = state.appMode === 'task' && (state.workspaceSessionActive || state.isTaskSubmitted);
+    if (state.isExamSubmitted || taskClipboardLocked) {
       e.preventDefault();
+      if (state.appMode === 'task' && !state.isTaskSubmitted) {
+        state.taskTelemetry.externalPasteAttempts++;
+        showPasteBlockedToast('Cortar está desactivado en Tarea certificada.');
+      }
     }
   });
   document.addEventListener('paste', (e) => {
@@ -1343,7 +1360,7 @@ function setupEventListeners() {
       e.preventDefault();
       return;
     }
-    if (state.appMode === 'task' && !e.target.closest('#teacher-pin-input, #custom-pkg-input')) {
+    if (state.appMode === 'task' && (state.workspaceSessionActive || state.isTaskSubmitted) && !e.target.closest('#teacher-pin-input, #custom-pkg-input')) {
       e.preventDefault();
       state.taskTelemetry.externalPasteAttempts++;
       showPasteBlockedToast();
@@ -1569,6 +1586,15 @@ function setupEventListeners() {
 
   // Editor Input & Cursor movements
   DOM.codeTextarea.addEventListener('input', handleEditorInput);
+  DOM.codeTextarea.addEventListener('beforeinput', (e) => {
+    if (state.appMode === 'task' && ['insertFromPaste', 'insertFromDrop'].includes(e.inputType)) e.preventDefault();
+  });
+  DOM.codeTextarea.addEventListener('drop', (e) => {
+    if (state.appMode !== 'task') return;
+    e.preventDefault();
+    state.taskTelemetry.externalPasteAttempts++;
+    showPasteBlockedToast('Arrastrar texto externo al editor está desactivado en Tarea certificada.');
+  });
   DOM.codeTextarea.addEventListener('keydown', handleEditorKeydown);
   DOM.codeTextarea.addEventListener('keyup', updateCursorStats);
   DOM.codeTextarea.addEventListener('click', updateCursorStats);
@@ -1576,7 +1602,6 @@ function setupEventListeners() {
   DOM.codeTextarea.addEventListener('copy', (e) => {
     if (state.isExamSubmitted) {
       e.preventDefault();
-      appendTerminalOutput('🔒 Examen Entregado: Código protegido contra copia.', 'system');
     }
   });
   DOM.codeTextarea.addEventListener('cut', (e) => {
@@ -1587,12 +1612,6 @@ function setupEventListeners() {
   DOM.codeTextarea.addEventListener('paste', (e) => {
     if (state.isExamSubmitted) {
       e.preventDefault();
-      return;
-    }
-    if (state.appMode === 'task') {
-      e.preventDefault();
-      state.taskTelemetry.externalPasteAttempts++;
-      showPasteBlockedToast();
       return;
     }
   });
@@ -2273,6 +2292,7 @@ function isInternalModalOpen() {
 // 9. ANTI-CHEAT & SECURITY VIOLATION ENGINE
 // ==============================================================
 function handleSecurityViolation(incidentData = {}) {
+  if (state.appMode === 'task') return;
   // Trigger during any active workspace session (Exam or Activity) before final submission
   if (!state.workspaceSessionActive || state.isExamSubmitted) {
     return;
@@ -3171,7 +3191,7 @@ function handleEditorKeydown(e) {
   }
 }
 
-function showPasteBlockedToast() {
+function showPasteBlockedToast(message = 'Escribe el código en codeGO para conservar el registro de autoría.') {
   let toast = document.getElementById('paste-blocked-toast');
   if (!toast) {
     toast = document.createElement('div');
@@ -3197,7 +3217,8 @@ function showPasteBlockedToast() {
     `;
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<span aria-hidden="true">Aviso</span><div><strong>No se puede pegar durante una tarea certificada</strong><br><span>Escribe el código en codeGO para conservar el registro de autoría.</span></div>`;
+  toast.innerHTML = '<span aria-hidden="true">Autoría</span><div><strong>Portapapeles desactivado</strong><br><span></span></div>';
+  toast.querySelector('div span').textContent = message;
   toast.style.opacity = '1';
   toast.style.transform = 'translateY(0)';
   try { sounds.playCountdownTick(true); } catch (_) {}
@@ -3508,7 +3529,9 @@ async function handleTeacherUnlockConfirm() {
 }
 
 function lockExamEnvironment() {
-  state.isExamSubmitted = true;
+  const taskDelivery = state.appMode === 'task';
+  if (taskDelivery) state.isTaskSubmitted = true;
+  else state.isExamSubmitted = true;
   state.examSessionActive = false;
   DOM.codeTextarea.readOnly = true;
   DOM.codeTextarea.classList.add('code-locked');
@@ -3537,9 +3560,9 @@ function lockExamEnvironment() {
   // Crucial: Keep Run Code enabled so student/teacher can execute and demonstrate!
   DOM.btnRunCode.disabled = false;
 
-  appendTerminalOutput('\nExamen entregado. El código queda disponible en modo de lectura.', 'success');
-  appendTerminalOutput('>>> El código ha sido sellado contra modificaciones, copia y pegado.', 'system');
-  appendTerminalOutput('>>> Estado: Esperando revisión del profesor en su pupitre.', 'system');
+  appendTerminalOutput(`\n${taskDelivery ? 'Tarea certificada' : 'Examen'} entregad${taskDelivery ? 'a' : 'o'}. El código queda disponible en modo de lectura.`, 'success');
+  appendTerminalOutput('>>> El código ha sido sellado contra modificaciones y acciones de portapapeles.', 'system');
+  appendTerminalOutput('>>> Estado: listo para la revisión docente.', 'system');
   appendTerminalOutput('>>> La ejecución sigue habilitada con "▶ Ejecutar" (F5) para validación del docente.\n', 'system');
   appendTerminalOutput('>>> Opciones post-entrega habilitadas: Abrir Carpeta, Nuevo Proyecto o Salir.\n', 'system');
 }
@@ -3604,13 +3627,8 @@ function openSubmitTaskModal() {
 
   DOM.taskSubmitRuns.textContent = `${state.taskTelemetry.runsCount || 0} pruebas`;
 
-  if (state.incidentsCount === 0) {
-    DOM.taskSubmitIncidents.textContent = '0 (Sesión limpia ✓)';
-    DOM.taskSubmitIncidents.className = 'clean';
-  } else {
-    DOM.taskSubmitIncidents.textContent = `${state.incidentsCount} salida(s) de foco`;
-    DOM.taskSubmitIncidents.className = 'highlight-red';
-  }
+  DOM.taskSubmitIncidents.textContent = 'Ed25519 · listo para firmar';
+  DOM.taskSubmitIncidents.className = 'clean';
 
   DOM.modalTaskSubmit.classList.remove('hidden');
 }
@@ -3637,12 +3655,12 @@ async function handleTaskFinalSubmit() {
     if (state.examTimerInterval) clearInterval(state.examTimerInterval);
     DOM.receiptFilename.textContent = res.fileName;
     DOM.receiptPath.textContent = res.filePath;
-    DOM.receiptChecksum.textContent = res.sha256;
+    DOM.receiptChecksum.textContent = res.checksum;
     DOM.modalSubmissionSuccess.classList.remove('hidden');
 
     appendTerminalOutput(`\nTarea certificada guardada correctamente.`, 'success');
     appendTerminalOutput(`>>> Archivo generado: ${res.fileName}`, 'system');
-    appendTerminalOutput(`>>> Firma Digital HMAC-SHA256: ${res.manifest?.signature ? 'Válida' : 'Generada'}`, 'system');
+    appendTerminalOutput(`>>> Sello criptográfico Ed25519: ${res.officialSeal ? 'Generado' : 'Compatible'}`, 'system');
     appendTerminalOutput(`>>> Entrega este archivo .codego a tu profesor para certificar tu autoría.\n`, 'system');
   } catch (error) {
     DOM.codeTextarea.readOnly = state.isTaskSubmitted;
@@ -3661,6 +3679,7 @@ function openVerifySubmissionModal() {
     DOM.verifierStatusBadge.textContent = 'Esperando archivo';
   }
   if (DOM.verifierResultContainer) DOM.verifierResultContainer.classList.add('hidden');
+  if (DOM.verifierBatchSummary) DOM.verifierBatchSummary.classList.add('hidden');
   if (DOM.btnExtractSubmissionCode) DOM.btnExtractSubmissionCode.classList.add('hidden');
   if (DOM.btnRunSubmissionCode) DOM.btnRunSubmissionCode.classList.add('hidden');
   if (DOM.modalVerifySubmission) DOM.modalVerifySubmission.classList.remove('hidden');
@@ -3669,8 +3688,92 @@ function openVerifySubmissionModal() {
 async function handleSelectSubmissionFile() {
   if (!window.electronAPI?.openSubmissionFileDialog) return;
   const res = await window.electronAPI.openSubmissionFileDialog();
-  if (res && res.filePath) {
+  if (res?.filePaths?.length > 1) {
+    await verifyFilesByPath(res.filePaths);
+  } else if (res && res.filePath) {
     await verifyFileByPath(res.filePath);
+  }
+}
+
+async function verifyFilesByPath(filePaths) {
+  if (!window.electronAPI?.verifySubmissionBatch || !filePaths?.length) return;
+  if (DOM.verifierStatusBadge) {
+    DOM.verifierStatusBadge.className = 'badge-status-waiting';
+    DOM.verifierStatusBadge.textContent = `Comparando ${filePaths.length} entregas…`;
+  }
+  const result = await window.electronAPI.verifySubmissionBatch(filePaths);
+  if (!result?.success) {
+    if (DOM.verifierStatusBadge) {
+      DOM.verifierStatusBadge.className = 'badge-status-tampered';
+      DOM.verifierStatusBadge.textContent = 'No se completó la revisión';
+    }
+    return;
+  }
+  renderBatchVerification(result);
+  if (result.submissions[0]) {
+    state.currentVerifiedFile = result.submissions[0].filePath;
+    showVerifiedSubmission(result.submissions[0]);
+  }
+}
+
+function renderBatchVerification(result) {
+  DOM.verifierBatchSummary?.classList.remove('hidden');
+  if (DOM.batchVerifiedCount) DOM.batchVerifiedCount.textContent = result.verifiedCount;
+  if (DOM.batchFlaggedCount) DOM.batchFlaggedCount.textContent = result.flaggedCount;
+  if (DOM.batchErrorCount) DOM.batchErrorCount.textContent = result.errorCount;
+  if (DOM.verifierStatusBadge) {
+    DOM.verifierStatusBadge.className = result.flaggedCount || result.errorCount ? 'badge-status-review' : 'badge-status-valid';
+    DOM.verifierStatusBadge.textContent = result.flaggedCount || result.errorCount
+      ? `${result.verifiedCount} verificadas · requiere revisión`
+      : `✓ ${result.verifiedCount} entregas sin coincidencias`;
+  }
+
+  if (DOM.batchComparisonList) {
+    DOM.batchComparisonList.replaceChildren();
+    if (!result.comparisons.length) {
+      const clean = document.createElement('p');
+      clean.className = 'batch-clean-message';
+      clean.textContent = 'No se encontraron duplicados ni similitudes relevantes entre los códigos.';
+      DOM.batchComparisonList.appendChild(clean);
+    }
+    result.comparisons.forEach(comparison => {
+      const row = document.createElement('div');
+      row.className = `batch-comparison ${comparison.classification}`;
+      const label = comparison.classification === 'archivo_duplicado'
+        ? 'Mismo archivo entregado'
+        : comparison.classification === 'codigo_identico'
+          ? 'Código equivalente'
+          : comparison.classification === 'similitud_alta' ? 'Similitud alta' : 'Revisar similitud';
+      row.innerHTML = `<div><strong></strong><span></span></div><b></b>`;
+      row.querySelector('strong').textContent = `${comparison.leftStudent} · ${comparison.rightStudent}`;
+      row.querySelector('span').textContent = label;
+      row.querySelector('b').textContent = `${comparison.percentage}%`;
+      DOM.batchComparisonList.appendChild(row);
+    });
+  }
+
+  if (DOM.batchSubmissionList) {
+    DOM.batchSubmissionList.replaceChildren();
+    result.submissions.forEach(submission => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'batch-submission-row';
+      button.innerHTML = '<span><strong></strong><small></small></span><b></b>';
+      button.querySelector('strong').textContent = submission.student?.name || submission.fileName;
+      button.querySelector('small').textContent = `${submission.student?.id || 'Sin matrícula'} · ${submission.files} archivo(s)`;
+      button.querySelector('b').textContent = submission.officialSealValid ? 'Sello Ed25519' : 'Sello compatible';
+      button.addEventListener('click', () => {
+        state.currentVerifiedFile = submission.filePath;
+        showVerifiedSubmission(submission);
+      });
+      DOM.batchSubmissionList.appendChild(button);
+    });
+    result.errors.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'batch-submission-error';
+      row.textContent = `${item.fileName}: ${item.error}`;
+      DOM.batchSubmissionList.appendChild(row);
+    });
   }
 }
 
@@ -3701,6 +3804,10 @@ async function verifyFileByPath(filePath) {
   }
 
   state.currentVerifiedFile = filePath;
+  showVerifiedSubmission(res);
+}
+
+function showVerifiedSubmission(res) {
   state.verifiedSubmissionData = res;
   if (DOM.verifierResultContainer) DOM.verifierResultContainer.classList.remove('hidden');
   if (DOM.btnExtractSubmissionCode) DOM.btnExtractSubmissionCode.classList.remove('hidden');
@@ -3716,7 +3823,7 @@ async function verifyFileByPath(filePath) {
         DOM.verifHmacBadge.style.color = '#34d399';
         DOM.verifHmacBadge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
       }
-      if (DOM.verifHmacText) DOM.verifHmacText.textContent = 'Firma Criptográfica HMAC-SHA256 Verificada';
+      if (DOM.verifHmacText) DOM.verifHmacText.textContent = res.officialSealValid ? 'Sello de autoría Ed25519 verificado' : 'Sello compatible verificado';
     } else {
       DOM.verifierStatusBadge.className = 'badge-status-tampered';
       DOM.verifierStatusBadge.textContent = '⚠️ ADULTERADO O SIN FIRMA';
@@ -3733,13 +3840,13 @@ async function verifyFileByPath(filePath) {
   if (DOM.verifStudentName) DOM.verifStudentName.textContent = res.student?.name || 'Estudiante Desconocido';
   if (DOM.verifStudentId) DOM.verifStudentId.textContent = 'Matrícula: ' + (res.student?.id || '--');
   if (DOM.verifSubject) DOM.verifSubject.textContent = 'Materia: ' + (res.student?.subject || '--');
-  if (DOM.verifDate) DOM.verifDate.textContent = 'Fecha: ' + (res.timestamp ? new Date(res.timestamp).toLocaleString() : '--');
-  if (DOM.verifOs) DOM.verifOs.textContent = 'SO: ' + (res.platform || '--');
+  if (DOM.verifDate) DOM.verifDate.textContent = 'Fecha: ' + (res.date ? new Date(res.date).toLocaleString() : '--');
+  if (DOM.verifOs) DOM.verifOs.textContent = 'Sello: ' + (res.sealFingerprint || 'compatible');
 
   // Telemetry
   const tel = res.telemetry || {};
-  if (DOM.verifKeystrokes) DOM.verifKeystrokes.textContent = (tel.keystrokes || 0).toLocaleString();
-  if (DOM.verifCharacters) DOM.verifCharacters.textContent = (tel.charactersWritten || 0).toLocaleString();
+  if (DOM.verifKeystrokes) DOM.verifKeystrokes.textContent = (tel.keystrokesCount || tel.keystrokes || 0).toLocaleString();
+  if (DOM.verifCharacters) DOM.verifCharacters.textContent = (tel.charactersTyped || tel.charactersWritten || 0).toLocaleString();
   if (DOM.verifPastes) DOM.verifPastes.textContent = tel.externalPasteAttempts || 0;
   if (DOM.verifPastesSub) {
     if (tel.externalPasteAttempts === 0) {
@@ -3750,9 +3857,9 @@ async function verifyFileByPath(filePath) {
       DOM.verifPastesSub.style.color = '#f87171';
     }
   }
-  if (DOM.verifEditingTime) DOM.verifEditingTime.textContent = formatTime(Math.round(tel.activeEditingSeconds || 0));
+  if (DOM.verifEditingTime) DOM.verifEditingTime.textContent = formatTime(Math.round(tel.activeTypingSeconds || tel.activeEditingSeconds || 0));
   if (DOM.verifRuns) DOM.verifRuns.textContent = (tel.runsCount || 0) + ' veces';
-  if (DOM.verifIncidents) DOM.verifIncidents.textContent = (res.incidentsCount || 0) + ' faltas';
+  if (DOM.verifIncidents) DOM.verifIncidents.textContent = res.officialSealValid ? 'Verificado' : 'Compatible';
 
   // Files list
   if (DOM.verifFilesTabs) {
@@ -3817,10 +3924,9 @@ function setupVerifierDragAndDrop() {
   });
   DOM.verifierDropzone.addEventListener('drop', (e) => {
     const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      verifyFileByPath(file.path);
-    }
+    const paths = Array.from(files || []).map(file => file.path).filter(Boolean);
+    if (paths.length > 1) verifyFilesByPath(paths);
+    else if (paths.length === 1) verifyFileByPath(paths[0]);
   });
 }
 

@@ -3,7 +3,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { createSubmission, createCertifiedTaskSubmission, verifySubmission, extractSubmissionFiles } = require('../src/main/submission');
+const AdmZip = require('adm-zip');
+const {
+  createSubmission,
+  createCertifiedTaskSubmission,
+  verifySubmission,
+  analyzeSubmissionBatch,
+  extractSubmissionFiles,
+  ensureSigningIdentity
+} = require('../src/main/submission');
 const { runSelfTest } = require('../src/main/self-test');
 const { createWifiControl } = require('../src/main/wifi-control');
 const { ensurePythonEnvironment } = require('../src/main/python-environment');
@@ -187,7 +195,7 @@ test('Submission includes real hashes and detects ZIP tampering', t => {
   assert.throws(()=>verifySubmission(result.zipPath), /SHA-256/);
 });
 
-test('Certified Task creates signed container with subfolders and verifies HMAC integrity', t => {
+test('Certified Task creates an Ed25519-sealed container with subfolders and verifies integrity', t => {
   const root = temporary(t), workspace = path.join(root, 'student-project');
   fs.mkdirSync(path.join(workspace, 'subcarpeta'), { recursive: true });
   fs.writeFileSync(path.join(workspace, 'main.py'), 'import subcarpeta.helper\nprint("Hola Tarea")');
@@ -207,7 +215,8 @@ test('Certified Task creates signed container with subfolders and verifies HMAC 
     outputDirectory: path.join(root, 'out'),
     student: { name: 'Francisco López', id: '12345', subject: 'Robótica' },
     telemetry,
-    version: '1.0.0'
+    version: '1.0.0',
+    signingIdentity: ensureSigningIdentity(path.join(root, 'identity'))
   });
 
   assert.equal(result.success, true);
@@ -216,6 +225,8 @@ test('Certified Task creates signed container with subfolders and verifies HMAC 
   const verified = verifySubmission(result.filePath);
   assert.equal(verified.success, true);
   assert.equal(verified.authentic, true);
+  assert.equal(verified.officialSealValid, true);
+  assert.match(verified.sealFingerprint, /^[A-F0-9]{24}$/);
   assert.equal(verified.mode, 'task');
   assert.equal(verified.files, 2);
   assert.equal(verified.student.name, 'Francisco López');
@@ -235,6 +246,42 @@ test('Certified Task creates signed container with subfolders and verifies HMAC 
   fs.copyFileSync(result.filePath + '.sha256', tamperedFile + '.sha256');
   fs.appendFileSync(tamperedFile, 'injected_tampering');
   assert.throws(() => verifySubmission(tamperedFile), /SHA-256|corrupto|dañado/);
+
+  const forgedSealFile = path.join(root, 'forged-seal.codego');
+  const forgedZip = new AdmZip(result.filePath);
+  const certificate = JSON.parse(forgedZip.readAsText('CERTIFICADO_CODEGO.json'));
+  const signature = certificate.officialSeal.signature;
+  certificate.officialSeal.signature = (signature[0] === 'A' ? 'B' : 'A') + signature.slice(1);
+  forgedZip.updateFile('CERTIFICADO_CODEGO.json', Buffer.from(JSON.stringify(certificate, null, 2)));
+  forgedZip.writeZip(forgedSealFile);
+  assert.throws(() => verifySubmission(forgedSealFile), /Firma digital no válida/);
+});
+
+test('Teacher batch review detects duplicated and structurally similar Python submissions', t => {
+  const root = temporary(t);
+  const identity = ensureSigningIdentity(path.join(root, 'identity'));
+  const createTask = (folder, name, code) => {
+    const workspace = path.join(root, folder);
+    fs.mkdirSync(workspace);
+    fs.writeFileSync(path.join(workspace, 'main.py'), code);
+    return createCertifiedTaskSubmission({
+      workspace,
+      outputDirectory: path.join(root, 'out'),
+      student: { name, id: folder, subject: 'Fundamentos' },
+      telemetry: { keystrokes: 80, charactersWritten: code.length },
+      version: 'test',
+      signingIdentity: identity
+    });
+  };
+  const first = createTask('ana', 'Ana', 'total = 0\nfor numero in range(10):\n    total += numero\nprint(total)\n');
+  const second = createTask('luis', 'Luis', 'suma = 0\nfor valor in range(10):\n    suma += valor\nprint(suma)\n');
+  const third = createTask('maria', 'María', 'def saludar(nombre):\n    return f"Hola {nombre}"\nprint(saludar("Mundo"))\n');
+
+  const report = analyzeSubmissionBatch([first.filePath, second.filePath, third.filePath]);
+  assert.equal(report.verifiedCount, 3);
+  assert.equal(report.errorCount, 0);
+  assert.ok(report.comparisons.some(item => item.leftStudent === 'Ana' && item.rightStudent === 'Luis' && item.percentage >= 78));
+  assert.ok(report.flaggedCount >= 2);
 });
 test('Self-test runs real Python stdin, UTF-8 and workspace writes without leftovers', {timeout:15000}, async t => {
   const directory = temporary(t);
