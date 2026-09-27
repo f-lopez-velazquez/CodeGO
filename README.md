@@ -77,7 +77,7 @@ En Linux de CI se instalan las dependencias de Chromium con `npx playwright inst
 
 ## Compatibilidad y distribución
 
-La compatibilidad se comprueba por **sistema, arquitectura y versión**, no para cualquier sistema operativo imaginable. El flujo [verify.yml](.github/workflows/verify.yml) ejecuta seis trabajos nativos: Ubuntu 22.04/24.04 x64, Windows Server 2022/2025 x64, macOS 14 ARM64 y macOS 15 Intel. Los resultados reales, incluida una VM Windows 11 local, están en [VALIDACION_MULTIPLATAFORMA.md](docs/VALIDACION_MULTIPLATAFORMA.md). Estos trabajos verifican el núcleo de escritorio; no reemplazan pruebas físicas en el equipo del aula.
+La compatibilidad se comprueba por **sistema, arquitectura y versión**, no para cualquier sistema operativo imaginable. El flujo [verify.yml](.github/workflows/verify.yml) ejecuta seis combinaciones nativas: Ubuntu 22.04/24.04 x64, Windows Server 2022 x64 con Python 3.12 y 3.13, macOS 14 ARM64 y macOS 15 Intel. Otros tres trabajos reproducen el primer inicio sin internet. Los resultados reales, incluida una VM Windows 11 local, están en [VALIDACION_MULTIPLATAFORMA.md](docs/VALIDACION_MULTIPLATAFORMA.md). Estos trabajos verifican el núcleo de escritorio; no reemplazan pruebas físicas en el equipo del aula.
 
 La página de descarga está incluida en [website/](website/README.md).
 
