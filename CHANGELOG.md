@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.3.1 · Preparación compatible con particiones separadas
+
+- Corrige `CG-SETUP-106` en Linux cuando `/tmp` y el perfil del usuario están en sistemas de archivos distintos.
+- El runtime incluido usa una copia verificada hacia una ruta temporal del destino y una sustitución local segura cuando `rename` devuelve `EXDEV`.
+- Conserva permisos ejecutables, enlaces simbólicos y marcas de tiempo del Python privado.
+
 ## 1.3.0 · Aula autónoma, ayuda y recursos
 
 - Instaladores autosuficientes con Python 3.13, ruedas binarias y Visual C++ para Windows incluidos; la preparación inicial funciona sin internet.

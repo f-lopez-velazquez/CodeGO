@@ -16,6 +16,7 @@ const environmentSetup = require('./environment-setup');
 const { locateOfflineBundle, verifyOfflineBundle } = require('./offline-bundle');
 const { setupDiagnostic } = require('./setup-diagnostics');
 const { classifyWorkspaceFile } = require('./file-types');
+const { moveDirectory } = require('./fs-operations');
 const updater = require('./updater');
 const wifiControl = createWifiControl();
 
@@ -742,7 +743,7 @@ async function installBundledPython(verifiedBundle, onProgress) {
     if (!selected) throw new Error('El runtime Python incluido no superó la comprobación de 64 bits.');
     const target = path.join(app.getPath('userData'), 'python313');
     fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-    fs.renameSync(extracted, target);
+    moveDirectory(extracted, target);
     return environmentSetup.selectPython([path.join(target, process.platform === 'win32' ? 'python.exe' : 'bin/python3')]);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
@@ -770,7 +771,7 @@ async function installPortablePython(onProgress) {
     if (!selected) throw new Error('El runtime se descargó, pero no superó la validación de Python 3.13 de 64 bits.');
     const target = path.join(app.getPath('userData'), 'python313');
     fs.rmSync(target, { recursive: true, force: true, maxRetries: 3 });
-    fs.renameSync(extracted, target);
+    moveDirectory(extracted, target);
     return environmentSetup.selectPython([path.join(target, process.platform === 'win32' ? 'python.exe' : 'bin/python3')]);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true, maxRetries: 3 });

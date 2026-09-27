@@ -11,7 +11,7 @@ El flujo público [Verify CodeGO](https://github.com/f-lopez-velazquez/CodeGO/ac
 | macOS 14 | Apple Silicon / ARM64 | 3.12 |
 | macOS 15 | Intel / x64 | 3.13 |
 
-Cada trabajo ejecuta las pruebas unitarias/de integración, 32 combinaciones de navegador, Electron con Python real, auditoría de dependencias y 12 comprobaciones del paquete compilado. Otros tres trabajos reproducen una primera apertura limpia en Windows, Ubuntu y macOS. La construcción 1.3.0 genera además el runtime y almacén de 28 librerías en cada SO, los incorpora al instalador y vuelve a probar el paquete. Los artefactos conservan reportes JSON y capturas durante 30 días. La Release conserva checksums y procedencia.
+Cada trabajo ejecuta las pruebas unitarias/de integración, 32 combinaciones de navegador, Electron con Python real, auditoría de dependencias y 12 comprobaciones del paquete compilado. Otros tres trabajos reproducen una primera apertura limpia en Windows, Ubuntu y macOS. La construcción 1.3.1 genera además el runtime y almacén de 28 librerías en cada SO, los incorpora al instalador y vuelve a probar el paquete. Los artefactos conservan reportes JSON y capturas durante 30 días. La Release conserva checksums y procedencia.
 
 Se comprobó además el paquete 1.1.0 en una VM local Windows 11 x64. La preparación automática 1.2.0 se verifica en los runners nativos indicados. Esa imagen de pruebas no es una certificación de todas las ediciones de Windows. Los registros de la VM se conservan fuera del repositorio público para no exponer rutas del equipo local.
 
@@ -25,7 +25,7 @@ Los runners no reproducen las políticas de cada escuela, tarjetas Wi-Fi, firmwa
 
 Android, iOS, ChromeOS, Windows ARM y Linux ARM no tienen instaladores validados en esta versión.
 
-## Preparación autónoma 1.3.0
+## Preparación autónoma 1.3.1
 
 CodeGO usa un Python 3.13.15 privado incluido en cada instalador. Antes de extraerlo verifica el manifiesto y SHA-256 de todos los componentes; instala 28 librerías solo desde ruedas locales, ejecuta `pip check` y supera micropruebas de Pygame, Tk, imágenes, gráficas, cálculo, datos, Excel, SQLite, recursos binarios relativos, serial virtual, HTTP, cifrado y entrada UTF-8. La reparación en línea permanece como respaldo para paquetes de desarrollo opcionales.
 

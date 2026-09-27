@@ -2,7 +2,7 @@
 
 ## Descargas públicas
 
-La Release `v1.3.0` contiene instaladores autónomos para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados de desarrollador ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la apertura por sus políticas de seguridad. En equipos administrados consulta al responsable de TI; no desactives las protecciones del sistema.
+La Release `v1.3.1` contiene instaladores autónomos para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados de desarrollador ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la apertura por sus políticas de seguridad. En equipos administrados consulta al responsable de TI; no desactives las protecciones del sistema.
 
 La primera apertura bloquea el acceso mientras extrae Python 3.13.15 y 28 librerías desde el propio instalador. Primero verifica tamaño y SHA-256 de cada archivo, después instala únicamente desde el almacén local y ejecuta micropruebas; solo habilita la aplicación tras llegar al 100 %. El proceso no modifica el Python del usuario y no necesita internet. Si un paquete interno falta o fue alterado, CodeGO muestra un diagnóstico y conserva el bloqueo.
 
