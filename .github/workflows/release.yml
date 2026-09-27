@@ -135,7 +135,8 @@ jobs:
           - **Proyectos desde el inicio**: abre una carpeta existente o crea un proyecto vacío; no se impone un archivo inicial.
           - **Explorador organizado**: mueve archivos y carpetas mediante arrastre, incluso entre subcarpetas.
           - **Librerías simples**: instala por nombre desde la aplicación y observa el progreso sin salir del proyecto.
-          - **Tarea sin interrupciones**: portapapeles desactivado, registro de autoría y sello Ed25519 sin alarmas ni kiosk.
+          - **Tarea sin interrupciones**: portapapeles disponible, registro de sesión y sello de integridad Ed25519 sin alarmas ni kiosk.
+          - **Proyectos recientes**: abre directamente hasta tres carpetas usadas recientemente sin volver a mostrar el selector del sistema.
           - **Revisión de grupos**: compara sellos, duplicados y similitud estructural entre todas las entregas seleccionadas.
           - **Tres modos**: Examen, Tarea certificada y Actividad libre con controles independientes.
 
