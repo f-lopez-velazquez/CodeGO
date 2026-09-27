@@ -1,6 +1,6 @@
 {
   "name": "codego-examguard",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Entorno educativo de Python para aprender, practicar y evaluar",
   "homepage": "https://zolvek.com.mx/productos/codego",
   "author": {
@@ -66,7 +66,9 @@
       {
         "from": "build/offline",
         "to": "offline",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "artifactName": "CodeGO-${version}-${os}-${arch}.${ext}",

@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.5.1 · Inicio ordenado y reanudación directa
+
+- Reorganiza el inicio en una navegación vertical clara, amplía los campos de identificación y mueve las acciones secundarias a un menú de herramientas.
+- Mantiene todos los controles accesibles en pantalla completa con escalado del sistema y distribuciones lógicas desde 1280 × 600.
+- Restaura directamente la carpeta guardada al pulsar `Continuar`, sin volver a mostrar el selector del sistema.
+- Detecta carpetas movidas o eliminadas y permite elegir otra sin dejar el inicio bloqueado.
+- Mantiene la ventana principal maximizada cuando el sistema abandona la pantalla completa.
+
 ## 1.5.0 · Identidad oficial y revisión docente por grupo
 
 - Incorpora la identidad oficial de codeGO al inicio, la aplicación y los instaladores, con una composición más clara y adaptable.

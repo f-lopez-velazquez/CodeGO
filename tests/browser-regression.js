@@ -7,6 +7,63 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.clock.install();
   await page.goto(baseUrl);
   await page.evaluate(() => {
+    window.resumeCalls = [];
+    window.folderDialogCalls = 0;
+    window.electronAPI = {
+      restoreWorkspace: async workspacePath => {
+        window.resumeCalls.push(workspacePath);
+        return { success: true, workspacePath, workspaceName: 'Computacion3A' };
+      },
+      openFolderDialog: async () => {
+        window.folderDialogCalls += 1;
+        throw new Error('Continuar no debe abrir el selector de carpetas.');
+      },
+      startKiosk: async () => ({ success: true, mode: 'activity' }),
+      listWorkspace: async () => ({ success: true, tree: [] })
+    };
+    state.environmentReady = true;
+    localStorage.setItem('codego_last_session', JSON.stringify({
+      studentName: 'Ana Torres',
+      studentId: '2020',
+      examSubject: 'Programación en Python',
+      appMode: 'activity',
+      workspacePath: '/proyectos/Computacion3A',
+      lastSavedDate: '10:30'
+    }));
+    checkAndDisplayLastSession();
+  });
+  for (const size of [{ width: 1600, height: 900 }, { width: 1280, height: 600 }, { width: 850, height: 700 }]) {
+    await page.setViewportSize(size);
+    const lobbyGeometry = await page.evaluate(() => {
+      const rect = selector => {
+        const value = document.querySelector(selector).getBoundingClientRect();
+        return { left: value.left, right: value.right, top: value.top, bottom: value.bottom, width: value.width };
+      };
+      return {
+        card: rect('.lobby-card'),
+        form: rect('.lobby-form'),
+        modes: [...document.querySelectorAll('.mode-segment-btn')].map(element => {
+          const value = element.getBoundingClientRect();
+          return { left: value.left, right: value.right, top: value.top, bottom: value.bottom };
+        }),
+        start: rect('#btn-start-exam'),
+        viewport: { width: innerWidth, height: innerHeight }
+      };
+    });
+    assert(lobbyGeometry.card.left >= 0 && lobbyGeometry.card.right <= size.width + 1, `Lobby overflow: ${JSON.stringify({ size, lobbyGeometry })}`);
+    assert(lobbyGeometry.start.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.start.right <= lobbyGeometry.form.right + 1, `Primary action escaped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
+    if (size.width > 900) {
+      assert(lobbyGeometry.modes.every((mode, index, all) => index === 0 || mode.top >= all[index - 1].bottom - 1), `Desktop modes overlap: ${JSON.stringify({ size, lobbyGeometry })}`);
+      assert(lobbyGeometry.modes.every(mode => mode.right < lobbyGeometry.form.left), `Desktop mode rail overlaps the form: ${JSON.stringify({ size, lobbyGeometry })}`);
+    }
+  }
+  await page.locator('#btn-continue-last-session').click();
+  await page.waitForFunction(() => window.resumeCalls.length === 1);
+  const resumeResult = await page.evaluate(() => ({ calls: window.resumeCalls, dialogs: window.folderDialogCalls, workspacePath: state.workspacePath }));
+  assert(JSON.stringify(resumeResult.calls) === '["/proyectos/Computacion3A"]', `Saved workspace was not restored: ${JSON.stringify(resumeResult)}`);
+  assert(resumeResult.dialogs === 0 && resumeResult.workspacePath === '/proyectos/Computacion3A', `Resume opened a picker or lost the saved path: ${JSON.stringify(resumeResult)}`);
+  await page.evaluate(() => localStorage.removeItem('codego_last_session'));
+  await page.evaluate(() => {
     setSessionMode('activity');
     state.workspaceSelected = true;
     state.workspaceName = 'Proyecto de prueba';

@@ -578,6 +578,22 @@ function createMainWindow() {
     mainWindow.setFullScreen(true);
   }
 
+  // codeGO is designed as a focused, full-workspace application. If the
+  // operating system leaves fullscreen, keep the window maximized so native
+  // scaling never exposes an unsupported floating-window layout.
+  mainWindow.on('leave-full-screen', () => {
+    if (diagnosticMode || !mainWindow || mainWindow.isDestroyed()) return;
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMaximized()) mainWindow.maximize();
+    }, 0);
+  });
+  mainWindow.on('unmaximize', () => {
+    if (diagnosticMode || protectedWindowTemporarilyReleased || !mainWindow || mainWindow.isDestroyed()) return;
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.maximize();
+    }, 0);
+  });
+
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
   mainWindow.on('blur', () => {
@@ -1637,6 +1653,26 @@ except Exception:
       return { canceled: true };
     }
     currentWorkspace = res.filePaths[0];
+    workspaceExplicitlySelected = true;
+    workspaceSealed = false;
+    return { success: true, workspacePath: currentWorkspace, workspaceName: path.basename(currentWorkspace) };
+  });
+
+  handle('workspace:restore', async (event, savedWorkspacePath) => {
+    if (activeProcess) return { success: false, error: 'Detén Python antes de cambiar de proyecto.' };
+    if (isKioskActive) return { success: false, error: 'No se puede cambiar el proyecto durante un examen.' };
+    if (typeof savedWorkspacePath !== 'string' || !savedWorkspacePath.trim()) {
+      return { success: false, error: 'La sesión guardada no contiene una carpeta válida.' };
+    }
+    const restoredPath = path.resolve(savedWorkspacePath.trim());
+    try {
+      if (!fs.statSync(restoredPath).isDirectory()) {
+        return { success: false, missing: true, error: 'La carpeta guardada ya no está disponible.' };
+      }
+    } catch (_) {
+      return { success: false, missing: true, error: 'La carpeta guardada ya no existe o no se puede abrir.' };
+    }
+    currentWorkspace = restoredPath;
     workspaceExplicitlySelected = true;
     workspaceSealed = false;
     return { success: true, workspacePath: currentWorkspace, workspaceName: path.basename(currentWorkspace) };

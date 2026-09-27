@@ -54,4 +54,13 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
     ['fs:move',{sourcePath:'main.py',targetDirectory:'ejercicios'}]
   ]) assert.equal((await call(name,data)).success,false,name);
   assert.equal((await call('fs:read-file','main.py')).content,'print("safe")');
+  const restoredDirectory = path.join(dir, 'proyecto-restaurado');
+  fs.mkdirSync(restoredDirectory);
+  const restored = await call('workspace:restore', restoredDirectory);
+  assert.equal(restored.success, true);
+  assert.equal(restored.workspacePath, restoredDirectory);
+  assert.equal((await call('workspace:get-current')).workspacePath, restoredDirectory);
+  const unavailable = await call('workspace:restore', path.join(dir, 'proyecto-inexistente'));
+  assert.equal(unavailable.success, false);
+  assert.equal(unavailable.missing, true);
 });

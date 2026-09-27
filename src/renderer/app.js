@@ -1181,6 +1181,7 @@ function checkAndDisplayLastSession() {
     }
 
     if (DOM.lobbyContinueCard && session.workspacePath) {
+      setSessionMode(session.appMode || 'activity');
       const modeLabel = session.appMode === 'task'
         ? 'TAREA EN CURSO'
         : (session.appMode === 'activity' ? 'Actividad en curso' : 'Examen en curso');
@@ -1193,8 +1194,30 @@ function checkAndDisplayLastSession() {
       if (DOM.btnContinueLastSession) {
         DOM.btnContinueLastSession.onclick = async () => {
           setSessionMode(session.appMode || 'activity');
-          const selected = await chooseWorkspaceFolder();
-          if (selected) await handleStartExamClick();
+          if (!window.electronAPI?.restoreWorkspace) {
+            if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
+              DOM.lobbyValidationText.textContent = 'No se pudo restaurar el proyecto. Ábrelo desde Carpeta de trabajo.';
+              DOM.lobbyValidationBanner.classList.remove('hidden');
+            }
+            return;
+          }
+          DOM.btnContinueLastSession.disabled = true;
+          const previousLabel = DOM.btnContinueLastSession.textContent;
+          DOM.btnContinueLastSession.textContent = 'Abriendo…';
+          try {
+            const restored = await window.electronAPI.restoreWorkspace(session.workspacePath);
+            if (!setWorkspaceSelection(restored)) {
+              if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
+                DOM.lobbyValidationText.textContent = restored?.error || 'La carpeta guardada ya no está disponible. Elige otra carpeta.';
+                DOM.lobbyValidationBanner.classList.remove('hidden');
+              }
+              return;
+            }
+            await handleStartExamClick();
+          } finally {
+            DOM.btnContinueLastSession.disabled = false;
+            DOM.btnContinueLastSession.textContent = previousLabel;
+          }
         };
       }
     }
@@ -2155,7 +2178,7 @@ function enterIdeWorkspace() {
   } else if (state.appMode === 'task') {
     document.body.classList.remove('mode-activity-active', 'mode-exam-active');
     document.body.classList.add('mode-task-active');
-    state.examSessionActive = true; // Kiosk & watchdog active to prevent opening other programs
+    state.examSessionActive = true; // Enables the task timer and authorship telemetry; no kiosk or focus alarm.
     if (DOM.navModeIndicator) {
       DOM.navModeIndicator.className = 'nav-mode-indicator mode-task';
       DOM.navModeIndicator.title = 'Sesión de Tarea Certificada con Auditoría Forense y Bloqueo Anti-Copia';

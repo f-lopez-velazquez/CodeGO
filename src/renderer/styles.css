@@ -5287,3 +5287,232 @@ body.mode-task-active #modal-focus-warning { display: none !important; }
   .app-credits { padding-top: 8px; }
   .batch-overview { grid-template-columns: 1fr; }
 }
+
+/* ========================================================================== */
+/* codeGO 1.5.1 — focused lobby                                                */
+/* The home screen has one job: resume or choose a project and start.         */
+/* ========================================================================== */
+.lobby-card {
+  grid-template-columns: minmax(250px, 0.68fr) minmax(520px, 1.32fr);
+  column-gap: clamp(30px, 4vw, 58px);
+  width: min(1160px, calc(100vw - 40px));
+  padding: clamp(26px, 3vw, 44px);
+}
+
+.lobby-official-symbol {
+  width: min(176px, 62%);
+  margin-top: 18px;
+}
+
+.mode-segment-container {
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+}
+
+.mode-segment-btn {
+  width: 100%;
+  min-width: 0;
+}
+
+.lobby-form {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 12px;
+}
+
+.lobby-form > .form-row,
+.lobby-form > .form-row + .input-group {
+  grid-column: 1 / -1;
+}
+
+.lobby-form .form-row {
+  grid-template-columns: minmax(0, 1.25fr) minmax(150px, 0.75fr);
+  gap: 12px;
+}
+
+.continue-session-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  min-width: 0;
+  margin: 0;
+  padding: 13px 14px;
+  border-color: #31516a;
+  background: #0c1b29;
+  box-shadow: none;
+}
+
+.continue-card-content,
+.continue-meta-text,
+.continue-meta-text strong,
+.continue-file {
+  min-width: 0;
+}
+
+.continue-badge-row {
+  flex-wrap: wrap;
+}
+
+.continue-meta-text {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 16px;
+}
+
+.continue-meta-text strong,
+.continue-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-continue-session {
+  min-width: 112px;
+  min-height: 42px;
+  justify-content: center;
+  padding: 9px 16px;
+  background: #2e7699;
+  border-color: #4e98b9;
+  box-shadow: none;
+}
+
+.btn-continue-session:hover { background: #3986aa; box-shadow: none; }
+.btn-continue-session:disabled { opacity: 0.6; cursor: wait; transform: none; }
+
+.system-status-bar {
+  position: relative;
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 10px;
+}
+
+.lobby-tools-menu {
+  position: relative;
+  z-index: 8;
+  flex: 0 0 auto;
+}
+
+.lobby-tools-menu > summary {
+  min-width: 116px;
+  padding: 7px 11px;
+  color: #c9d8e4;
+  font-size: 0.72rem;
+  font-weight: 680;
+  text-align: center;
+  list-style: none;
+  border: 1px solid #314a60;
+  border-radius: 8px;
+  background: #132233;
+  cursor: pointer;
+}
+
+.lobby-tools-menu > summary::-webkit-details-marker { display: none; }
+.lobby-tools-menu > summary::after { content: '  ···'; color: #6f91aa; }
+.lobby-tools-menu > summary:hover,
+.lobby-tools-menu[open] > summary { border-color: #52738d; background: #172b3e; }
+.lobby-tools-menu > summary:focus-visible { outline: 2px solid #79b9df; outline-offset: 2px; }
+
+.lobby-tools-menu .status-tools {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: grid;
+  width: 230px;
+  gap: 3px;
+  padding: 7px;
+  border: 1px solid #355067;
+  border-radius: 11px;
+  background: #101d2b;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+}
+
+.lobby-tools-menu .btn-text-action {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  color: #c8d6e2;
+  font-size: 0.72rem;
+  text-align: left;
+  text-decoration: none;
+  border: 0;
+  border-radius: 7px;
+}
+
+.lobby-tools-menu .btn-text-action:hover,
+.lobby-tools-menu .btn-text-action:focus-visible {
+  color: #f1f7fb;
+  background: #1a3044;
+  outline: none;
+}
+
+.lobby-tools-menu .highlight-action-btn { color: #7fc8e7; }
+.lobby-tools-menu .self-test-output { padding: 7px 9px; font-size: 0.68rem; }
+.lobby-tools-menu .status-sep { display: none; }
+
+@media (max-width: 900px) {
+  .lobby-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    width: min(700px, calc(100vw - 20px));
+    padding: 22px;
+    gap: 14px;
+  }
+  .lobby-header { grid-column: 1; grid-row: 1; }
+  .lobby-official-symbol { width: 110px; margin: 5px 0 -4px; }
+  .mode-segment-container {
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .mode-segment-btn { min-height: 54px; }
+  .mode-segment-btn::after { display: none; }
+  .lobby-form { grid-column: 1; grid-row: 3; }
+  .app-credits { grid-column: 1; grid-row: 4; }
+}
+
+@media (max-height: 680px) and (min-width: 901px) {
+  #view-lobby { padding: 10px; }
+  .lobby-card { width: min(1160px, calc(100vw - 20px)); padding: 16px 24px; row-gap: 10px; }
+  .lobby-eyebrow, .lobby-value { display: none; }
+  .lobby-header {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 3px;
+    text-align: left;
+  }
+  .lobby-official-symbol { width: 112px; margin: 8px 0 0; }
+  .lobby-title { font-size: 2.25rem; }
+  .lobby-subtitle { max-width: 230px; margin-top: 8px; font-size: 0.85rem; }
+  .mode-segment-btn {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    min-height: 48px;
+    justify-content: initial;
+    padding-block: 7px;
+  }
+  .lobby-form { gap: 8px; }
+  .lobby-form .input-group label { margin-bottom: 2px; }
+  .lobby-form .input-group input { height: 36px; }
+  .continue-session-card { padding-block: 9px; }
+  .project-picker { padding: 8px 10px; }
+  .btn-project-choice { min-height: 48px; }
+  .diag-details-collapsible { padding-block: 3px; }
+  .btn-minimal-start { min-height: 40px; }
+  .app-credits { margin-top: 0; padding-top: 8px; }
+}
+
+@media (max-width: 620px) {
+  .lobby-form .form-row { grid-template-columns: minmax(0, 1fr); }
+  .continue-session-card { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .continue-meta-text { grid-template-columns: minmax(0, 1fr); }
+  .btn-continue-session { width: 100%; }
+  .mode-segment-btn .mode-icon { display: none; }
+  .system-status-bar { align-items: stretch; flex-direction: column; gap: 8px; }
+  .lobby-tools-menu > summary { width: 100%; }
+  .lobby-tools-menu .status-tools { right: auto; bottom: auto; left: 0; width: 100%; margin-top: 7px; }
+}

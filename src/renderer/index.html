@@ -102,7 +102,7 @@
             </div>
           </div>
           <button type="button" id="btn-continue-last-session" class="btn-continue-session">
-            <span>▶ Continuar Trabajo</span>
+            <span>Continuar</span>
           </button>
         </div>
 
@@ -143,18 +143,17 @@
         <!-- Status & Tools Bar -->
         <div class="system-status-bar">
           <span id="system-status-indicator" class="status-pill ok">● Sistema preparado</span>
-          <div class="status-tools">
-            <button type="button" id="btn-verify-task-lobby" class="btn-text-action highlight-action-btn">🔍 Verificar Tarea/Examen</button>
-            <span class="status-sep">·</span>
-            <button type="button" id="btn-open-pkg-manager-lobby" class="btn-text-action">Paquetes</button>
-            <span class="status-sep">·</span>
-            <button type="button" class="btn-text-action" data-self-test>Comprobar</button>
-            <span class="status-sep">·</span>
-            <button type="button" id="btn-check-updates-lobby" class="btn-text-action">Actualizaciones</button>
-            <span class="status-sep">·</span>
-            <button type="button" id="btn-help-lobby" class="btn-text-action">Ayuda</button>
-            <output role="status" aria-live="polite" class="self-test-output hidden"></output>
-          </div>
+          <details class="lobby-tools-menu">
+            <summary>Herramientas</summary>
+            <div class="status-tools">
+              <button type="button" id="btn-verify-task-lobby" class="btn-text-action highlight-action-btn">Revisar entregas</button>
+              <button type="button" id="btn-open-pkg-manager-lobby" class="btn-text-action">Administrar paquetes</button>
+              <button type="button" class="btn-text-action" data-self-test>Comprobar el equipo</button>
+              <button type="button" id="btn-check-updates-lobby" class="btn-text-action">Buscar actualizaciones</button>
+              <button type="button" id="btn-help-lobby" class="btn-text-action">Abrir ayuda</button>
+              <output role="status" aria-live="polite" class="self-test-output hidden"></output>
+            </div>
+          </details>
         </div>
 
         <!-- Compact collapsible diagnostics drawer to preserve all DOM nodes for app.js -->

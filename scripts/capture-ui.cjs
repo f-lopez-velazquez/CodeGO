@@ -26,6 +26,21 @@ const server = http.createServer((request, response) => {
     fs.mkdirSync(output, { recursive: true });
     await page.screenshot({ path: path.join(output, 'lobby-current.png') });
     await page.evaluate(() => {
+      localStorage.setItem('codego_last_session', JSON.stringify({
+        studentName: 'Francisco López',
+        studentId: '2020',
+        examSubject: 'Programación en Python',
+        appMode: 'activity',
+        workspacePath: '/proyectos/Computacion3A',
+        lastSavedDate: '17:58 · 27/09/2026'
+      }));
+      checkAndDisplayLastSession();
+    });
+    await page.screenshot({ path: path.join(output, 'lobby-resume-current.png') });
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.screenshot({ path: path.join(output, 'lobby-resume-compact.png') });
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.evaluate(() => {
       document.body.classList.add('environment-setup-required');
       DOM.modalAutoInstaller.classList.remove('hidden');
       DOM.installerProgressBar.style.width = '67%';

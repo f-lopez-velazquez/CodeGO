@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   moveItem: (data) => ipcRenderer.invoke('fs:move', data),
   importAssets: () => ipcRenderer.invoke('fs:import-assets'),
   openFolderDialog: () => ipcRenderer.invoke('workspace:open-folder-dialog'),
+  restoreWorkspace: (workspacePath) => ipcRenderer.invoke('workspace:restore', workspacePath),
   createProjectDialog: (projectName) => ipcRenderer.invoke('workspace:create-project-dialog', projectName),
   getCurrentWorkspace: () => ipcRenderer.invoke('workspace:get-current'),
   confirmClose: saved => ipcRenderer.invoke('app:confirm-close', saved),
