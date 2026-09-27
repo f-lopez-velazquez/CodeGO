@@ -131,6 +131,8 @@
             <button type="button" class="btn-text-action" data-self-test>Comprobar</button>
             <span class="status-sep">·</span>
             <button type="button" id="btn-check-updates-lobby" class="btn-text-action">Actualizaciones</button>
+            <span class="status-sep">·</span>
+            <button type="button" id="btn-help-lobby" class="btn-text-action">Ayuda</button>
             <output role="status" aria-live="polite" class="self-test-output hidden"></output>
           </div>
         </div>
@@ -448,6 +450,7 @@
             <button id="btn-new-folder" class="btn-icon-sm" title="Nueva Carpeta">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
             </button>
+            <button id="btn-import-assets" class="btn-icon-sm" title="Agregar imágenes, sonidos o datos al proyecto" aria-label="Agregar recursos al proyecto">+◇</button>
             <button id="btn-refresh-files" class="btn-icon-sm" title="Actualizar">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             </button>
@@ -571,7 +574,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <span class="dialog-icon">⚡</span>
         <div>
           <h3 id="environment-setup-title">Preparando CodeGO en este equipo</h3>
-          <p class="dialog-desc">La primera apertura prepara un Python compatible, instala las librerías y ejecuta micropruebas. CodeGO se habilita únicamente al llegar al 100 %.</p>
+          <p class="dialog-desc">La primera apertura extrae el Python y las librerías incluidas, y después ejecuta micropruebas. No necesita internet. CodeGO se habilita únicamente al llegar al 100 %.</p>
         </div>
       </div>
 
@@ -600,8 +603,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <div class="installer-step-item" id="step-item-py">
           <div class="step-num">2</div>
           <div class="step-details">
-            <div class="step-title">Python compatible y entorno aislado</div>
-            <div class="step-sub">Python 3.12 o 3.13 de 64 bits; Python 3.14 no se usa para Pygame</div>
+            <div class="step-title">Python 3.13 privado y entorno aislado</div>
+            <div class="step-sub">Runtime de 64 bits incluido; no modifica el Python del equipo</div>
           </div>
           <div class="step-badge pending" id="step-badge-py">Pendiente</div>
         </div>
@@ -610,7 +613,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
           <div class="step-num">3</div>
           <div class="step-details">
             <div class="step-title">Librerías educativas</div>
-            <div class="step-sub">Paquetes precompilados y versionados, uno por uno, sin compilaciones incompletas</div>
+            <div class="step-sub">Ruedas precompiladas y versionadas incluidas para trabajar sin internet</div>
           </div>
           <div class="step-badge pending" id="step-badge-venv">Pendiente</div>
         </div>
@@ -624,6 +627,19 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
           <div class="step-badge pending" id="step-badge-libs">Pendiente</div>
         </div>
       </div>
+
+      <section id="setup-error-panel" class="setup-error-panel hidden" role="alert" aria-live="assertive">
+        <div class="setup-error-heading">
+          <strong id="setup-error-title">No se pudo terminar la preparación</strong>
+          <code id="setup-error-code">CG-SETUP-900</code>
+        </div>
+        <p id="setup-error-summary"></p>
+        <ol id="setup-error-actions"></ol>
+        <details>
+          <summary>Ver diagnóstico técnico</summary>
+          <pre id="setup-error-detail"></pre>
+        </details>
+      </section>
 
       <!-- Terminal de logs en vivo -->
       <div class="pip-terminal-wrapper">
@@ -654,7 +670,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         <span class="dialog-icon">📦</span>
         <div>
           <h3>Gestor de Librerías de Python & Entorno</h3>
-          <p class="dialog-desc">Verifica y repara el entorno aislado con 25 librerías versionadas, micropruebas reales y paquetes precompilados compatibles.</p>
+          <p class="dialog-desc">Verifica y repara el entorno aislado con 28 librerías versionadas, micropruebas reales y paquetes precompilados compatibles.</p>
         </div>
       </div>
 
@@ -673,13 +689,13 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <!-- Botón de Instalación Masiva -->
       <div class="batch-install-bar">
         <button type="button" id="btn-install-all-recommended" class="btn-primary-glow">
-          ⚡ Verificar y reparar las 25 librerías
+          ⚡ Verificar y reparar las 28 librerías
         </button>
       </div>
 
       <!-- Pestañas de Filtro de Categorías -->
       <div class="pkg-category-filter">
-        <button type="button" class="filter-chip active" data-cat="all">Todas (14)</button>
+        <button type="button" class="filter-chip active" data-cat="all">Todas</button>
         <button type="button" class="filter-chip" data-cat="games">🎮 Juegos & Gráficos</button>
         <button type="button" class="filter-chip" data-cat="math">🔢 Ciencia & Matemáticas</button>
         <button type="button" class="filter-chip" data-cat="data">🐼 Datos & Excel</button>
@@ -738,23 +754,34 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
   <!-- 5. MODALES DE SEGURIDAD, ALARMA Y AYUDA -->
   <!-- ============================================================== -->
 
-  <!-- MODAL DE ATAJOS DE TECLADO / AYUDA -->
+  <!-- CENTRO DE AYUDA -->
   <div id="modal-shortcuts" class="modal-overlay hidden">
-    <div class="dialog-card shortcuts-card">
+    <div class="dialog-card shortcuts-card help-center-card">
       <div class="dialog-header">
-        <span class="dialog-icon">⌨️</span>
-        <h3>Ayuda y comprobación del equipo</h3>
+        <span class="dialog-icon">?</span>
+        <div><h3>Centro de ayuda de CodeGO</h3><p class="dialog-desc">Guías breves para preparar el equipo, programar, usar archivos y conectar hardware.</p></div>
       </div>
+      <label class="help-search-label" for="help-search">Buscar una duda</label>
+      <input id="help-search" class="help-search" type="search" placeholder="Ejemplo: Arduino, imagen, input, error…" autocomplete="off">
       <div class="compatibility-check"><button type="button" class="btn-tool-option" data-self-test>Comprobar este equipo</button><output role="status" aria-live="polite">Verifica guardado, Python y respuestas a input() sin modificar Wi-Fi ni audio.</output></div>
-      <div class="shortcuts-grid">
-        <div class="shortcut-row"><kbd>F5</kbd><span>Ejecutar código actual</span></div>
-        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>S</kbd><span>Guardar archivo</span></div>
-        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>+</kbd><span>Acercar zoom (Zoom In)</span></div>
-        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>−</kbd><span>Alejar zoom (Zoom Out)</span></div>
-        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>0</kbd><span>Restablecer zoom a 100%</span></div>
-        <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>B</kbd><span>Mostrar / Ocultar Explorador</span></div>
-        <div class="shortcut-row"><kbd>Tab</kbd><span>Indentar 4 espacios</span></div>
+      <div id="help-topics" class="help-topics">
+        <details class="help-topic" open><summary>Primer inicio y trabajo sin internet</summary><div><p>Espera a que la barra llegue al 100 %. CodeGO verifica el Python 3.13 privado, instala desde las ruedas incluidas y ejecuta micropruebas. Puedes desconectar internet durante este proceso.</p><p>Si aparece un código <code>CG-SETUP</code>, sigue los pasos de la misma ventana. El editor permanece bloqueado para que nunca trabajes con una instalación parcial.</p></div></details>
+        <details class="help-topic"><summary>Ejecutar y responder a input()</summary><div><p>Pulsa <kbd>F5</kbd> o Ejecutar. Cuando Python muestre una pregunta, el cursor aparece en esa misma línea de la terminal. Escribe la respuesta y pulsa Enter.</p><p>Detener cancela el programa actual. Limpiar borra el historial visual, sin cerrar el proceso que esté esperando entrada.</p></div></details>
+        <details class="help-topic"><summary>Imágenes, sonidos, CSV y otros archivos</summary><div><p>Guarda los recursos dentro de la carpeta del proyecto. CodeGO ejecuta cada archivo con su propia carpeta como directorio de trabajo, por lo que <code>pygame.image.load("recursos/nave.png")</code> funciona igual en Windows, macOS y Linux.</p><pre>from pathlib import Path
+BASE = Path(__file__).resolve().parent
+imagen = BASE / "recursos" / "nave.png"
+sonido = BASE / "recursos" / "salto.wav"</pre><p>Los archivos binarios aparecen en el explorador como recursos y no se abren como texto para evitar dañarlos.</p></div></details>
+        <details class="help-topic"><summary>Arduino, ESP32 y puertos seriales</summary><div><p>Conecta la placa por USB, cierra el Monitor Serial de otras aplicaciones y vuelve a comprobar los puertos. En Windows, algunas placas clon requieren el controlador CH340 o CP210x del fabricante; Arduino Uno original suele usar el controlador del sistema.</p><pre>from serial.tools import list_ports
+import serial
+puertos = list(list_ports.comports())
+print([p.device for p in puertos])
+with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
+    print(placa.readline().decode(errors="replace"))</pre><p>Para PyFirmata2, carga primero StandardFirmata desde Arduino IDE. Para ESP32 puedes instalar <code>esptool</code> desde el gestor cuando necesites flashear firmware.</p></div></details>
+        <details class="help-topic"><summary>Errores frecuentes y cómo leerlos</summary><div><p><code>SyntaxError</code> marca una instrucción mal escrita; por ejemplo, <code>pimport pygame</code> debe ser <code>import pygame</code>. <code>ModuleNotFoundError</code> indica el nombre de una librería ausente. <code>FileNotFoundError</code> suele indicar una ruta incorrecta: usa <code>Path(__file__)</code> como en la guía de archivos.</p><p>Lee la última línea roja y después revisa el archivo y número de línea mostrados arriba.</p></div></details>
+        <details class="help-topic"><summary>Modos para clase, tarea y examen</summary><div><p>Actividad permite explorar libremente proyectos. Tarea certifica autoría y bloquea pegado externo. Examen activa el entorno supervisado y la entrega sellada. El profesor debe elegir el modo adecuado antes de iniciar.</p></div></details>
+        <details class="help-topic"><summary>Atajos del editor</summary><div class="shortcuts-grid"><div class="shortcut-row"><kbd>F5</kbd><span>Ejecutar</span></div><div class="shortcut-row"><kbd>Ctrl/Cmd + S</kbd><span>Guardar</span></div><div class="shortcut-row"><kbd>Ctrl/Cmd + B</kbd><span>Explorador</span></div><div class="shortcut-row"><kbd>Ctrl/Cmd + 0</kbd><span>Zoom 100 %</span></div><div class="shortcut-row"><kbd>Tab</kbd><span>Indentar</span></div></div></details>
       </div>
+      <p id="help-empty" class="help-empty hidden">No encontramos ese tema. Prueba con una palabra más corta.</p>
       <div class="app-credits"><strong>by zolvek.com.mx</strong><span>Programado por Francisco López Velázquez.</span></div>
       <div class="dialog-buttons single">
         <button type="button" id="btn-close-shortcuts" class="btn-primary">Entendido</button>
@@ -1075,6 +1102,20 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
           <button type="button" id="btn-run-submission-code" class="btn-action run hidden">▶ Probar Código</button>
         </div>
         <button type="button" id="btn-close-verify-submission" class="btn-ghost">Cerrar Verificador</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-runtime-error" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="runtime-error-title">
+    <div class="dialog-card runtime-error-card">
+      <div class="runtime-error-kicker">Python encontró un problema</div>
+      <h3 id="runtime-error-title">Revisa la instrucción marcada</h3>
+      <p id="runtime-error-explanation"></p>
+      <div class="runtime-error-solution"><strong>Cómo resolverlo</strong><ol id="runtime-error-actions"></ol></div>
+      <details><summary>Ver mensaje original de Python</summary><pre id="runtime-error-raw"></pre></details>
+      <div class="dialog-buttons">
+        <button type="button" id="btn-runtime-error-help" class="btn-ghost">Abrir ayuda</button>
+        <button type="button" id="btn-close-runtime-error" class="btn-primary">Volver al código</button>
       </div>
     </div>
   </div>

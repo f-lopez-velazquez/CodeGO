@@ -2,11 +2,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { screen } = require('electron');
 const { runSelfTest } = require('./self-test');
+const { locateOfflineBundle, verifyOfflineBundle } = require('./offline-bundle');
 
 async function runPackagedCheck({ window, command, directory, version, reportPath, packaged }) {
   const report = await runSelfTest({ command, directory, version });
   console.info('CodeGO: Python comprobado.');
   report.packaged = packaged === true;
+  try {
+    const bundle = locateOfflineBundle(process.resourcesPath);
+    const verified = verifyOfflineBundle(bundle);
+    report.checks.push({ name: 'Python y librerías autónomas dentro del paquete', success: true, files: bundle.manifest.files.length, packages: bundle.manifest.packages.length, runtime: verified.manifest.runtime.version });
+  } catch (error) {
+    report.checks.push({ name: 'Python y librerías autónomas dentro del paquete', success: false, detail: error.message });
+  }
   // Hidden windows may expose current DOM geometry but retain an old compositor frame.
   window.showInactive();
   const bounded = async (promise, label, timeout = 15000) => {

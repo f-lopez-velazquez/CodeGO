@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createFolder: (relativePath) => ipcRenderer.invoke('fs:create-folder', relativePath),
   deleteItem: (relativePath) => ipcRenderer.invoke('fs:delete', relativePath),
   renameItem: (data) => ipcRenderer.invoke('fs:rename', data),
+  importAssets: () => ipcRenderer.invoke('fs:import-assets'),
   openFolderDialog: () => ipcRenderer.invoke('workspace:open-folder-dialog'),
   createProjectDialog: (projectName) => ipcRenderer.invoke('workspace:create-project-dialog', projectName),
   confirmClose: saved => ipcRenderer.invoke('app:confirm-close', saved),

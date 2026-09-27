@@ -13,6 +13,9 @@ const { runSelfTest } = require('./self-test');
 const { createWifiControl } = require('./wifi-control');
 const { ensurePythonEnvironment } = require('./python-environment');
 const environmentSetup = require('./environment-setup');
+const { locateOfflineBundle, verifyOfflineBundle } = require('./offline-bundle');
+const { setupDiagnostic } = require('./setup-diagnostics');
+const { classifyWorkspaceFile } = require('./file-types');
 const updater = require('./updater');
 const wifiControl = createWifiControl();
 
@@ -697,6 +700,10 @@ function sendSetupEvent(channel, payload) {
 
 const PORTABLE_PYTHON_RELEASE = '20260924';
 const PORTABLE_PYTHON = {
+  'win32-x64': {
+    file: 'cpython-3.13.15+20260924-x86_64-pc-windows-msvc-install_only_stripped.tar.gz',
+    sha256: 'e42fa944748a50e9ff481cbb817ef8a6e3da6fbcf0cf6f29b554e1acb8c7384d'
+  },
   'darwin-arm64': {
     file: 'cpython-3.13.15+20260924-aarch64-apple-darwin-install_only_stripped.tar.gz',
     sha256: '064afb7c2fc0bbf511d886288adf98696af5105e36c138cdf2c199c0146fcf68'
@@ -714,6 +721,33 @@ const PORTABLE_PYTHON = {
     sha256: 'd0b640eed27fbdd6f5f2bd33444aee53df2c8863f8b2a96f4094717411e3de9c'
   }
 };
+
+function ensurePreparationDiskSpace(directory, minimumBytes = 5 * 1024 ** 3) {
+  if (typeof fs.statfsSync !== 'function') return;
+  const stats = fs.statfsSync(directory);
+  const available = Number(stats.bavail) * Number(stats.bsize);
+  if (available < minimumBytes) throw new Error(`Espacio insuficiente: hay ${(available / 1024 ** 3).toFixed(1)} GB disponibles y se requieren al menos 5 GB.`);
+}
+
+async function installBundledPython(verifiedBundle, onProgress) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-python-offline-'));
+  try {
+    const extractDirectory = path.join(directory, 'extract');
+    fs.mkdirSync(extractDirectory);
+    onProgress(14, 'Extrayendo Python 3.13 incluido…', '>>> Python 3.13.15 se instalará desde el paquete local verificado. No se necesita internet.\n');
+    await executeFile(process.platform === 'win32' ? 'tar.exe' : 'tar', ['-xzf', verifiedBundle.runtimeArchive, '-C', extractDirectory], { timeout: 240000, windowsHide: true });
+    const extracted = path.join(extractDirectory, 'python');
+    const executable = path.join(extracted, process.platform === 'win32' ? 'python.exe' : 'bin/python3');
+    const selected = await environmentSetup.selectPython([executable]);
+    if (!selected) throw new Error('El runtime Python incluido no superó la comprobación de 64 bits.');
+    const target = path.join(app.getPath('userData'), 'python313');
+    fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    fs.renameSync(extracted, target);
+    return environmentSetup.selectPython([path.join(target, process.platform === 'win32' ? 'python.exe' : 'bin/python3')]);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+}
 
 async function installPortablePython(onProgress) {
   const artifact = PORTABLE_PYTHON[`${process.platform}-${process.arch}`];
@@ -743,8 +777,11 @@ async function installPortablePython(onProgress) {
   }
 }
 
-async function findCompatiblePython(onProgress) {
+async function findCompatiblePython(onProgress, verifiedBundle = null) {
   const managed = path.join(app.getPath('userData'), 'python313', process.platform === 'win32' ? 'python.exe' : 'bin/python3');
+  const managedPython = await environmentSetup.selectPython([managed]);
+  if (managedPython) return managedPython;
+  if (verifiedBundle) return installBundledPython(verifiedBundle, onProgress);
   const candidates = process.platform === 'win32'
     ? [managed, { command: 'py.exe', args: ['-3.13'] }, { command: 'py.exe', args: ['-3.12'] }, 'python3.13.exe', 'python3.12.exe', 'python.exe']
     : [managed, 'python3.13', 'python3.12', 'python3'];
@@ -790,6 +827,16 @@ async function prepareAppEnvironment() {
     sendSetupEvent('setup:progress', { step, totalSteps: 4, title: lastTitle, percent: value, log });
   };
   try {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    ensurePreparationDiskSpace(app.getPath('userData'));
+    const locatedBundle = locateOfflineBundle(process.resourcesPath);
+    let verifiedBundle = null;
+    if (locatedBundle) {
+      progress(2, 'Verificando componentes autónomos…', '>>> Comprobando SHA-256 de Python y todas las librerías incluidas.\n');
+      verifiedBundle = verifyOfflineBundle(locatedBundle, {
+        onFile: ({ index, total, relative }) => progress(2 + Math.round(index / total * 8), `Verificando paquete local ${index}/${total}…`, `Verificado: ${relative}\n`)
+      });
+    }
     if (process.platform === 'win32') {
       const vc = checkWindowsVCRedist();
       if (!vc.installed) {
@@ -797,7 +844,12 @@ async function prepareAppEnvironment() {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-vc-'));
         try {
           const installer = path.join(directory, 'vc_redist.x64.exe');
-          await downloadFileWithRedirects('https://aka.ms/vs/17/release/vc_redist.x64.exe', installer, percent => progress(2 + Math.round(percent * 0.04), `Descargando Visual C++ (${percent} %)…`));
+          if (verifiedBundle?.vcRedist) {
+            fs.copyFileSync(verifiedBundle.vcRedist, installer);
+            progress(11, 'Instalando Microsoft Visual C++ incluido…');
+          } else {
+            await downloadFileWithRedirects('https://aka.ms/vs/17/release/vc_redist.x64.exe', installer, percent => progress(2 + Math.round(percent * 0.04), `Descargando Visual C++ (${percent} %)…`));
+          }
           const signatureScript = '$s=Get-AuthenticodeSignature -LiteralPath $env:CODEGO_INSTALLER; if ($s.Status -ne "Valid" -or $s.SignerCertificate.Subject -notmatch "Microsoft Corporation") { throw "Firma Microsoft no válida" }';
           await executeFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', signatureScript], { timeout: 60000, windowsHide: true, env: { ...process.env, CODEGO_INSTALLER: installer } });
           try { await executeFile(installer, ['/install', '/quiet', '/norestart'], { timeout: 600000, windowsHide: true }); }
@@ -810,15 +862,18 @@ async function prepareAppEnvironment() {
     }
     const result = await environmentSetup.prepareEnvironment({
       directory: preparedEnvironmentDirectory,
-      selectInterpreter: () => findCompatiblePython(progress),
-      onProgress: progress
+      selectInterpreter: () => findCompatiblePython(progress, verifiedBundle),
+      onProgress: progress,
+      wheelhouse: verifiedBundle?.wheelhouse || null
     });
     environmentReady = true;
     sendSetupEvent('setup:finished', { success: true, report: result });
     return result;
   } catch (error) {
-    sendSetupEvent('setup:finished', { success: false, error: error.message });
-    return { success: false, error: error.message };
+    const offlineAvailable = Boolean(locateOfflineBundle(process.resourcesPath));
+    const diagnostic = setupDiagnostic(error, { offlineAvailable });
+    sendSetupEvent('setup:finished', { success: false, error: diagnostic.detail, diagnostic });
+    return { success: false, error: diagnostic.detail, diagnostic };
   }
 }
 
@@ -1148,7 +1203,7 @@ function setupIpcHandlers() {
     ];
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('pip:log', `\n======================================================\n`);
-      mainWindow.webContents.send('pip:log', `>>> Instalando paquete completo de 12 librerías para exámenes y hardware...\n`);
+      mainWindow.webContents.send('pip:log', `>>> Verificando el paquete completo de ${environmentSetup.PACKAGES.length} librerías para programación y hardware...\n`);
       mainWindow.webContents.send('pip:log', `    (${recommended.join(', ')})\n`);
       mainWindow.webContents.send('pip:log', `======================================================\n`);
     }
@@ -1182,7 +1237,7 @@ function setupIpcHandlers() {
           activePipProcess = null;
           const success = code === 0;
           if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('pip:log', success ? `\n>>> ¡Todas las 12 librerías se instalaron exitosamente! ✓\n` : `\n>>> Finalizado con código de salida: ${code}\n`);
+            mainWindow.webContents.send('pip:log', success ? `\n>>> ¡Las ${environmentSetup.PACKAGES.length} librerías se verificaron correctamente! ✓\n` : `\n>>> Finalizado con código de salida: ${code}\n`);
             mainWindow.webContents.send('pip:finished', {
               packageName: 'all',
               success,
@@ -1213,8 +1268,9 @@ function setupIpcHandlers() {
     try {
       const pythonInfo = resolvePythonBinary();
       if (pythonInfo.installed) {
-        const targetVenv = resolveVenvDirectory();
-        const execPy = ensurePythonEnvironment({ command: pythonInfo.command, directory: targetVenv });
+        const execPy = pythonInfo.verified
+          ? pythonInfo.command
+          : ensurePythonEnvironment({ command: pythonInfo.command, directory: resolveVenvDirectory() });
         const pyCode = `import json, sys
 try:
     import serial.tools.list_ports
@@ -1245,7 +1301,7 @@ except Exception:
           const jsonStr = raw.substring(s + '___SERIAL_DATA_START___'.length, e).trim();
           const parsed = JSON.parse(jsonStr);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return { success: true, ports: parsed };
+            return { success: true, ports: parsed, source: 'pyserial', guidance: null };
           }
         }
       }
@@ -1299,7 +1355,15 @@ except Exception:
       }
     } catch (_) {}
 
-    return { success: true, ports };
+    let guidance = null;
+    if (!ports.length) {
+      guidance = process.platform === 'linux'
+        ? 'No se detectó una placa. Reconecta el USB; si aparece /dev/ttyACM* o /dev/ttyUSB* pero no abre, agrega el usuario al grupo dialout y vuelve a iniciar sesión.'
+        : process.platform === 'win32'
+          ? 'No se detectó un puerto COM. Reconecta la placa y revisa Administrador de dispositivos; placas CH340/CP210x pueden requerir el controlador del fabricante.'
+          : 'No se detectó una placa. Reconecta el USB, autoriza el accesorio si macOS lo solicita y cierra cualquier Monitor Serial abierto.';
+    }
+    return { success: true, ports, source: 'operating-system', guidance };
   });
 
   // Start Kiosk Lockdown or Activity Mode
@@ -1565,11 +1629,13 @@ except Exception:
             children: scanDir(itemFull, itemRelative)
           });
         } else {
+          const fileType = classifyWorkspaceFile(item.name);
           result.push({
             name: item.name,
             path: itemRelative,
             type: 'file',
-            size: fs.statSync(itemFull).size
+            size: fs.statSync(itemFull).size,
+            ...fileType
           });
         }
       }
@@ -1587,11 +1653,45 @@ except Exception:
   handle('fs:read-file', async (event, relativePath) => {
     try {
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
+      const fileType = classifyWorkspaceFile(safePath);
+      if (!fileType.editable) return { success: false, binary: true, kind: fileType.kind, error: 'Este recurso es binario. Python puede usarlo, pero el editor de texto no lo abrirá para evitar dañarlo.' };
+      if (fs.statSync(safePath).size > 5 * 1024 * 1024) return { success: false, error: 'El archivo supera 5 MB y no se abrirá en el editor de texto.' };
       const content = fs.readFileSync(safePath, 'utf-8');
       return { success: true, content, path: relativePath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };
     }
+  });
+
+  handle('fs:import-assets', async () => {
+    if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
+    const selected = await withNativeDialog(() => dialog.showOpenDialog(mainWindow, {
+      title: 'Agregar recursos al proyecto',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Recursos educativos', extensions: ['png','jpg','jpeg','gif','bmp','webp','svg','wav','mp3','ogg','flac','m4a','csv','tsv','json','txt','xlsx'] },
+        { name: 'Todos los archivos', extensions: ['*'] }
+      ]
+    }));
+    if (selected.canceled || !selected.filePaths.length) return { success: false, canceled: true };
+    const resources = path.join(currentWorkspace, 'recursos');
+    fs.mkdirSync(resources, { recursive: true });
+    const imported = [];
+    for (const source of selected.filePaths) {
+      let name = path.basename(source);
+      const extension = path.extname(name);
+      const stem = path.basename(name, extension);
+      let target = path.join(resources, name);
+      let suffix = 2;
+      while (fs.existsSync(target)) {
+        name = `${stem}-${suffix}${extension}`;
+        target = path.join(resources, name);
+        suffix += 1;
+      }
+      fs.copyFileSync(source, target);
+      imported.push(`recursos/${name}`);
+    }
+    return { success: true, imported };
   });
 
   handle('fs:save-file', async (event, { relativePath, content }) => {

@@ -18,14 +18,14 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Descarga directa 1.2.0 | Alternativa |
+| Sistema | Descarga directa 1.3.0 autónoma | Alternativa |
 | --- | --- | --- |
-| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0/CodeGO-1.2.0-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0/CodeGO-1.2.0-portable-x64.exe) |
-| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0/CodeGO-1.2.0-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0/CodeGO-1.2.0-linux-x64.tar.gz) |
-| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0/CodeGO-1.2.0-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0/CodeGO-1.2.0-mac-arm64.zip) |
-| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0/CodeGO-1.2.0-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.2.0/CodeGO-1.2.0-mac-x64.zip) |
+| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.0/CodeGO-1.3.0-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.0/CodeGO-1.3.0-portable-x64.exe) |
+| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.0/CodeGO-1.3.0-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.0/CodeGO-1.3.0-linux-x64.tar.gz) |
+| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.0/CodeGO-1.3.0-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.0/CodeGO-1.3.0-mac-arm64.zip) |
+| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.0/CodeGO-1.3.0-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.3.0/CodeGO-1.3.0-mac-x64.zip) |
 
-En la primera apertura, CodeGO prepara un Python 3.13 aislado, instala 25 librerías versionadas y bloquea el acceso hasta completar sus micropruebas. Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado, por lo que el sistema puede advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones.
+Cada instalador 1.3.0 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura extrae el entorno sin internet, verifica SHA-256, ejecuta importaciones y micropruebas, y mantiene bloqueado el editor hasta completar el 100 %. Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado, por lo que el sistema puede advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones.
 
 ## Modalidades de Trabajo
 
@@ -44,6 +44,11 @@ CodeGO incluye un explorador de archivos con soporte integral de jerarquías de 
 - Creación rápida de archivos y subdirectorios dentro de cualquier nivel.
 - Barra de navegación por migas de pan (`Breadcrumbs`) que indica la ruta relativa en tiempo real.
 - Compatibilidad multiplataforma transparente (rutas normalizadas en Linux, Windows y macOS).
+- Botón para agregar imágenes, sonidos y datos a `recursos/`; los binarios no se abren como texto ni se corrompen.
+
+## Ayuda, errores y hardware
+
+F1 abre un centro de ayuda con buscador para instalación, terminal, recursos externos, errores y Arduino/ESP32. Los errores de Python se muestran con el mensaje original, una explicación y acciones concretas. PySerial, PyFirmata2, PyUSB, esptool, SMBus2 y GPIO Zero forman parte del entorno autónomo; los controladores USB específicos de cada placa siguen correspondiendo al fabricante y al sistema operativo.
 
 ## Herramienta Forense para Docentes (`🔍 Verificar Tarea/Examen`)
 
@@ -60,6 +65,7 @@ Usa Node.js 22, con la versión fijada en `.nvmrc`, y Python disponible en PATH:
 npm ci
 npx playwright install chromium
 npm run verify
+npm run prepare:offline
 npm run build:dir
 npm run test:packaged
 npm start
@@ -75,7 +81,7 @@ La compatibilidad se comprueba por **sistema, arquitectura y versión**, no para
 
 La página de descarga está incluida en [website/](website/README.md).
 
-El flujo [release.yml](.github/workflows/release.yml) exige que la matriz pase, registra el acta de pruebas físicas y compila artefactos con SHA-256. Windows requiere certificado de firma; macOS requiere firma y notarización. No publica una versión automáticamente. Configuración, evidencia local y pendientes reales: [guía de producción](docs/PRODUCCION.md).
+El flujo [release.yml](.github/workflows/release.yml) exige que la matriz pase, genera el paquete autónomo propio de cada plataforma, prueba el instalador y publica artefactos con SHA-256 y procedencia. La distribución pública actual no tiene firma comercial ni notarización. Configuración, evidencia local y pendientes reales: [guía de producción](docs/PRODUCCION.md).
 
 ## Licencia y colaboración
 

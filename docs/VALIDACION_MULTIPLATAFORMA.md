@@ -11,7 +11,7 @@ El flujo público [Verify CodeGO](https://github.com/f-lopez-velazquez/CodeGO/ac
 | macOS 14 | Apple Silicon / ARM64 | 3.12 |
 | macOS 15 | Intel / x64 | 3.13 |
 
-Cada trabajo ejecuta 23 pruebas unitarias/de integración, 32 combinaciones de navegador, Electron con Python real, auditoría de dependencias y 12 comprobaciones del paquete compilado. Otros tres trabajos reproducen una primera apertura limpia en Windows, Ubuntu y macOS: crean el entorno, instalan las 25 librerías y ejecutan las micropruebas. Los artefactos de Actions conservan reportes JSON y capturas durante 30 días. La Release conserva los checksums y la procedencia de los instaladores.
+Cada trabajo ejecuta las pruebas unitarias/de integración, 32 combinaciones de navegador, Electron con Python real, auditoría de dependencias y 12 comprobaciones del paquete compilado. Otros tres trabajos reproducen una primera apertura limpia en Windows, Ubuntu y macOS. La construcción 1.3.0 genera además el runtime y almacén de 28 librerías en cada SO, los incorpora al instalador y vuelve a probar el paquete. Los artefactos conservan reportes JSON y capturas durante 30 días. La Release conserva checksums y procedencia.
 
 Se comprobó además el paquete 1.1.0 en una VM local Windows 11 x64. La preparación automática 1.2.0 se verifica en los runners nativos indicados. Esa imagen de pruebas no es una certificación de todas las ediciones de Windows. Los registros de la VM se conservan fuera del repositorio público para no exponer rutas del equipo local.
 
@@ -25,9 +25,9 @@ Los runners no reproducen las políticas de cada escuela, tarjetas Wi-Fi, firmwa
 
 Android, iOS, ChromeOS, Windows ARM y Linux ARM no tienen instaladores validados en esta versión.
 
-## Preparación automática 1.2.0
+## Preparación autónoma 1.3.0
 
-CodeGO acepta únicamente Python 3.12 o 3.13 de 64 bits para el entorno educativo. Si no lo encuentra, Windows instala Python 3.13.15 con checksum y firma del editor verificados; Linux y macOS descargan un runtime portátil fijado por plataforma y SHA-256. El editor permanece bloqueado hasta instalar con ruedas binarias las 25 librerías, ejecutar `pip check` y superar micropruebas de Pygame, Tk, imágenes, gráficas, cálculo, datos, Excel, SQLite, serial virtual, HTTP, cifrado y entrada UTF-8.
+CodeGO usa un Python 3.13.15 privado incluido en cada instalador. Antes de extraerlo verifica el manifiesto y SHA-256 de todos los componentes; instala 28 librerías solo desde ruedas locales, ejecuta `pip check` y supera micropruebas de Pygame, Tk, imágenes, gráficas, cálculo, datos, Excel, SQLite, recursos binarios relativos, serial virtual, HTTP, cifrado y entrada UTF-8. La reparación en línea permanece como respaldo para paquetes de desarrollo opcionales.
 
 ## Primera distribución pública
 

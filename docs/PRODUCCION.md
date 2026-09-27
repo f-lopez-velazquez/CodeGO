@@ -2,15 +2,15 @@
 
 ## Descargas públicas
 
-La Release `v1.2.0` contiene instaladores para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados de desarrollador ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la apertura por sus políticas de seguridad. En equipos administrados consulta al responsable de TI; no desactives las protecciones del sistema.
+La Release `v1.3.0` contiene instaladores autónomos para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados de desarrollador ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la apertura por sus políticas de seguridad. En equipos administrados consulta al responsable de TI; no desactives las protecciones del sistema.
 
-La primera apertura bloquea el acceso mientras prepara un entorno aislado. Si no encuentra Python 3.12/3.13 de 64 bits, instala Python 3.13.15 para CodeGO sin modificar el Python del usuario. Después instala 25 librerías versionadas mediante ruedas binarias y ejecuta micropruebas; solo habilita la aplicación tras llegar al 100 %. Python 3.14 no se usa para este entorno porque algunas librerías educativas, entre ellas Pygame, aún pueden intentar compilarse desde código fuente.
+La primera apertura bloquea el acceso mientras extrae Python 3.13.15 y 28 librerías desde el propio instalador. Primero verifica tamaño y SHA-256 de cada archivo, después instala únicamente desde el almacén local y ejecuta micropruebas; solo habilita la aplicación tras llegar al 100 %. El proceso no modifica el Python del usuario y no necesita internet. Si un paquete interno falta o fue alterado, CodeGO muestra un diagnóstico y conserva el bloqueo.
 
 ## Producción firmada
 
-El workflow `release.yml` exige matriz exitosa, URL HTTPS del acta de aceptación y secretos de firma: `WINDOWS_CSC_LINK`, `WINDOWS_CSC_KEY_PASSWORD`, `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_API_KEY_CONTENT`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`. Almacénalos exclusivamente como secretos de Actions del entorno `production`.
+El workflow `release.yml` exige matriz exitosa, construye el runtime y las ruedas en el sistema nativo, prueba el paquete y publica checksums y procedencia. Los certificados opcionales deben almacenarse exclusivamente como secretos de Actions del entorno `production`.
 
-`npm run build:release` falla si faltan los certificados requeridos. Esta protección no se relaja para construir la vista previa. La publicación de una versión firmada debe incluir verificación de la firma del instalador y notarización de macOS.
+La publicación actual es verificable por SHA-256 pero no está firmada comercialmente. Una distribución firmada debe añadir verificación Authenticode del instalador y notarización de macOS.
 
 ## Aceptación en el aula
 

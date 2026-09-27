@@ -12,9 +12,10 @@ const PACKAGES = [
   ['pyfirmata2','pyfirmata2','2.5.1'], ['pyusb','usb','1.3.1'], ['scikit-learn','sklearn','1.9.1'],
   ['opencv-python-headless','cv2','5.0.0.93'], ['websockets','websockets','17.1'], ['flask','flask','3.1.3'],
   ['httpx','httpx','0.28.1'], ['tqdm','tqdm','4.70.1'], ['rich','rich','15.0.0'], ['qrcode','qrcode','8.2'],
-  ['cryptography','cryptography','50.0.1'], ['python-dotenv','dotenv','1.2.3'], ['pydantic','pydantic','2.13.5']
+  ['cryptography','cryptography','50.0.1'], ['python-dotenv','dotenv','1.2.3'], ['pydantic','pydantic','2.13.5'],
+  ['esptool','esptool','5.4.0'], ['smbus2','smbus2','0.6.1'], ['gpiozero','gpiozero','2.0.1.post3']
 ].map(([distribution,module,version]) => ({distribution,module,version}));
-const OPTIONAL_HARDWARE = ['esptool', 'smbus2', 'gpiozero', 'adafruit-blinka'];
+const OPTIONAL_HARDWARE = ['adafruit-blinka'];
 const PROBE = 'import sys,struct,json; print(json.dumps({"executable":sys.executable,"major":sys.version_info.major,"minor":sys.version_info.minor,"bits":struct.calcsize("P")*8,"version":sys.version.split()[0]}))';
 function compatible(info) { return info.major === 3 && [12,13].includes(info.minor) && info.bits === 64; }
 function pythonPath(directory, platform=process.platform) { return path.join(directory, platform === 'win32' ? 'Scripts/python.exe' : 'bin/python3'); }
@@ -25,7 +26,7 @@ function environmentStatus(directory) {
     const report = JSON.parse(fs.readFileSync(marker, 'utf8'));
     const packagesMatch = PACKAGES.every(item => report.packages?.[item.module]?.version === item.version);
     const commandExists = typeof report.command === 'string' && fs.existsSync(report.command);
-    return { ready: report.schema === 1 && packagesMatch && commandExists, command: report.command, report };
+    return { ready: report.schema === 2 && packagesMatch && commandExists, command: report.command, report };
   } catch (_) {
     return { ready: false, command: null, report: null };
   }
@@ -127,7 +128,7 @@ async function verifyEnvironment(python,{execute=run,directory,onProgress=()=>{}
   if(!micro.success||!report.success)throw Error('Falló la comprobación del equipo: '+JSON.stringify(report.checks));
   return {python:info,packages,checks:[...micro.checks,...report.checks.filter(c=>c.success).map(c=>c.name)]};
 }
-async function prepareEnvironment({directory,selectInterpreter,execute=run,onProgress=()=>{},selfTest=runSelfTest}) {
+async function prepareEnvironment({directory,selectInterpreter,execute=run,onProgress=()=>{},selfTest=runSelfTest,wheelhouse=null}) {
   fs.mkdirSync(directory,{recursive:true});
   const marker=readyPath(directory);
   fs.rmSync(marker,{force:true});
@@ -141,18 +142,25 @@ async function prepareEnvironment({directory,selectInterpreter,execute=run,onPro
   try {valid=compatible(await probe(python,execute));} catch(_){}
   if(!valid)await execute(base.executable,['-I','-m','venv',venv],{timeout:180000});
   const progressLog=text=>onProgress(null,null,text);
-  await execute(python,['-I','-m','pip','--isolated','install','--index-url','https://pypi.org/simple','--only-binary=:all:','--disable-pip-version-check','--timeout','30','--retries','2','--upgrade','pip'],{timeout:180000,onLog:progressLog});
+  const offline = Boolean(wheelhouse);
+  if (offline && (!fs.existsSync(wheelhouse) || !fs.statSync(wheelhouse).isDirectory())) throw Error('No se encontró el almacén interno de librerías.');
+  if (!offline) {
+    await execute(python,['-I','-m','pip','--isolated','install','--index-url','https://pypi.org/simple','--only-binary=:all:','--disable-pip-version-check','--timeout','30','--retries','2','--upgrade','pip'],{timeout:180000,onLog:progressLog});
+  }
+  const packageSourceArgs = offline
+    ? ['--no-index','--find-links',wheelhouse]
+    : ['--index-url','https://pypi.org/simple','--timeout','30','--retries','2'];
   for(let i=0;i<PACKAGES.length;i++) {
     const p=PACKAGES[i];
     const percent=30+Math.floor(i/PACKAGES.length*58);
     onProgress(percent,`Librería ${i+1}/${PACKAGES.length}: ${p.distribution}`);
     // Wheels only: no compiler/toolchain needed and no silent source fallback.
-    try { await execute(python,['-I','-m','pip','--isolated','install','--index-url','https://pypi.org/simple','--only-binary=:all:','--disable-pip-version-check','--timeout','30','--retries','2',`${p.distribution}==${p.version}`],{timeout:300000,onLog:progressLog}); }
+    try { await execute(python,['-I','-m','pip','--isolated','install',...packageSourceArgs,'--only-binary=:all:','--disable-pip-version-check',`${p.distribution}==${p.version}`],{timeout:300000,onLog:progressLog}); }
     catch(error){throw Error(`No se completó ${p.distribution}. ${error.message}`);}
   }
   const report=await verifyEnvironment(python,{execute,directory,onProgress,selfTest});
-  fs.writeFileSync(marker,JSON.stringify({schema:1,completedAt:new Date().toISOString(),command:python,...report},null,2));
-  onProgress(100,'Entorno listo. Todas las micropruebas pasaron.');
-  return {success:true,command:python,...report};
+  fs.writeFileSync(marker,JSON.stringify({schema:2,completedAt:new Date().toISOString(),command:python,source:offline?'offline-bundle':'online-repair',...report},null,2));
+  onProgress(100,offline?'Entorno autónomo listo. Todas las micropruebas pasaron.':'Entorno listo. Todas las micropruebas pasaron.');
+  return {success:true,command:python,source:offline?'offline-bundle':'online-repair',...report};
 }
 module.exports={PACKAGES,OPTIONAL_HARDWARE,PROBE,compatible,probe,selectPython,pythonPath,readyPath,environmentStatus,run,inspectScript,parseResult,verifyEnvironment,prepareEnvironment};

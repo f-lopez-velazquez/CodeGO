@@ -32,7 +32,7 @@ jobs:
           - { os: macos-14,        platform: darwin, artifact: mac-arm64 }
           - { os: macos-15-intel,  platform: darwin, artifact: mac-x64 }
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +46,12 @@ jobs:
           python-version: '3.12'
 
       - run: npm ci
+
+      - name: Assemble verified offline Python and wheelhouse
+        run: npm run prepare:offline
+
+      - name: Install and microtest the offline bundle
+        run: npm run test:offline
 
       - name: Install Linux runtime libraries
         if: matrix.platform == 'linux'
@@ -98,6 +104,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-assets
+          pattern: installers-*
           merge-multiple: true
 
       - name: Generate SHA256 checksums
@@ -112,15 +119,16 @@ jobs:
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${TAG#v}"
-          gh release create "$TAG" release-assets/* \
-            --title "CodeGO ExamGuard v${VERSION} — Versión Oficial" \
-            --notes "## CodeGO ExamGuard v${VERSION}
+          cat > release-notes.md <<EOF
+          ## CodeGO ExamGuard v${VERSION}
 
-          Entorno educativo de Python multiplataforma con tres modos:
+          Entorno educativo de Python multiplataforma listo para preparar el aula sin conexión.
 
-          - 🛡️ **Modo Examen Blindado**: Kiosk, Wi-Fi off, alerta estroboscópica 12s, entrega ZIP+SHA256
-          - 📦 **Modo Tarea Certificada**: Bloqueo C/P, telemetría forense, entrega .codego HMAC-SHA256
-          - 📘 **Modo Actividad Libre**: Editor completo con árbol jerárquico de carpetas
+          - **Preparación autónoma**: Python 3.13 y todas las ruedas binarias viajan dentro del instalador.
+          - **Validación previa**: hashes SHA-256, importaciones y micropruebas antes de abrir el editor.
+          - **Ayuda accionable**: diagnósticos con código y solución concreta.
+          - **Aula y hardware**: archivos multimedia relativos, PySerial, PyFirmata2, PyUSB y pruebas de puerto virtual.
+          - **Tres modos**: Examen Blindado, Tarea Certificada y Actividad Libre.
 
           ### Instalación
           | Plataforma | Archivo | Notas |
@@ -131,8 +139,14 @@ jobs:
           | macOS Intel | \`CodeGO-${VERSION}-mac-x64.dmg\` | macOS 13+ |
           | Linux | \`CodeGO-${VERSION}-linux-x64.AppImage\` | Linux x64 compatible |
 
-          Ver \`SHA256SUMS.txt\` para verificar integridad.
+          El primer inicio extrae y valida el entorno incluido; puede tardar varios minutos y no requiere internet. Ver \`SHA256SUMS.txt\` para verificar integridad.
 
           ---
-          © 2026 Francisco López Velázquez · [zolvek.com.mx](https://zolvek.com.mx)" \
-            --latest
+          © 2026 Francisco López Velázquez · [zolvek.com.mx](https://zolvek.com.mx)
+          EOF
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-assets/* --clobber
+            gh release edit "$TAG" --title "CodeGO ExamGuard v${VERSION} — Versión Oficial" --notes-file release-notes.md --latest
+          else
+            gh release create "$TAG" release-assets/* --title "CodeGO ExamGuard v${VERSION} — Versión Oficial" --notes-file release-notes.md --latest
+          fi

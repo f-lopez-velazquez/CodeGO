@@ -16,6 +16,8 @@ reports/
 Thumbs.db
 
 downloads/
+build/offline/*
+!build/offline/.gitkeep
 .firebase/
 *.pem
 *.keystore

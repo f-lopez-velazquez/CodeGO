@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.3.0 · Aula autónoma, ayuda y recursos
+
+- Instaladores autosuficientes con Python 3.13, ruedas binarias y Visual C++ para Windows incluidos; la preparación inicial funciona sin internet.
+- Verificación SHA-256 de todos los componentes internos antes de extraer o instalar.
+- 28 librerías base; se agregan esptool, SMBus2 y GPIO Zero al soporte incluido de PySerial, PyFirmata2 y PyUSB.
+- Diagnósticos `CG-SETUP` con causa, acciones y detalle técnico; el editor permanece bloqueado ante cualquier fallo.
+- Ventana didáctica para errores frecuentes de Python con soluciones concretas y traceback original.
+- Centro de ayuda con buscador para preparación, terminal, recursos, rutas portátiles, Arduino/ESP32, modos y atajos.
+- Importación segura de imágenes, sonidos y datos a `recursos/`; el editor no interpreta ni guarda binarios como texto.
+- Workflow de publicación idempotente: actualiza una Release existente y excluye evidencia interna de sus assets.
+
 ## 1.2.0 · Preparación automática verificada
 
 - Primera apertura bloqueada hasta preparar un Python 3.13 aislado y completar el 100 % del proceso.

@@ -159,7 +159,8 @@ const state = {
   workspaceSessionActive: false, // True during an active IDE workspace session (Exam, Task or Activity)
   isInternalModalOpen: false,
   availableUpdate: null,
-  isUpdating: false
+  isUpdating: false,
+  executionError: ''
 };
 
 // DOM Elements
@@ -224,6 +225,7 @@ const DOM = {
   monitorsLabel: document.getElementById('monitors-label'),
   monitorsStatusIcon: document.getElementById('monitors-status-icon'),
   btnTestSound: document.getElementById('btn-test-sound'),
+  btnHelpLobby: document.getElementById('btn-help-lobby'),
 
   // Auto-Installer Modal
   modalAutoInstaller: document.getElementById('modal-auto-installer'),
@@ -242,6 +244,12 @@ const DOM = {
   btnClearInstallerLog: document.getElementById('btn-clear-installer-log'),
   btnCloseAutoInstaller: document.getElementById('btn-close-auto-installer'),
   btnFinishAutoInstaller: document.getElementById('btn-finish-auto-installer'),
+  setupErrorPanel: document.getElementById('setup-error-panel'),
+  setupErrorTitle: document.getElementById('setup-error-title'),
+  setupErrorCode: document.getElementById('setup-error-code'),
+  setupErrorSummary: document.getElementById('setup-error-summary'),
+  setupErrorActions: document.getElementById('setup-error-actions'),
+  setupErrorDetail: document.getElementById('setup-error-detail'),
 
   // Countdown
   countdownNumber: document.getElementById('countdown-number'),
@@ -297,6 +305,7 @@ const DOM = {
   fileTreeContainer: document.getElementById('file-tree-container'),
   btnNewFile: document.getElementById('btn-new-file'),
   btnNewFolder: document.getElementById('btn-new-folder'),
+  btnImportAssets: document.getElementById('btn-import-assets'),
   btnRefreshFiles: document.getElementById('btn-refresh-files'),
 
   // Editor
@@ -341,6 +350,16 @@ const DOM = {
   // Modals
   modalShortcuts: document.getElementById('modal-shortcuts'),
   btnCloseShortcuts: document.getElementById('btn-close-shortcuts'),
+  helpSearch: document.getElementById('help-search'),
+  helpTopics: document.getElementById('help-topics'),
+  helpEmpty: document.getElementById('help-empty'),
+  modalRuntimeError: document.getElementById('modal-runtime-error'),
+  runtimeErrorTitle: document.getElementById('runtime-error-title'),
+  runtimeErrorExplanation: document.getElementById('runtime-error-explanation'),
+  runtimeErrorActions: document.getElementById('runtime-error-actions'),
+  runtimeErrorRaw: document.getElementById('runtime-error-raw'),
+  btnCloseRuntimeError: document.getElementById('btn-close-runtime-error'),
+  btnRuntimeErrorHelp: document.getElementById('btn-runtime-error-help'),
 
   modalFocusWarning: document.getElementById('modal-focus-warning'),
   hazardStrobeText: document.getElementById('hazard-strobe-text'),
@@ -743,7 +762,7 @@ async function loadEnvironmentDiagnostics() {
         DOM.envVcredistRow.style.display = 'none';
       }
 
-      // Update Lobby Packages label (25+ recommended packages with hardware)
+      // Update Lobby package count from the verified runtime manifest.
       const totalRecommended = data.essentialKeys ? data.essentialKeys.length : 25;
       const missingCount = data.missingCount || 0;
       const installedCount = Math.max(0, totalRecommended - missingCount);
@@ -855,7 +874,7 @@ async function installSinglePackage(pkgName) {
 
 async function installAllRecommendedPackages() {
   if (!window.electronAPI) {
-    appendPipLog('[Simulador] Entorno completo de 25 librerías verificado con éxito.\n');
+    appendPipLog('[Simulador] Entorno completo de 28 librerías verificado con éxito.\n');
     return;
   }
   DOM.modalPackageManager.classList.add('hidden');
@@ -881,6 +900,7 @@ async function startAutoRepairProcess() {
   DOM.modalAutoInstaller.classList.remove('hidden');
   DOM.btnFinishAutoInstaller.classList.add('hidden');
   DOM.btnCloseAutoInstaller.classList.add('hidden');
+  DOM.setupErrorPanel?.classList.add('hidden');
   DOM.installerProgressBar.style.width = '5%';
   DOM.installerPercentLabel.textContent = '5%';
   DOM.installerCurrentStepLabel.textContent = 'Iniciando análisis del sistema y descarga de dependencias...';
@@ -905,6 +925,26 @@ async function startAutoRepairProcess() {
     // Simulator fallback
     simulateAutoInstaller();
   }
+}
+
+function showSetupDiagnostic(diagnostic, fallbackError = '') {
+  const safe = diagnostic || {
+    code: 'CG-SETUP-900',
+    title: 'No se pudo terminar la preparación',
+    summary: 'CodeGO mantuvo bloqueado el editor para evitar un entorno incompleto.',
+    actions: ['Pulsa Reintentar preparación.'],
+    detail: fallbackError
+  };
+  DOM.setupErrorTitle.textContent = safe.title;
+  DOM.setupErrorCode.textContent = safe.code;
+  DOM.setupErrorSummary.textContent = safe.summary;
+  DOM.setupErrorActions.replaceChildren(...(safe.actions || []).map(action => {
+    const item = document.createElement('li');
+    item.textContent = action;
+    return item;
+  }));
+  DOM.setupErrorDetail.textContent = `${safe.code}\n${safe.detail || fallbackError || 'Sin detalle adicional.'}`;
+  DOM.setupErrorPanel.classList.remove('hidden');
 }
 
 function resetAutoInstallerSteps() {
@@ -1255,6 +1295,27 @@ function setupEventListeners() {
       checkUpdatesSilently();
     });
   }
+
+  const openHelpCenter = () => {
+    DOM.modalShortcuts.classList.remove('hidden');
+    requestAnimationFrame(() => DOM.helpSearch?.focus());
+  };
+  DOM.btnHelpLobby?.addEventListener('click', openHelpCenter);
+  DOM.helpSearch?.addEventListener('input', () => {
+    const query = DOM.helpSearch.value.trim().toLocaleLowerCase('es');
+    let visible = 0;
+    DOM.helpTopics.querySelectorAll('.help-topic').forEach(topic => {
+      const match = !query || topic.textContent.toLocaleLowerCase('es').includes(query);
+      topic.hidden = !match;
+      if (match) visible += 1;
+    });
+    DOM.helpEmpty.classList.toggle('hidden', visible > 0);
+  });
+  DOM.btnCloseRuntimeError?.addEventListener('click', () => DOM.modalRuntimeError.classList.add('hidden'));
+  DOM.btnRuntimeErrorHelp?.addEventListener('click', () => {
+    DOM.modalRuntimeError.classList.add('hidden');
+    openHelpCenter();
+  });
   if (DOM.btnClearInstallerLog) {
     DOM.btnClearInstallerLog.addEventListener('click', () => {
       DOM.installerTerminalOutput.innerHTML = '';
@@ -1395,7 +1456,7 @@ function setupEventListeners() {
   DOM.btnMaximizeTerm.addEventListener('click', toggleTerminalMaximize);
 
   // Shortcuts Helper Modal
-  DOM.btnHelpShortcuts.addEventListener('click', () => DOM.modalShortcuts.classList.remove('hidden'));
+  DOM.btnHelpShortcuts.addEventListener('click', openHelpCenter);
   DOM.btnCloseShortcuts.addEventListener('click', () => DOM.modalShortcuts.classList.add('hidden'));
 
   // Editor Input & Cursor movements
@@ -1460,6 +1521,14 @@ function setupEventListeners() {
   // Explorer Actions
   DOM.btnNewFile.addEventListener('click', promptNewFile);
   DOM.btnNewFolder.addEventListener('click', promptNewFolder);
+  DOM.btnImportAssets?.addEventListener('click', async () => {
+    if (!window.electronAPI?.importAssets) return;
+    const result = await window.electronAPI.importAssets();
+    if (result.success) {
+      await loadWorkspaceFiles();
+      appendTerminalOutput(`Recursos agregados:\n${result.imported.map(file => `  ${file}`).join('\n')}\n`, 'system');
+    } else if (!result.canceled) appendTerminalOutput(`No se pudieron agregar recursos: ${result.error}\n`, 'stderr');
+  });
   DOM.btnRefreshFiles.addEventListener('click', loadWorkspaceFiles);
 
   // Modals & Warnings
@@ -1639,6 +1708,7 @@ function setupElectronListeners() {
 
   window.electronAPI.onSetupFinished(async (result) => {
     if (result.success) {
+      DOM.setupErrorPanel?.classList.add('hidden');
       DOM.installerProgressBar.style.width = '100%';
       DOM.installerPercentLabel.textContent = '100%';
       DOM.installerCurrentStepLabel.textContent = '¡Entorno 100% Configurado y Validado!';
@@ -1649,8 +1719,9 @@ function setupElectronListeners() {
       await loadEnvironmentDiagnostics();
     } else {
       state.environmentReady = false;
-      DOM.installerCurrentStepLabel.textContent = `Error: ${result.error || 'Fallo en la instalación'}`;
+      DOM.installerCurrentStepLabel.textContent = result.diagnostic?.title || 'No se completó la preparación';
       appendInstallerLog(`\n>>> Error en el proceso: ${result.error}\n`);
+      showSetupDiagnostic(result.diagnostic, result.error);
       DOM.btnCloseAutoInstaller.textContent = 'Reintentar preparación';
       DOM.btnCloseAutoInstaller.classList.remove('hidden');
     }
@@ -1699,6 +1770,7 @@ function setupElectronListeners() {
   });
 
   window.electronAPI.onPythonStderr((chunk) => {
+    state.executionError = (state.executionError + chunk).slice(-24000);
     appendTerminalOutput(chunk, 'stderr');
   });
 
@@ -1707,6 +1779,7 @@ function setupElectronListeners() {
   });
 
   window.electronAPI.onPythonError((err) => {
+    state.executionError = String(err);
     appendTerminalOutput(`Error de ejecución: ${err}`, 'stderr');
     handleExecutionFinished({ exitCode: 1, duration: 0 });
   });
@@ -2010,6 +2083,7 @@ function isInternalModalOpen() {
     'modal-package-manager',
     'modal-auto-installer',
     'modal-shortcuts',
+    'modal-runtime-error',
     'modal-teacher-unlock',
     'modal-submit-exam',
     'modal-submission-success',
@@ -2340,7 +2414,7 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
       itemEl.className = `tree-item ${state.activeFilePath === itemPath ? 'active' : ''}`;
       itemEl.style.paddingLeft = `${10 + depth * 14}px`;
 
-      let icon = '📄';
+      let icon = item.kind === 'image' ? '🖼️' : item.kind === 'audio' ? '🔊' : item.kind === 'binary' ? '◇' : '📄';
       if (item.name.endsWith('.py')) {
         icon = '🐍';
       } else if (item.name.endsWith('.json')) {
@@ -2361,6 +2435,10 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
 
       itemEl.addEventListener('click', (e) => {
         if (e.target.closest('[data-action="delete"]')) return;
+        if (item.editable === false) {
+          appendTerminalOutput(`${itemPath} es un recurso ${item.kind}. Python puede usarlo mediante una ruta relativa; no se abrirá como texto.\n`, 'system');
+          return;
+        }
         openFileInEditor(itemPath);
       });
 
@@ -2828,6 +2906,7 @@ async function runCurrentPythonCode() {
   try {
     if (!state.isExamSubmitted && !await saveAllFiles()) throw new Error('Guarda los cambios antes de ejecutar.');
     state.isRunning = true;
+    state.executionError = '';
     state.isStopping = false;
     if (state.appMode === 'task') {
       state.taskTelemetry.runsCount++;
@@ -2887,7 +2966,42 @@ function handleExecutionFinished(result) {
   DOM.termStatusBadge.textContent = stopped ? 'Detenido' : success ? 'Finalizado' : 'Error';
   DOM.termExecTime.textContent = `${result.duration}s`;
   appendTerminalOutput(stopped ? 'Programa detenido.\n' : success ? `Finalizó sin errores · ${result.duration} s\n` : `Finalizó con código ${result.exitCode}. Revisa el error de arriba.\n`, stopped ? 'system' : success ? 'success' : 'stderr');
+  if (!stopped && !success && state.executionError) showRuntimeError(state.executionError);
   if (hadFocus && !state.isTermMaximized) DOM.codeTextarea.focus({ preventScroll: true });
+}
+
+function explainPythonError(raw) {
+  const rules = [
+    [/IndentationError|TabError/, 'La sangría no es consistente', 'Python usa los espacios para saber qué instrucciones pertenecen a cada bloque.', ['Ve a la última línea indicada por Python.', 'Alinea el bloque con 4 espacios y evita mezclar tabuladores.']],
+    [/SyntaxError/, 'Hay una instrucción escrita de forma inválida', 'Suele faltar un paréntesis, dos puntos o comillas, o hay una palabra de Python mal escrita.', ['Revisa la línea marcada con ^ y también la anterior.', 'Comprueba palabras como import, if, for, while y que cada paréntesis tenga cierre.']],
+    [/ModuleNotFoundError|ImportError/, 'Python no pudo cargar una librería', 'El nombre del import puede estar mal escrito o el paquete no pertenece al entorno preparado.', ['Copia exactamente el nombre mostrado después de No module named.', 'Abre Paquetes para comprobar o instalar la librería fuera de una sesión de examen.']],
+    [/FileNotFoundError/, 'No se encontró un archivo', 'La ruta escrita no apunta a un recurso existente desde la carpeta del programa.', ['Confirma el nombre, extensión y mayúsculas del archivo.', 'Usa Path(__file__).resolve().parent para construir rutas portátiles.']],
+    [/PermissionError|Access is denied/, 'El sistema negó acceso', 'El archivo o puerto puede estar abierto en otro programa o protegido por el sistema.', ['Cierra aplicaciones que usen el archivo o el puerto serial.', 'Guarda dentro de la carpeta del proyecto y vuelve a ejecutar.']],
+    [/SerialException|could not open port|ClearCommError/, 'No se pudo abrir el puerto de la placa', 'Otro programa usa el puerto, la placa se desconectó o falta permiso o controlador.', ['Cierra Arduino IDE y otros monitores seriales.', 'Reconecta la placa, confirma el puerto y consulta Arduino en Ayuda.']],
+    [/NameError/, 'Se usó un nombre que no existe', 'La variable o función no fue definida antes de usarla, o cambia entre mayúsculas y minúsculas.', ['Compara el nombre con su definición.', 'Asegúrate de asignarlo antes de esta línea.']],
+    [/TypeError/, 'La operación recibió un tipo de dato incorrecto', 'Por ejemplo, se intentó sumar texto y números o llamar una función con argumentos incorrectos.', ['Lee la última línea para identificar los tipos.', 'Convierte el dato con int(), float() o str() cuando corresponda.']],
+    [/IndexError|KeyError/, 'El elemento solicitado no existe', 'El índice rebasa una lista o la clave no aparece en el diccionario.', ['Imprime len(lista) o diccionario.keys() antes de acceder.', 'Valida la existencia del elemento con una condición.']],
+    [/ZeroDivisionError/, 'Se intentó dividir entre cero', 'El divisor llegó a cero durante la ejecución.', ['Comprueba el divisor antes de operar.', 'Decide qué resultado debe producir tu programa cuando sea cero.']],
+    [/pygame\.error/, 'Pygame no pudo abrir un recurso o dispositivo', 'La imagen, sonido, formato o dispositivo gráfico no está disponible como se solicitó.', ['Revisa la ruta y el formato del recurso.', 'Inicializa pygame y el módulo correspondiente antes de usarlo.']]
+  ];
+  const match = rules.find(([pattern]) => pattern.test(raw));
+  return match
+    ? { title: match[1], explanation: match[2], actions: match[3] }
+    : { title: 'El programa terminó con un error', explanation: 'La última línea del mensaje indica el tipo de problema; las líneas anteriores muestran el camino hasta él.', actions: ['Busca la última referencia a tu archivo .py y abre esa línea.', 'Corrige una causa a la vez y vuelve a ejecutar con F5.'] };
+}
+
+function showRuntimeError(raw) {
+  const guide = explainPythonError(raw);
+  DOM.runtimeErrorTitle.textContent = guide.title;
+  DOM.runtimeErrorExplanation.textContent = guide.explanation;
+  DOM.runtimeErrorRaw.textContent = raw;
+  DOM.runtimeErrorActions.replaceChildren(...guide.actions.map(action => {
+    const item = document.createElement('li');
+    item.textContent = action;
+    return item;
+  }));
+  DOM.modalRuntimeError.classList.remove('hidden');
+  DOM.btnCloseRuntimeError.focus();
 }
 
 // Keep chunk boundaries invisible and cap the transcript so a print loop cannot grow the DOM forever.

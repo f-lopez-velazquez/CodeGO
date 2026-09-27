@@ -36,6 +36,8 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.locator('.auto-installer-card').evaluate(element => { element.scrollTop = element.scrollHeight; });
   const setupGeometry = await page.locator('.auto-installer-card').boundingBox();
   assert(setupGeometry && setupGeometry.y >= 0 && setupGeometry.y + setupGeometry.height <= 480, `Setup dialog clipped: ${JSON.stringify(setupGeometry)}`);
+  await page.evaluate(() => showSetupDiagnostic({ code: 'CG-SETUP-105', title: 'Librería incompleta', summary: 'Prueba', actions: ['Reintentar'], detail: 'pip test' }));
+  assert(await page.locator('#setup-error-panel').isVisible(), 'Structured setup error is not visible');
   await page.evaluate(() => {
     state.environmentSetupRequired = false;
     state.environmentReady = true;
@@ -69,6 +71,14 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.evaluate(() => { setAppZoom(1); state.termLayout = 'side'; updateTerminalLayout(); });
   assert(await page.locator('#btn-finish-exam').isHidden(), 'Submit visible in activity');
   assert(await page.locator('#btn-finish-exam').isDisabled(), 'Submit enabled in activity');
+  await page.locator('#btn-help-shortcuts').click();
+  await page.locator('#help-search').fill('Arduino');
+  assert(await page.locator('.help-topic:not([hidden])').count() >= 1, 'Help search cannot find Arduino guidance');
+  await page.locator('#btn-close-shortcuts').click();
+  await page.evaluate(() => showRuntimeError('Traceback\n  File "main.py", line 1\npimport pygame\nSyntaxError: invalid syntax'));
+  assert(await page.locator('#modal-runtime-error').isVisible(), 'Python error guide is not shown');
+  assert((await page.locator('#runtime-error-title').innerText()).includes('instrucción'), 'Syntax error was not classified');
+  await page.locator('#btn-close-runtime-error').click();
   await page.locator('#btn-toggle-term-view').click();
   assert(await page.locator('#terminal-panel').isHidden(), 'Collapse failed');
   await page.locator('#btn-run-code').click();

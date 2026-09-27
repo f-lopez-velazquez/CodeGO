@@ -17,7 +17,7 @@ jobs:
           - { os: macos-14, target: mac }
           - { os: macos-15-intel, target: mac }
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 90
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       DEBUG: ''
@@ -31,6 +31,8 @@ jobs:
         with:
           python-version: '3.13'
       - run: npm ci
+      - run: npm run prepare:offline
+      - run: npm run test:offline
       - name: Install Linux runtime libraries
         if: runner.os == 'Linux'
         run: npx playwright install-deps chromium
@@ -76,8 +78,10 @@ jobs:
           echo "Publicando release $TAG..."
           cd all-downloads
           cat SHA256SUMS-*.txt > SHA256SUMS.txt
-          gh release create "$TAG" * \
-            --title "CodeGO $VERSION · Vista previa pública" \
-            --notes "CodeGO $VERSION ofrece un entorno educativo de programación en Python con soporte de hardware (Arduino, ESP32, Raspberry Pi con PySerial), terminal interactiva con input(), alerta estroboscópica docente de 12 segundos y modo examen blindado. Desarrollado por Francisco López Velázquez · zolvek.com.mx" \
-            --prerelease || \
-          gh release upload "$TAG" * --clobber
+          NOTES="CodeGO $VERSION incluye Python 3.13 y 28 librerías para preparar el aula sin internet, soporte Arduino/ESP32, terminal interactiva con input(), ayuda y diagnósticos claros. Desarrollado por Francisco López Velázquez · zolvek.com.mx"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" * --clobber
+            gh release edit "$TAG" --title "CodeGO $VERSION · Vista previa pública" --notes "$NOTES" --prerelease
+          else
+            gh release create "$TAG" * --title "CodeGO $VERSION · Vista previa pública" --notes "$NOTES" --prerelease
+          fi

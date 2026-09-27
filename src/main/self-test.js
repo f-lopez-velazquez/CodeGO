@@ -9,11 +9,14 @@ async function runSelfTest({ command, directory, version = 'development' }) {
   let temporary;
   try {
     temporary = fs.mkdtempSync(path.join(directory, '.codego-comprobacion-'));
+    const resources = path.join(temporary, 'recursos');
+    fs.mkdirSync(resources);
+    fs.writeFileSync(path.join(resources, 'dato binario.bin'), Buffer.from([0, 1, 2, 250, 255]));
     const file = path.join(temporary, 'prueba con acentos.py');
-    const code = 'nombre = input("CODEGO_INPUT:")\nprint("CODEGO_OK:" + nombre)\n';
+    const code = 'from pathlib import Path\nrecurso = Path(__file__).resolve().parent / "recursos" / "dato binario.bin"\nassert recurso.read_bytes() == bytes([0, 1, 2, 250, 255])\nnombre = input("CODEGO_INPUT:")\nprint("CODEGO_OK:" + nombre)\n';
     fs.writeFileSync(file, code, 'utf8');
     if (fs.readFileSync(file, 'utf8') !== code) throw new Error('No coincide el archivo guardado.');
-    report.checks.push({ name: 'Crear, guardar y leer archivos', success: true });
+    report.checks.push({ name: 'Archivos de proyecto y recursos binarios relativos', success: true });
     const python = await new Promise(resolve => {
       let output = '', errors = '', replied = false, settled = false;
       const finish = result => { if (settled) return; settled = true; clearTimeout(timer); resolve(result); };

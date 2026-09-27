@@ -68,6 +68,32 @@ test('Preparation leaves the application locked when Python is incompatible', as
   assert.equal(environmentSetup.environmentStatus(directory).ready, false);
 });
 
+test('Offline preparation installs only from the verified wheelhouse', async t => {
+  const directory = temporary(t);
+  const wheelhouse = path.join(directory, 'ruedas');
+  fs.mkdirSync(wheelhouse);
+  const calls = [];
+  const execute = async (command, args, options = {}) => {
+    calls.push({ command, args });
+    if (args.includes('-c') && command.startsWith(directory) && !fs.existsSync(command)) throw new Error('missing');
+    if (args.includes('venv')) {
+      const executable = environmentSetup.pythonPath(args.at(-1));
+      fs.mkdirSync(path.dirname(executable), { recursive: true });
+      fs.writeFileSync(executable, 'test');
+    }
+    if ((options.input || '').includes('importlib.metadata')) return JSON.stringify(Object.fromEntries(environmentSetup.PACKAGES.map(item => [item.module, { installed: true, version: item.version }]))) + '\n';
+    if ((options.input || '').includes('checks=[]')) return JSON.stringify({ success: true, checks: ['offline'] }) + '\n';
+    if (args.includes('-c')) return JSON.stringify({ executable: command, major: 3, minor: 13, bits: 64, version: '3.13.15' }) + '\n';
+    return '';
+  };
+  const result = await environmentSetup.prepareEnvironment({ directory, wheelhouse, selectInterpreter: async () => ({ executable: 'python-3.13', major: 3, minor: 13, bits: 64, version: '3.13.15' }), execute, selfTest: async () => ({ success: true, checks: [] }) });
+  assert.equal(result.source, 'offline-bundle');
+  const installs = calls.filter(call => call.args.includes('install'));
+  assert.equal(installs.length, environmentSetup.PACKAGES.length);
+  assert.ok(installs.every(call => call.args.includes('--no-index') && call.args.includes(wheelhouse)));
+  assert.ok(installs.every(call => !call.args.includes('https://pypi.org/simple')));
+});
+
 test('Failed virtual environment never falls back to system pip', t => {
   const directory = path.join(temporary(t), 'entorno con acentos á');
   const calls = [];
