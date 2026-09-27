@@ -123,7 +123,7 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Certificado oficial de tarea codeGO — ${safeStr(student.name || 'Estudiante')}</title>
+  <title>Certificado de integridad de tarea codeGO — ${safeStr(student.name || 'Estudiante')}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #080b12; color: #e2e8f0; margin: 0; padding: 24px; line-height: 1.5; }
     .card { max-width: 860px; margin: 0 auto; background: #0f1422; border: 1px solid #2b354f; border-radius: 14px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
@@ -141,8 +141,8 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
       <div>
-        <h1 style="margin:0;font-size:22px;color:#fff;">Certificado de Autenticidad de Tarea</h1>
-        <p style="margin:4px 0 0;font-size:13px;color:#a0aec0;">Tarea académica certificada por codeGO · zolvek.com.mx</p>
+        <h1 style="margin:0;font-size:22px;color:#fff;">Certificado de integridad de tarea</h1>
+        <p style="margin:4px 0 0;font-size:13px;color:#a0aec0;">Entrega académica verificada por codeGO · zolvek.com.mx</p>
       </div>
       <div class="badge">✓ SELLO CRIPTOGRÁFICO CODEGO</div>
     </div>
@@ -154,13 +154,13 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
       <div class="meta-box"><div class="meta-label">Fecha y Hora</div><div class="meta-val">${safeStr(dateFormatted)}</div></div>
     </div>
 
-    <h3 style="margin-top:24px;margin-bottom:12px;font-size:15px;color:#90cdf4;">Auditoría Forense de Autoría & Integridad</h3>
+    <h3 style="margin-top:24px;margin-bottom:12px;font-size:15px;color:#90cdf4;">Registro de actividad e integridad</h3>
     <div class="meta-grid">
       <div class="meta-box"><div class="meta-label">Pulsaciones de Tecla</div><div class="meta-val metric-ok">${tel.keystrokesCount || 0} pulsaciones</div></div>
-      <div class="meta-box"><div class="meta-label">Pegados Externos</div><div class="meta-val ${(tel.externalPasteAttempts || 0) === 0 ? 'metric-ok' : 'metric-warn'}">${tel.externalPasteAttempts || 0} (100% escrito en codeGO)</div></div>
+      <div class="meta-box"><div class="meta-label">Portapapeles</div><div class="meta-val metric-ok">Permitido durante la tarea</div></div>
       <div class="meta-box"><div class="meta-label">Tiempo Activo de Edición</div><div class="meta-val">${activeMinutes} min (${tel.activeTypingSeconds || 0}s)</div></div>
       <div class="meta-box"><div class="meta-label">Ejecuciones de Prueba</div><div class="meta-val">${tel.runsCount || 0} ejecuciones nativas</div></div>
-      <div class="meta-box"><div class="meta-label">Intentos bloqueados</div><div class="meta-val ${(tel.externalPasteAttempts || 0) === 0 ? 'metric-ok' : 'metric-warn'}">${tel.externalPasteAttempts || 0} eventos de portapapeles</div></div>
+      <div class="meta-box"><div class="meta-label">Alcance del certificado</div><div class="meta-val">Integridad de archivos y registro de sesión</div></div>
       <div class="meta-box"><div class="meta-label">Identidad del equipo</div><div class="meta-val" style="font-family:monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;">${safeStr(manifest.officialSeal?.fingerprint || (manifest.signatureHMAC || '').substring(0, 24))}</div></div>
     </div>
 

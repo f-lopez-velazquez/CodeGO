@@ -213,6 +213,8 @@ const DOM = {
   btnLobbyOpenFolder: document.getElementById('btn-lobby-open-folder'),
   btnLobbyNewProject: document.getElementById('btn-lobby-new-project'),
   workspaceSelectionStatus: document.getElementById('workspace-selection-status'),
+  recentProjects: document.getElementById('recent-projects'),
+  recentProjectList: document.getElementById('recent-project-list'),
   lobbyContinueCard: document.getElementById('lobby-continue-card'),
   continueModeBadge: document.getElementById('continue-mode-badge'),
   continueTimeLabel: document.getElementById('continue-time-label'),
@@ -1163,12 +1165,130 @@ async function initApp() {
   checkUpdatesSilently();
 }
 
+const RECENT_PROJECTS_KEY = 'codego_recent_projects';
+const MAX_RECENT_PROJECTS = 3;
+
+function readRecentProjects() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RECENT_PROJECTS_KEY) || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(project => project && typeof project.workspacePath === 'string' && project.workspacePath.trim());
+  } catch (_) {
+    return [];
+  }
+}
+
+function writeRecentProjects(projects) {
+  try {
+    localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(projects.slice(0, MAX_RECENT_PROJECTS)));
+  } catch (_) {}
+}
+
+function removeRecentProject(workspacePath) {
+  writeRecentProjects(readRecentProjects().filter(project => project.workspacePath !== workspacePath));
+  renderRecentProjects();
+}
+
+function rememberRecentProject() {
+  if (!state.workspacePath) return;
+  const current = {
+    workspacePath: state.workspacePath,
+    workspaceName: state.workspaceName || state.workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'Proyecto',
+    studentName: DOM.studentNameInput?.value.trim() || state.studentName || '',
+    studentId: DOM.studentIdInput?.value.trim() || state.studentId || '',
+    examSubject: DOM.examSubjectInput?.value.trim() || state.examSubject || 'Programación en Python',
+    appMode: state.appMode || 'activity',
+    lastOpenedAt: Date.now()
+  };
+  const projects = readRecentProjects().filter(project => project.workspacePath !== current.workspacePath);
+  writeRecentProjects([current, ...projects]);
+  renderRecentProjects();
+}
+
+function applySavedProjectDetails(project) {
+  if (project.studentName && DOM.studentNameInput) DOM.studentNameInput.value = project.studentName;
+  if (project.studentId && DOM.studentIdInput) DOM.studentIdInput.value = project.studentId;
+  if (project.examSubject && DOM.examSubjectInput) DOM.examSubjectInput.value = project.examSubject;
+  setSessionMode(project.appMode || 'activity');
+}
+
+async function openSavedProject(project, triggerButton = null) {
+  if (!project?.workspacePath || !window.electronAPI?.restoreWorkspace) {
+    showLobbyValidation('No se pudo abrir el proyecto guardado. Elige una carpeta para continuar.');
+    return false;
+  }
+  applySavedProjectDetails(project);
+  const previousLabel = triggerButton?.innerHTML;
+  if (triggerButton) {
+    triggerButton.disabled = true;
+    triggerButton.textContent = 'Abriendo…';
+  }
+  try {
+    const restored = await window.electronAPI.restoreWorkspace(project.workspacePath);
+    if (!setWorkspaceSelection(restored)) {
+      removeRecentProject(project.workspacePath);
+      showLobbyValidation(restored?.error || 'La carpeta guardada ya no está disponible. Elige otra carpeta.');
+      return false;
+    }
+    await handleStartExamClick();
+    return true;
+  } catch (error) {
+    showLobbyValidation(error.message || 'No se pudo abrir el proyecto guardado.');
+    return false;
+  } finally {
+    if (triggerButton && triggerButton.isConnected) {
+      triggerButton.disabled = false;
+      triggerButton.innerHTML = previousLabel;
+    }
+  }
+}
+
+function showLobbyValidation(message) {
+  if (!DOM.lobbyValidationBanner || !DOM.lobbyValidationText) return;
+  DOM.lobbyValidationText.textContent = message;
+  DOM.lobbyValidationBanner.classList.remove('hidden');
+}
+
+function renderRecentProjects() {
+  if (!DOM.recentProjects || !DOM.recentProjectList) return;
+  const projects = readRecentProjects().slice(0, MAX_RECENT_PROJECTS);
+  DOM.recentProjectList.replaceChildren();
+  DOM.recentProjects.classList.toggle('hidden', projects.length === 0);
+  projects.forEach(project => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'recent-project-btn';
+    button.title = project.workspacePath;
+    const name = document.createElement('strong');
+    name.textContent = project.workspaceName || project.workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'Proyecto';
+    const subject = document.createElement('small');
+    subject.textContent = project.examSubject || 'Programación en Python';
+    button.append(name, subject);
+    button.addEventListener('click', () => openSavedProject(project, button));
+    DOM.recentProjectList.appendChild(button);
+  });
+}
+
 function checkAndDisplayLastSession() {
+  renderRecentProjects();
   try {
     const raw = localStorage.getItem('codego_last_session');
     if (!raw) return;
     const session = JSON.parse(raw);
     if (!session) return;
+
+    if (session.workspacePath && !readRecentProjects().some(project => project.workspacePath === session.workspacePath)) {
+      writeRecentProjects([{
+        workspacePath: session.workspacePath,
+        workspaceName: session.workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'Proyecto',
+        studentName: session.studentName || '',
+        studentId: session.studentId || '',
+        examSubject: session.examSubject || 'Programación en Python',
+        appMode: session.appMode || 'activity',
+        lastOpenedAt: Date.now()
+      }, ...readRecentProjects()]);
+      renderRecentProjects();
+    }
 
     if (session.studentName && DOM.studentNameInput && !DOM.studentNameInput.value) {
       DOM.studentNameInput.value = session.studentName;
@@ -1192,33 +1312,7 @@ function checkAndDisplayLastSession() {
       DOM.lobbyContinueCard.classList.remove('hidden');
 
       if (DOM.btnContinueLastSession) {
-        DOM.btnContinueLastSession.onclick = async () => {
-          setSessionMode(session.appMode || 'activity');
-          if (!window.electronAPI?.restoreWorkspace) {
-            if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
-              DOM.lobbyValidationText.textContent = 'No se pudo restaurar el proyecto. Ábrelo desde Carpeta de trabajo.';
-              DOM.lobbyValidationBanner.classList.remove('hidden');
-            }
-            return;
-          }
-          DOM.btnContinueLastSession.disabled = true;
-          const previousLabel = DOM.btnContinueLastSession.textContent;
-          DOM.btnContinueLastSession.textContent = 'Abriendo…';
-          try {
-            const restored = await window.electronAPI.restoreWorkspace(session.workspacePath);
-            if (!setWorkspaceSelection(restored)) {
-              if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
-                DOM.lobbyValidationText.textContent = restored?.error || 'La carpeta guardada ya no está disponible. Elige otra carpeta.';
-                DOM.lobbyValidationBanner.classList.remove('hidden');
-              }
-              return;
-            }
-            await handleStartExamClick();
-          } finally {
-            DOM.btnContinueLastSession.disabled = false;
-            DOM.btnContinueLastSession.textContent = previousLabel;
-          }
-        };
+        DOM.btnContinueLastSession.onclick = () => openSavedProject(session, DOM.btnContinueLastSession);
       }
     }
   } catch (_) {}
@@ -1263,15 +1357,15 @@ function setSessionMode(mode) {
     }
   } else if (mode === 'task') {
     document.body.classList.add('mode-task-active');
-    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'INICIAR TAREA';
-    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo certificado anti-copia';
+    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'Iniciar tarea';
+    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Entrega firmada';
     if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante la tarea certificada';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
-        <li><strong>Registro de autoría:</strong> El código debe escribirse en codeGO para conservar un historial claro del trabajo.</li>
+        <li><strong>Edición flexible:</strong> Puedes copiar, cortar y pegar mientras desarrollas tu tarea.</li>
         <li><strong>Trabajo sin interrupciones:</strong> Puedes consultar materiales o cambiar de ventana sin alertas.</li>
-        <li><strong>Autoría verificable:</strong> Copiar, cortar y pegar quedan desactivados; se registran tiempo de edición y pruebas.</li>
-        <li><strong>Sello criptográfico .codego:</strong> Genera un contenedor firmado con Ed25519 para la revisión docente.</li>
+        <li><strong>Registro de actividad:</strong> Se conservan el tiempo de edición y las pruebas ejecutadas como contexto para el docente.</li>
+        <li><strong>Entrega verificable:</strong> Genera un contenedor .codego firmado con Ed25519 para comprobar su integridad.</li>
       `;
     }
     if (DOM.btnFinishExam) {
@@ -1355,40 +1449,18 @@ function setupEventListeners() {
     DOM.btnActivityNewProject.addEventListener('click', handleCreateNewProject);
   }
 
-  // Global clipboard protections after submission
+  // Submitted exams remain read-only. Task mode keeps normal clipboard behavior.
   document.addEventListener('copy', (e) => {
-    const taskClipboardLocked = state.appMode === 'task' && (state.workspaceSessionActive || state.isTaskSubmitted);
-    if (state.isExamSubmitted || taskClipboardLocked) {
+    if (state.isExamSubmitted) {
       e.preventDefault();
-      if (state.appMode === 'task' && !state.isTaskSubmitted) {
-        state.taskTelemetry.externalPasteAttempts++;
-        showPasteBlockedToast('La copia está desactivada en Tarea certificada.');
-      } else {
-        appendTerminalOutput('🔒 Código protegido contra copia tras la entrega.', 'system');
-      }
+      appendTerminalOutput('Código protegido contra copia tras la entrega.', 'system');
     }
   });
   document.addEventListener('cut', (e) => {
-    const taskClipboardLocked = state.appMode === 'task' && (state.workspaceSessionActive || state.isTaskSubmitted);
-    if (state.isExamSubmitted || taskClipboardLocked) {
-      e.preventDefault();
-      if (state.appMode === 'task' && !state.isTaskSubmitted) {
-        state.taskTelemetry.externalPasteAttempts++;
-        showPasteBlockedToast('Cortar está desactivado en Tarea certificada.');
-      }
-    }
+    if (state.isExamSubmitted) e.preventDefault();
   });
   document.addEventListener('paste', (e) => {
-    if (state.isExamSubmitted) {
-      e.preventDefault();
-      return;
-    }
-    if (state.appMode === 'task' && (state.workspaceSessionActive || state.isTaskSubmitted) && !e.target.closest('#teacher-pin-input, #custom-pkg-input')) {
-      e.preventDefault();
-      state.taskTelemetry.externalPasteAttempts++;
-      showPasteBlockedToast();
-      return;
-    }
+    if (state.isExamSubmitted) e.preventDefault();
   });
 
   // Test sound button in lobby
@@ -1609,15 +1681,6 @@ function setupEventListeners() {
 
   // Editor Input & Cursor movements
   DOM.codeTextarea.addEventListener('input', handleEditorInput);
-  DOM.codeTextarea.addEventListener('beforeinput', (e) => {
-    if (state.appMode === 'task' && ['insertFromPaste', 'insertFromDrop'].includes(e.inputType)) e.preventDefault();
-  });
-  DOM.codeTextarea.addEventListener('drop', (e) => {
-    if (state.appMode !== 'task') return;
-    e.preventDefault();
-    state.taskTelemetry.externalPasteAttempts++;
-    showPasteBlockedToast('Arrastrar texto externo al editor está desactivado en Tarea certificada.');
-  });
   DOM.codeTextarea.addEventListener('keydown', handleEditorKeydown);
   DOM.codeTextarea.addEventListener('keyup', updateCursorStats);
   DOM.codeTextarea.addEventListener('click', updateCursorStats);
@@ -1971,6 +2034,7 @@ function setWorkspaceSelection(result) {
     DOM.workspaceSelectionStatus.classList.add('selected');
   }
   if (DOM.lobbyValidationBanner) DOM.lobbyValidationBanner.classList.add('hidden');
+  rememberRecentProject();
   return true;
 }
 
@@ -2062,7 +2126,7 @@ async function handleStartExamClick() {
     // Launch countdown sequence for exam with kiosk lock
     await startCountdownSequence();
   } else if (state.appMode === 'task') {
-    // Task Mode: start with kiosk lockdown and anti-cheat tracking
+    // Task Mode: regular desktop editing with a signed delivery and session metrics.
     if (window.electronAPI && window.electronAPI.startKiosk) {
       const result = await window.electronAPI.startKiosk({ ...state.student, mode: 'task' });
       if (!result.success) { alert(result.error); return; }
@@ -2181,7 +2245,7 @@ function enterIdeWorkspace() {
     state.examSessionActive = true; // Enables the task timer and authorship telemetry; no kiosk or focus alarm.
     if (DOM.navModeIndicator) {
       DOM.navModeIndicator.className = 'nav-mode-indicator mode-task';
-      DOM.navModeIndicator.title = 'Sesión de Tarea Certificada con Auditoría Forense y Bloqueo Anti-Copia';
+      DOM.navModeIndicator.title = 'Tarea con entrega firmada y registro de actividad';
     }
     if (DOM.navModeText) {
       DOM.navModeText.textContent = 'Tarea certificada';
@@ -2208,7 +2272,7 @@ function enterIdeWorkspace() {
       DOM.sidebarTitleLabel.textContent = 'ESPACIO DE TAREA';
     }
     if (DOM.workspaceHintLabel) {
-      DOM.workspaceHintLabel.textContent = 'Entorno de tarea con certificación de autoría';
+      DOM.workspaceHintLabel.textContent = 'Edición flexible con entrega verificable';
     }
 
     state.examStartTime = Date.now();
@@ -3102,6 +3166,7 @@ function saveLastSession() {
       lastSavedDate: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' + new Date().toLocaleDateString()
     };
     localStorage.setItem('codego_last_session', JSON.stringify(session));
+    rememberRecentProject();
   } catch (_) {}
 }
 
@@ -3212,44 +3277,6 @@ function handleEditorKeydown(e) {
       return;
     }
   }
-}
-
-function showPasteBlockedToast(message = 'Escribe el código en codeGO para conservar el registro de autoría.') {
-  let toast = document.getElementById('paste-blocked-toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'paste-blocked-toast';
-    toast.style.cssText = `
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: linear-gradient(135deg, #1e1b4b, #312e81);
-      border: 1px solid #818cf8;
-      color: #ffffff;
-      padding: 12px 18px;
-      border-radius: 8px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-      z-index: 10000;
-      font-size: 0.85rem;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      max-width: 380px;
-    `;
-    document.body.appendChild(toast);
-  }
-  toast.innerHTML = '<span aria-hidden="true">Autoría</span><div><strong>Portapapeles desactivado</strong><br><span></span></div>';
-  toast.querySelector('div span').textContent = message;
-  toast.style.opacity = '1';
-  toast.style.transform = 'translateY(0)';
-  try { sounds.playCountdownTick(true); } catch (_) {}
-  clearTimeout(toast._timeout);
-  toast._timeout = setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(10px)';
-  }, 4500);
 }
 
 function updateLineNumbers() {
@@ -3584,7 +3611,9 @@ function lockExamEnvironment() {
   DOM.btnRunCode.disabled = false;
 
   appendTerminalOutput(`\n${taskDelivery ? 'Tarea certificada' : 'Examen'} entregad${taskDelivery ? 'a' : 'o'}. El código queda disponible en modo de lectura.`, 'success');
-  appendTerminalOutput('>>> El código ha sido sellado contra modificaciones y acciones de portapapeles.', 'system');
+  appendTerminalOutput(taskDelivery
+    ? '>>> La entrega fue firmada para detectar cualquier modificación posterior.'
+    : '>>> El código ha sido sellado contra modificaciones y acciones de portapapeles.', 'system');
   appendTerminalOutput('>>> Estado: listo para la revisión docente.', 'system');
   appendTerminalOutput('>>> La ejecución sigue habilitada con "▶ Ejecutar" (F5) para validación del docente.\n', 'system');
   appendTerminalOutput('>>> Opciones post-entrega habilitadas: Abrir Carpeta, Nuevo Proyecto o Salir.\n', 'system');
@@ -3640,13 +3669,8 @@ function openSubmitTaskModal() {
   DOM.taskSubmitKeystrokes.textContent = (state.taskTelemetry.keystrokes || 0).toLocaleString();
   DOM.taskSubmitCharacters.textContent = (DOM.codeTextarea.value.length || 0).toLocaleString();
 
-  if (state.taskTelemetry.externalPasteAttempts === 0) {
-    DOM.taskSubmitPastes.textContent = '0 (100% escrito a mano ✓)';
-    DOM.taskSubmitPastes.className = 'clean';
-  } else {
-    DOM.taskSubmitPastes.textContent = `${state.taskTelemetry.externalPasteAttempts} intentos bloqueados`;
-    DOM.taskSubmitPastes.className = 'highlight-red';
-  }
+  DOM.taskSubmitPastes.textContent = 'Permitido';
+  DOM.taskSubmitPastes.className = 'clean';
 
   DOM.taskSubmitRuns.textContent = `${state.taskTelemetry.runsCount || 0} pruebas`;
 
@@ -3684,7 +3708,7 @@ async function handleTaskFinalSubmit() {
     appendTerminalOutput(`\nTarea certificada guardada correctamente.`, 'success');
     appendTerminalOutput(`>>> Archivo generado: ${res.fileName}`, 'system');
     appendTerminalOutput(`>>> Sello criptográfico Ed25519: ${res.officialSeal ? 'Generado' : 'Compatible'}`, 'system');
-    appendTerminalOutput(`>>> Entrega este archivo .codego a tu profesor para certificar tu autoría.\n`, 'system');
+    appendTerminalOutput(`>>> Entrega este archivo .codego a tu profesor para comprobar su integridad.\n`, 'system');
   } catch (error) {
     DOM.codeTextarea.readOnly = state.isTaskSubmitted;
     alert(`No se completó la entrega de la tarea: ${error.message}`);
@@ -3846,7 +3870,7 @@ function showVerifiedSubmission(res) {
         DOM.verifHmacBadge.style.color = '#34d399';
         DOM.verifHmacBadge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
       }
-      if (DOM.verifHmacText) DOM.verifHmacText.textContent = res.officialSealValid ? 'Sello de autoría Ed25519 verificado' : 'Sello compatible verificado';
+      if (DOM.verifHmacText) DOM.verifHmacText.textContent = res.officialSealValid ? 'Sello de integridad Ed25519 verificado' : 'Sello compatible verificado';
     } else {
       DOM.verifierStatusBadge.className = 'badge-status-tampered';
       DOM.verifierStatusBadge.textContent = '⚠️ ADULTERADO O SIN FIRMA';
@@ -3870,15 +3894,10 @@ function showVerifiedSubmission(res) {
   const tel = res.telemetry || {};
   if (DOM.verifKeystrokes) DOM.verifKeystrokes.textContent = (tel.keystrokesCount || tel.keystrokes || 0).toLocaleString();
   if (DOM.verifCharacters) DOM.verifCharacters.textContent = (tel.charactersTyped || tel.charactersWritten || 0).toLocaleString();
-  if (DOM.verifPastes) DOM.verifPastes.textContent = tel.externalPasteAttempts || 0;
+  if (DOM.verifPastes) DOM.verifPastes.textContent = 'Permitido';
   if (DOM.verifPastesSub) {
-    if (tel.externalPasteAttempts === 0) {
-      DOM.verifPastesSub.textContent = '✓ 100% hecho en codeGO';
-      DOM.verifPastesSub.style.color = '#34d399';
-    } else {
-      DOM.verifPastesSub.textContent = '⚠️ Intentos de pegado detectados';
-      DOM.verifPastesSub.style.color = '#f87171';
-    }
+    DOM.verifPastesSub.textContent = 'Edición libre durante la tarea';
+    DOM.verifPastesSub.style.color = '#8ea3b7';
   }
   if (DOM.verifEditingTime) DOM.verifEditingTime.textContent = formatTime(Math.round(tel.activeTypingSeconds || tel.activeEditingSeconds || 0));
   if (DOM.verifRuns) DOM.verifRuns.textContent = (tel.runsCount || 0) + ' veces';

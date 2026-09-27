@@ -34,6 +34,11 @@ const server = http.createServer((request, response) => {
         workspacePath: '/proyectos/Computacion3A',
         lastSavedDate: '17:58 · 27/09/2026'
       }));
+      localStorage.setItem('codego_recent_projects', JSON.stringify([
+        { workspacePath: '/proyectos/Computacion3A', workspaceName: 'Computacion3A', examSubject: 'Programación en Python', appMode: 'activity' },
+        { workspacePath: '/proyectos/Robotica', workspaceName: 'Robotica', examSubject: 'Sensores y Arduino', appMode: 'task' },
+        { workspacePath: '/proyectos/Algoritmos', workspaceName: 'Algoritmos', examSubject: 'Fundamentos', appMode: 'activity' }
+      ]));
       checkAndDisplayLastSession();
     });
     await page.screenshot({ path: path.join(output, 'lobby-resume-current.png') });
@@ -113,7 +118,7 @@ const server = http.createServer((request, response) => {
       DOM.codeTextarea.value = 'lecturas = [21.4, 22.1, 21.8]\npromedio = sum(lecturas) / len(lecturas)\nprint(f"Promedio: {promedio:.1f} °C")\n';
       handleEditorInput();
       clearTerminal();
-      appendTerminalOutput('Tarea certificada · autoría protegida\n', 'system');
+      appendTerminalOutput('Tarea certificada · entrega verificable\n', 'system');
       appendTerminalOutput('Ejecutando main.py\nPromedio: 21.8 °C\n', 'stdout');
       appendTerminalOutput('Finalizó sin errores · 0.08 s\n', 'success');
     });

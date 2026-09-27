@@ -30,9 +30,19 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       workspacePath: '/proyectos/Computacion3A',
       lastSavedDate: '10:30'
     }));
+    localStorage.setItem('codego_recent_projects', JSON.stringify([
+      {
+        studentName: 'Ana Torres', studentId: '2020', examSubject: 'Robótica', appMode: 'task',
+        workspacePath: '/proyectos/Robotica', workspaceName: 'Robotica', lastOpenedAt: Date.now()
+      },
+      {
+        studentName: 'Ana Torres', studentId: '2020', examSubject: 'Programación en Python', appMode: 'activity',
+        workspacePath: '/proyectos/Computacion3A', workspaceName: 'Computacion3A', lastOpenedAt: Date.now() - 1000
+      }
+    ]));
     checkAndDisplayLastSession();
   });
-  for (const size of [{ width: 1600, height: 900 }, { width: 1280, height: 600 }, { width: 850, height: 700 }]) {
+  for (const size of [{ width: 1600, height: 900 }, { width: 1280, height: 720 }, { width: 1280, height: 600 }, { width: 850, height: 700 }]) {
     await page.setViewportSize(size);
     const lobbyGeometry = await page.evaluate(() => {
       const rect = selector => {
@@ -42,6 +52,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       return {
         card: rect('.lobby-card'),
         form: rect('.lobby-form'),
+        recents: rect('#recent-projects'),
         modes: [...document.querySelectorAll('.mode-segment-btn')].map(element => {
           const value = element.getBoundingClientRect();
           return { left: value.left, right: value.right, top: value.top, bottom: value.bottom };
@@ -51,16 +62,30 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       };
     });
     assert(lobbyGeometry.card.left >= 0 && lobbyGeometry.card.right <= size.width + 1, `Lobby overflow: ${JSON.stringify({ size, lobbyGeometry })}`);
+    assert(lobbyGeometry.card.top >= 0 && lobbyGeometry.card.bottom <= size.height + 1, `Lobby vertical overflow: ${JSON.stringify({ size, lobbyGeometry })}`);
+    assert(lobbyGeometry.recents.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.recents.right <= lobbyGeometry.form.right + 1, `Recent projects escaped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
     assert(lobbyGeometry.start.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.start.right <= lobbyGeometry.form.right + 1, `Primary action escaped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
     if (size.width > 900) {
       assert(lobbyGeometry.modes.every((mode, index, all) => index === 0 || mode.top >= all[index - 1].bottom - 1), `Desktop modes overlap: ${JSON.stringify({ size, lobbyGeometry })}`);
       assert(lobbyGeometry.modes.every(mode => mode.right < lobbyGeometry.form.left), `Desktop mode rail overlaps the form: ${JSON.stringify({ size, lobbyGeometry })}`);
     }
   }
-  await page.locator('#btn-continue-last-session').click();
+  assert(await page.locator('.recent-project-btn').count() === 2, 'Recent projects are not visible in the lobby');
+  await page.locator('.recent-project-btn').first().click();
   await page.waitForFunction(() => window.resumeCalls.length === 1);
+  const recentResult = await page.evaluate(() => ({ calls: window.resumeCalls, dialogs: window.folderDialogCalls, workspacePath: state.workspacePath, mode: state.appMode }));
+  assert(JSON.stringify(recentResult.calls) === '["/proyectos/Robotica"]', `Recent project did not open directly: ${JSON.stringify(recentResult)}`);
+  assert(recentResult.dialogs === 0 && recentResult.workspacePath === '/proyectos/Robotica' && recentResult.mode === 'task', `Recent project lost its context: ${JSON.stringify(recentResult)}`);
+  await page.evaluate(() => {
+    switchView('lobby');
+    state.workspaceSelected = false;
+    state.workspacePath = '';
+    checkAndDisplayLastSession();
+  });
+  await page.locator('#btn-continue-last-session').click();
+  await page.waitForFunction(() => window.resumeCalls.length === 2);
   const resumeResult = await page.evaluate(() => ({ calls: window.resumeCalls, dialogs: window.folderDialogCalls, workspacePath: state.workspacePath }));
-  assert(JSON.stringify(resumeResult.calls) === '["/proyectos/Computacion3A"]', `Saved workspace was not restored: ${JSON.stringify(resumeResult)}`);
+  assert(JSON.stringify(resumeResult.calls) === '["/proyectos/Robotica","/proyectos/Computacion3A"]', `Saved workspace was not restored: ${JSON.stringify(resumeResult)}`);
   assert(resumeResult.dialogs === 0 && resumeResult.workspacePath === '/proyectos/Computacion3A', `Resume opened a picker or lost the saved path: ${JSON.stringify(resumeResult)}`);
   await page.evaluate(() => localStorage.removeItem('codego_last_session'));
   await page.evaluate(() => {
@@ -274,10 +299,14 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   const taskWarningSuppressed = await page.evaluate(() => {
     setSessionMode('task');
     state.workspaceSessionActive = true;
+    const paste = new Event('paste', { bubbles: true, cancelable: true });
+    const beforeInput = new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertFromPaste', data: 'print("copiado")' });
+    const clipboardAllowed = DOM.codeTextarea.dispatchEvent(paste) && DOM.codeTextarea.dispatchEvent(beforeInput);
     handleSecurityViolation({type:'TEST_TASK',durationSeconds:2});
-    return DOM.modalFocusWarning.classList.contains('hidden');
+    return { warningHidden: DOM.modalFocusWarning.classList.contains('hidden'), clipboardAllowed };
   });
-  assert(taskWarningSuppressed, 'Task mode must never show the focus warning');
+  assert(taskWarningSuppressed.warningHidden, 'Task mode must never show the focus warning');
+  assert(taskWarningSuppressed.clipboardAllowed, 'Task mode must allow normal copy and paste');
   await page.evaluate(() => {
     setTheme('theme-obsidian');
     setSessionMode('exam');

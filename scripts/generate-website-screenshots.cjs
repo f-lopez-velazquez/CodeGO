@@ -38,6 +38,8 @@ app.whenReady().then(async () => {
   try {
     const fixtureHandlers = {
       'window:set-fullscreen': () => ({ success: true }),
+      'system:environment-status': () => ({ ready: true }),
+      'updater:check': () => ({ success: true, available: false }),
       'system:self-test': () => ({ success: true, details: 'Entorno 100% validado' }),
       'wifi:get-status': () => ({ disabled: false }),
       'system:check-full-environment': () => ({
@@ -165,7 +167,17 @@ app.whenReady().then(async () => {
 
     // 1. CAPTURA: HOME / LOBBY (CON SELECTOR DE 3 MODOS Y BOTÓN DE VERIFICACIÓN DOCENTE)
     console.log('Capturando Home / Lobby...');
-    await evaluate("loadEnvironmentDiagnostics();");
+    await evaluate(`
+      DOM.studentNameInput.value = 'Francisco López';
+      DOM.studentIdInput.value = '2026-FLV';
+      localStorage.setItem('codego_recent_projects', JSON.stringify([
+        { workspacePath: '/clase/robotica', workspaceName: 'Robótica', examSubject: 'Sensores y Arduino', appMode: 'task' },
+        { workspacePath: '/clase/algoritmos', workspaceName: 'Algoritmos', examSubject: 'Fundamentos', appMode: 'activity' },
+        { workspacePath: '/clase/datos', workspaceName: 'Análisis de datos', examSubject: 'Python aplicado', appMode: 'activity' }
+      ]));
+      renderRecentProjects();
+      loadEnvironmentDiagnostics();
+    `);
     await sleep(400);
     const homeBuffer = (await window.webContents.capturePage()).toPNG();
     fs.writeFileSync(path.join(outDir, 'codego-lobby.png'), homeBuffer);

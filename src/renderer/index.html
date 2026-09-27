@@ -138,6 +138,10 @@
               <span><strong>Proyecto nuevo</strong><small>Comenzar en blanco</small></span>
             </button>
           </div>
+          <div id="recent-projects" class="recent-projects hidden" aria-labelledby="recent-projects-title">
+            <span id="recent-projects-title" class="recent-projects-title">Recientes</span>
+            <div id="recent-project-list" class="recent-project-list"></div>
+          </div>
         </section>
 
         <!-- Status & Tools Bar -->
@@ -823,7 +827,7 @@ print([p.device for p in puertos])
 with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
     print(placa.readline().decode(errors="replace"))</pre><p>Para PyFirmata2, carga primero StandardFirmata desde Arduino IDE. Para ESP32 puedes instalar <code>esptool</code> desde el gestor cuando necesites flashear firmware.</p></div></details>
         <details class="help-topic"><summary>Errores frecuentes y cómo leerlos</summary><div><p><code>SyntaxError</code> marca una instrucción mal escrita; por ejemplo, <code>pimport pygame</code> debe ser <code>import pygame</code>. <code>ModuleNotFoundError</code> indica el nombre de una librería ausente. <code>FileNotFoundError</code> suele indicar una ruta incorrecta: usa <code>Path(__file__)</code> como en la guía de archivos.</p><p>Lee la última línea roja y después revisa el archivo y número de línea mostrados arriba.</p></div></details>
-        <details class="help-topic"><summary>Modos para clase, tarea y examen</summary><div><p>Actividad permite explorar libremente proyectos. Tarea certifica autoría y bloquea pegado externo. Examen activa el entorno supervisado y la entrega sellada. El profesor debe elegir el modo adecuado antes de iniciar.</p></div></details>
+        <details class="help-topic"><summary>Modos para clase, tarea y examen</summary><div><p>Actividad permite explorar libremente proyectos. Tarea permite editar con copiar y pegar y genera una entrega firmada para comprobar su integridad. Examen activa el entorno supervisado y la entrega sellada. El profesor debe elegir el modo adecuado antes de iniciar.</p></div></details>
         <details class="help-topic"><summary>Atajos del editor</summary><div class="shortcuts-grid"><div class="shortcut-row"><kbd>F5</kbd><span>Ejecutar</span></div><div class="shortcut-row"><kbd>Ctrl/Cmd + S</kbd><span>Guardar</span></div><div class="shortcut-row"><kbd>Ctrl/Cmd + B</kbd><span>Explorador</span></div><div class="shortcut-row"><kbd>Ctrl/Cmd + 0</kbd><span>Zoom 100 %</span></div><div class="shortcut-row"><kbd>Tab</kbd><span>Indentar</span></div></div></details>
       </div>
       <p id="help-empty" class="help-empty hidden">No encontramos ese tema. Prueba con una palabra más corta.</p>
@@ -1034,15 +1038,15 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
           <strong id="task-submit-characters">0</strong>
         </div>
         <div class="summary-item">
-          <span>Pegado externo:</span>
-          <strong id="task-submit-pastes" class="clean">0 (100% hecho a mano)</strong>
+          <span>Portapapeles:</span>
+          <strong id="task-submit-pastes" class="clean">Permitido</strong>
         </div>
         <div class="summary-item">
           <span>Pruebas ejecutadas:</span>
           <strong id="task-submit-runs">0</strong>
         </div>
         <div class="summary-item">
-          <span>Sello de autoría:</span>
+          <span>Sello de entrega:</span>
           <strong id="task-submit-incidents" class="clean">Listo para firmar</strong>
         </div>
       </div>
@@ -1121,9 +1125,9 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
             <strong class="telemetry-value" id="verif-characters">0</strong>
           </div>
           <div class="telemetry-card">
-            <span class="telemetry-label">📋 Pegado Externo</span>
-            <strong class="telemetry-value" id="verif-pastes">0</strong>
-            <span class="telemetry-sub" id="verif-pastes-sub">100% hecho en codeGO</span>
+            <span class="telemetry-label">Portapapeles</span>
+            <strong class="telemetry-value" id="verif-pastes">Permitido</strong>
+            <span class="telemetry-sub" id="verif-pastes-sub">Edición libre durante la tarea</span>
           </div>
           <div class="telemetry-card">
             <span class="telemetry-label">⏱️ Tiempo Activo</span>
@@ -1134,7 +1138,7 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
             <strong class="telemetry-value" id="verif-runs">0 veces</strong>
           </div>
           <div class="telemetry-card">
-            <span class="telemetry-label">🔏 Sello de autoría</span>
+            <span class="telemetry-label">Sello de integridad</span>
             <strong class="telemetry-value" id="verif-incidents">Verificado</strong>
           </div>
         </div>

@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.5.2 · Proyectos recientes y edición flexible
+
+- Muestra hasta tres proyectos recientes en el inicio y los abre directamente, con su modo y datos de sesión, sin volver a pedir una carpeta.
+- Permite copiar, cortar, pegar y arrastrar texto en Modo Tarea durante la edición.
+- Describe el sello Ed25519 de forma precisa: comprueba la integridad de la entrega y conserva métricas de sesión como contexto para el docente.
+- Comprueba que el inicio completo, incluida la lista de recientes, no se desborde en pantallas de 1280 × 600.
+
 ## 1.5.1 · Inicio ordenado y reanudación directa
 
 - Reorganiza el inicio en una navegación vertical clara, amplía los campos de identificación y mueve las acciones secundarias a un menú de herramientas.

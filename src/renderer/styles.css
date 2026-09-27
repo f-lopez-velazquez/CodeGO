@@ -5066,7 +5066,7 @@ body.theme-obsidian {
   line-height: 1.25;
 }
 #mode-card-exam::after { content: 'Evaluación supervisada'; }
-#mode-card-task::after { content: 'Autoría certificada'; }
+#mode-card-task::after { content: 'Entrega verificable'; }
 #mode-card-activity::after { content: 'Práctica libre'; }
 
 .mode-segment-btn:hover {
@@ -5289,7 +5289,7 @@ body.mode-task-active #modal-focus-warning { display: none !important; }
 }
 
 /* ========================================================================== */
-/* codeGO 1.5.1 — focused lobby                                                */
+/* codeGO — focused lobby                                                      */
 /* The home screen has one job: resume or choose a project and start.         */
 /* ========================================================================== */
 .lobby-card {
@@ -5473,7 +5473,7 @@ body.mode-task-active #modal-focus-warning { display: none !important; }
   .app-credits { grid-column: 1; grid-row: 4; }
 }
 
-@media (max-height: 680px) and (min-width: 901px) {
+@media (max-height: 760px) and (min-width: 901px) {
   #view-lobby { padding: 10px; }
   .lobby-card { width: min(1160px, calc(100vw - 20px)); padding: 16px 24px; row-gap: 10px; }
   .lobby-eyebrow, .lobby-value { display: none; }
@@ -5515,4 +5515,78 @@ body.mode-task-active #modal-focus-warning { display: none !important; }
   .system-status-bar { align-items: stretch; flex-direction: column; gap: 8px; }
   .lobby-tools-menu > summary { width: 100%; }
   .lobby-tools-menu .status-tools { right: auto; bottom: auto; left: 0; width: 100%; margin-top: 7px; }
+}
+
+/* Recent projects stay inside the folder choice and reopen without a picker. */
+.recent-projects {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding-top: 9px;
+  border-top: 1px solid #22384b;
+}
+
+.recent-projects.hidden { display: none; }
+
+.recent-projects-title {
+  color: #7f93a7;
+  font-size: 0.63rem;
+  font-weight: 760;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.recent-project-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.recent-project-btn {
+  display: grid;
+  min-width: 0;
+  min-height: 38px;
+  align-content: center;
+  gap: 1px;
+  padding: 6px 9px;
+  color: #d9e5ee;
+  text-align: left;
+  border: 1px solid #2d465a;
+  border-radius: 8px;
+  background: #101e2c;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.recent-project-btn:hover,
+.recent-project-btn:focus-visible {
+  border-color: #557f9c;
+  background: #172b3e;
+  outline: none;
+}
+
+.recent-project-btn:disabled { opacity: 0.62; cursor: wait; }
+.recent-project-btn strong,
+.recent-project-btn small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-project-btn strong { font-size: 0.71rem; font-weight: 680; }
+.recent-project-btn small { color: #8297aa; font-size: 0.61rem; }
+
+@media (max-height: 760px) and (min-width: 901px) {
+  .recent-projects { padding-top: 6px; }
+  .recent-project-btn { min-height: 31px; padding-block: 4px; }
+  .recent-project-btn small { display: none; }
+}
+
+@media (max-width: 620px) {
+  .recent-projects { grid-template-columns: minmax(0, 1fr); }
+  .recent-project-list { grid-template-columns: minmax(0, 1fr); }
+  .recent-project-btn:nth-child(n + 2) { display: none; }
 }
