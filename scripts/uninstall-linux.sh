@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ====================================================================
-# CodeGO ExamGuard - Desinstalador Completo para Linux
+# codeGO - Desinstalador completo para Linux
 # ====================================================================
 
 set -e
 
-echo "=== Desinstalando CodeGO ExamGuard ==="
+echo "=== Desinstalando codeGO ==="
 
 # 1. Eliminar acceso directo de escritorio
 rm -f "$HOME/.local/share/applications/codego-examguard.desktop"
@@ -21,4 +21,4 @@ if [ -d "$HOME/.config/codego-examguard" ]; then
     rm -rf "$HOME/.config/codego-examguard"
 fi
 
-echo "✓ CodeGO ExamGuard ha sido desinstalado completamente de tu sistema."
+echo "✓ codeGO ha sido desinstalado completamente de tu sistema."

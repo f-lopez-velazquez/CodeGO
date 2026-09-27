@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const packageJson = require('../package.json');
 const platform = process.platform;
 const output = path.resolve('dist');
-const candidates = platform === 'win32' ? ['win-unpacked/CodeGO ExamGuard.exe'] : platform === 'darwin' ? ['mac-arm64/CodeGO ExamGuard.app/Contents/MacOS/CodeGO ExamGuard','mac/CodeGO ExamGuard.app/Contents/MacOS/CodeGO ExamGuard'] : ['linux-unpacked/codego-examguard','linux-arm64-unpacked/codego-examguard'];
+const candidates = platform === 'win32' ? ['win-unpacked/codeGO.exe'] : platform === 'darwin' ? ['mac-arm64/codeGO.app/Contents/MacOS/codeGO','mac/codeGO.app/Contents/MacOS/codeGO'] : ['linux-unpacked/codego-examguard','linux-arm64-unpacked/codego-examguard'];
 const executable = process.env.CODEGO_PACKAGED_EXECUTABLE || candidates.map(name=>path.join(output,name)).find(file=>fs.existsSync(file));
 if (!executable) throw new Error('Compila el paquete nativo antes de comprobarlo.');
 const report = path.resolve(`reports/packaged-${platform}-${process.arch}.json`);

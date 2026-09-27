@@ -1,4 +1,4 @@
-name: Build public preview installers
+name: Build public preview installers for codeGO
 on:
   workflow_dispatch:
 permissions:
@@ -80,10 +80,10 @@ jobs:
           echo "Publicando release $TAG..."
           cd all-downloads
           cat SHA256SUMS-*.txt > SHA256SUMS.txt
-          NOTES="CodeGO $VERSION incluye Python 3.13 y 28 librerías para preparar el aula sin internet, soporte Arduino/ESP32, terminal interactiva con input(), ayuda y diagnósticos claros. Desarrollado por Francisco López Velázquez · zolvek.com.mx"
+          NOTES="codeGO $VERSION incluye Python 3.13 y 28 librerías para preparar el aula sin internet, proyectos vacíos o existentes, explorador con arrastre, soporte Arduino/ESP32 y terminal interactiva con input(). Desarrollado por Francisco López Velázquez · zolvek.com.mx"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" * --clobber
-            gh release edit "$TAG" --title "CodeGO $VERSION · Vista previa pública" --notes "$NOTES" --prerelease
+            gh release edit "$TAG" --title "codeGO $VERSION · Vista previa pública" --notes "$NOTES" --prerelease
           else
-            gh release create "$TAG" * --title "CodeGO $VERSION · Vista previa pública" --notes "$NOTES" --prerelease
+            gh release create "$TAG" * --title "codeGO $VERSION · Vista previa pública" --notes "$NOTES" --prerelease
           fi

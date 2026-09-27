@@ -1,4 +1,4 @@
-name: Verify CodeGO on native operating systems
+name: Verify codeGO on native operating systems
 on:
   push:
     branches: [main, master]

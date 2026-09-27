@@ -158,7 +158,7 @@ async function prepareEnvironment({directory,selectInterpreter,execute=run,onPro
   if(!valid)await retryOperation(async ({attempt})=>{
     if(attempt>1)fs.rmSync(venv,{recursive:true,force:true,maxRetries:5,retryDelay:200});
     await execute(base.executable,['-I','-m','venv',venv],{timeout:180000});
-  },{attempts:2,delayMs:900,onRetry:({nextAttempt,error})=>onProgress(25,`Reintentando entorno aislado (${nextAttempt}/2)…`,`>>> La creación del entorno se interrumpió: ${error.message}\n>>> CodeGO limpiará el intento incompleto y continuará automáticamente.\n`)});
+  },{attempts:2,delayMs:900,onRetry:({nextAttempt,error})=>onProgress(25,`Reintentando entorno aislado (${nextAttempt}/2)…`,`>>> La creación del entorno se interrumpió: ${error.message}\n>>> codeGO limpiará el intento incompleto y continuará automáticamente.\n`)});
   const offline = Boolean(wheelhouse);
   if (offline && (!fs.existsSync(wheelhouse) || !fs.statSync(wheelhouse).isDirectory())) throw Error('No se encontró el almacén interno de librerías.');
   if (!offline) {
@@ -182,7 +182,7 @@ async function prepareEnvironment({directory,selectInterpreter,execute=run,onPro
   const report=await retryOperation(()=>verifyEnvironment(python,{execute,directory,onProgress,selfTest}),{
     attempts:2,
     delayMs:1000,
-    onRetry:({nextAttempt,error})=>onProgress(92,`Repitiendo micropruebas (${nextAttempt}/2)…`,`>>> Una comprobación no terminó: ${error.message}\n>>> CodeGO repetirá la validación completa.\n`)
+    onRetry:({nextAttempt,error})=>onProgress(92,`Repitiendo micropruebas (${nextAttempt}/2)…`,`>>> Una comprobación no terminó: ${error.message}\n>>> codeGO repetirá la validación completa.\n`)
   });
   fs.writeFileSync(marker,JSON.stringify({schema:2,completedAt:new Date().toISOString(),command:python,source:offline?'offline-bundle':'online-repair',...report},null,2));
   onProgress(100,offline?'Entorno autónomo listo. Todas las micropruebas pasaron.':'Entorno listo. Todas las micropruebas pasaron.');

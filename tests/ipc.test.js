@@ -26,10 +26,19 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   const sender = vm.runInContext('mainWindow.webContents',context);
   const event = {sender,senderFrame:sender.mainFrame};
   const call = (name,data) => handlers.get(name)(event,data);
+  const initialWorkspace = await call('workspace:get-current');
+  assert.equal(initialWorkspace.selected, false);
+  assert.deepEqual(JSON.parse(JSON.stringify((await call('fs:list-workspace')).tree)), []);
   assert.equal((await handlers.get('fs:read-file')({}, 'main.py')).success, false);
   assert.equal((await call('fs:create-file','main.py')).success,true);
   assert.equal((await call('fs:save-file',{relativePath:'main.py',content:'print("safe")'})).success,true);
   assert.equal((await call('fs:read-file','main.py')).content,'print("safe")');
+  assert.equal((await call('fs:create-folder','ejercicios')).success,true);
+  const moved = await call('fs:move',{sourcePath:'main.py',targetDirectory:'ejercicios'});
+  assert.deepEqual(JSON.parse(JSON.stringify(moved)), {success:true,oldPath:'main.py',path:'ejercicios/main.py'});
+  assert.equal((await call('fs:read-file','ejercicios/main.py')).content,'print("safe")');
+  assert.equal((await call('fs:move',{sourcePath:'ejercicios',targetDirectory:'ejercicios'})).success,false);
+  assert.equal((await call('fs:move',{sourcePath:'ejercicios/main.py',targetDirectory:''})).success,true);
   vm.runInContext('mainWindow.isDestroyed = () => true;', context);
   assert.equal((await call('fs:read-file','main.py')).success, false);
   vm.runInContext('mainWindow.isDestroyed = () => false;', context);
@@ -41,7 +50,8 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   for (const [name,data] of [
     ['fs:save-file',{relativePath:'main.py',content:'modified'}],
     ['fs:create-file','other.py'],['fs:create-folder','other'],['fs:delete','main.py'],
-    ['fs:rename',{oldPath:'main.py',newPath:'renamed.py'}]
+    ['fs:rename',{oldPath:'main.py',newPath:'renamed.py'}],
+    ['fs:move',{sourcePath:'main.py',targetDirectory:'ejercicios'}]
   ]) assert.equal((await call(name,data)).success,false,name);
   assert.equal((await call('fs:read-file','main.py')).content,'print("safe")');
 });

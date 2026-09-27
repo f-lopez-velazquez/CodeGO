@@ -1,4 +1,4 @@
-name: Build & Release CodeGO
+name: Build & Release codeGO
 
 on:
   push:
@@ -122,7 +122,7 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${TAG#v}"
           cat > release-notes.md <<EOF
-          ## CodeGO ExamGuard v${VERSION}
+          ## codeGO v${VERSION}
 
           Entorno educativo de Python para aprender, practicar y evaluar con una experiencia consistente en el aula.
 
@@ -132,6 +132,9 @@ jobs:
           - **Errores para aprender**: explicación clara, detección de línea y acceso directo al código.
           - **Edición asistida**: pares automáticos de símbolos y sangría o desangría de bloques.
           - **Interfaz académica**: preparación adaptable, consejos útiles y lenguaje dirigido al usuario final.
+          - **Proyectos desde el inicio**: abre una carpeta existente o crea un proyecto vacío; no se impone un archivo inicial.
+          - **Explorador organizado**: mueve archivos y carpetas mediante arrastre, incluso entre subcarpetas.
+          - **Librerías simples**: instala por nombre desde la aplicación y observa el progreso sin salir del proyecto.
           - **Tres modos**: Examen Blindado, Tarea Certificada y Actividad Libre.
 
           ### Instalación
@@ -150,7 +153,7 @@ jobs:
           EOF
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" release-assets/* --clobber
-            gh release edit "$TAG" --title "CodeGO ExamGuard v${VERSION} — Versión Oficial" --notes-file release-notes.md --latest
+            gh release edit "$TAG" --title "codeGO v${VERSION} — Versión oficial" --notes-file release-notes.md --latest
           else
-            gh release create "$TAG" release-assets/* --title "CodeGO ExamGuard v${VERSION} — Versión Oficial" --notes-file release-notes.md --latest
+            gh release create "$TAG" release-assets/* --title "codeGO v${VERSION} — Versión oficial" --notes-file release-notes.md --latest
           fi

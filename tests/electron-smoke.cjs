@@ -41,7 +41,9 @@ app.whenReady().then(async () => {
     window = new BrowserWindow({show:true,width:1280,height:800,frame:false,webPreferences:{preload:path.resolve(__dirname,'../src/preload/preload.js'),contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});
     runner = new PythonRunner({send:(channel,data)=>window.webContents.send(channel,data)});
     await window.loadFile(path.resolve(__dirname,'../src/renderer/index.html'));
-    await evaluate("setSessionMode('activity'); DOM.navSubjectLabel.textContent='Entrada y salida'; DOM.navStudentLabel.textContent='Práctica de Python'; enterIdeWorkspace();");
+    await evaluate("setSessionMode('activity'); state.workspaceSelected=true; state.workspaceName='Proyecto de prueba'; DOM.navSubjectLabel.textContent='Entrada y salida'; DOM.navStudentLabel.textContent='Práctica de Python'; enterIdeWorkspace();");
+    await waitFor("state.filesTree.some(item => item.path === 'main.py')");
+    await evaluate("openFileInEditor('main.py')");
     await waitFor("state.activeFilePath === 'main.py'");
     assert.equal(await evaluate('Boolean(window.electronAPI && !window.require)'), true);
     assert.equal(await evaluate("document.body.textContent.includes('Programado por Francisco López Velázquez.')"), true);

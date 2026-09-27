@@ -6,7 +6,7 @@ param(
   [string]$OutputDirectory = ''
 )
 $ErrorActionPreference = 'Stop'
-if (!$Executable) { $Executable = Join-Path $ProjectRoot 'dist\win-unpacked\CodeGO ExamGuard.exe' }
+if (!$Executable) { $Executable = Join-Path $ProjectRoot 'dist\win-unpacked\codeGO.exe' }
 if (!$OutputDirectory) { $OutputDirectory = Join-Path $ProjectRoot 'reports\windows-vm' }
 New-Item -ItemType Directory -Force $OutputDirectory | Out-Null
 $OutputDirectory = (Resolve-Path $OutputDirectory).Path

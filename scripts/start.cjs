@@ -7,7 +7,7 @@ delete environment.ELECTRON_NO_ATTACH_CONSOLE;
 
 const child = spawn(electron, ['.'], { env: environment, stdio: 'inherit' });
 child.once('error', error => {
-  console.error(`No se pudo iniciar CodeGO: ${error.message}`);
+  console.error(`No se pudo iniciar codeGO: ${error.message}`);
   process.exitCode = 1;
 });
 child.once('exit', (code, signal) => {

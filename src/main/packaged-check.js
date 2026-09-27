@@ -41,8 +41,11 @@ async function runPackagedCheck({ window, command, directory, version, reportPat
   try {
     await waitFor("typeof state !== 'undefined' && Boolean(window.electronAPI)");
     console.info('CodeGO: puente disponible.');
-    await evaluate("setSessionMode('activity'); enterIdeWorkspace();");
+    await evaluate("window.electronAPI.createFile('main.py')");
+    await evaluate("window.electronAPI.saveFile({relativePath:'main.py',content:'nombre = input(\"Ingresa tu nombre: \")\\nprint(f\"Hola {nombre}\")\\n'})");
+    await evaluate("setSessionMode('activity'); state.workspaceSelected=true; state.workspaceName='Comprobación'; enterIdeWorkspace();");
     console.info('CodeGO: espacio de trabajo abierto.');
+    await evaluate("openFileInEditor('main.py')");
     await waitFor("state.activeFilePath === 'main.py'");
     const checks = await evaluate(`({credits: document.body.textContent.includes('by zolvek.com.mx') && document.body.textContent.includes('Programado por Francisco López Velázquez.'), isolated: !window.require, activity: getComputedStyle(DOM.btnFinishExam).display === 'none' && DOM.btnFinishExam.disabled})`);
     report.checks.push({ name: 'Créditos y aislamiento del renderer', success: checks.credits && checks.isolated && checks.activity });

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instalación local de CodeGO para distribuciones Linux de 64 bits.
+# Instalación local de codeGO para distribuciones Linux de 64 bits.
 
 set -euo pipefail
 
@@ -7,7 +7,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 cd "$DIR"
 
 VERSION=$(node -p "require('./package.json').version")
-echo "=== Instalando CodeGO ExamGuard v${VERSION} ==="
+echo "=== Instalando codeGO v${VERSION} ==="
 
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons"
 
@@ -33,14 +33,14 @@ cp "$DIR/build/icon.png" "$HOME/.local/share/icons/codego.png"
 # 3. Registrar acceso directo en el sistema
 cat > "$HOME/.local/share/applications/codego-examguard.desktop" <<EOF
 [Desktop Entry]
-Name=CodeGO ExamGuard
+Name=codeGO
 Comment=Entorno Académico de Programación y Evaluación en Python
 Exec=$HOME/.local/bin/codego
 Icon=$DIR/build/icon.png
 Terminal=false
 Type=Application
 Categories=Education;Development;IDE;
-StartupWMClass=CodeGO ExamGuard
+StartupWMClass=codeGO
 EOF
 
 chmod +x "$HOME/.local/share/applications/codego-examguard.desktop"
@@ -77,8 +77,8 @@ if [ "$(id -u)" -ne 0 ] && command -v sudo &> /dev/null; then
     fi
 fi
 
-echo "✓ CodeGO ExamGuard v${VERSION} instalado correctamente:"
-echo "  • Menú de aplicaciones del sistema (busca 'CodeGO')"
+echo "✓ codeGO v${VERSION} instalado correctamente:"
+echo "  • Menú de aplicaciones del sistema (busca 'codeGO')"
 echo "  • Comando de terminal: codego"
 echo "  • Acceso directo: ~/CodeGO.AppImage"
 echo "  • Soporte de hardware para Arduino / ESP32 / Raspberry Pi configurado ✓"

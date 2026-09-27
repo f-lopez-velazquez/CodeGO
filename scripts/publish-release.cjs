@@ -14,9 +14,9 @@ const TAG = `v${VERSION}`;
 const DIST = path.join(__dirname, '..', 'dist');
 const DRY_RUN = process.argv.includes('--dry-run');
 
-const RELEASE_NOTES = `# CodeGO ExamGuard v${VERSION} — Versión Oficial
+const RELEASE_NOTES = `# codeGO v${VERSION} — Versión oficial
 
-## ¿Qué es CodeGO ExamGuard?
+## ¿Qué es codeGO?
 Entorno educativo de Python multiplataforma con tres modos especializados:
 
 - **🛡️ Modo Examen Blindado**: Kiosk, desconexión Wi-Fi, alerta estroboscópica de 12 s, entrega ZIP con sello SHA-256.
@@ -32,6 +32,9 @@ Entorno educativo de Python multiplataforma con tres modos especializados:
 - ✅ Anti-trampas mejorado: alerta estroboscópica visible a distancia
 - ✅ Auto-guardado, resolución dinámica y soporte multimonitor
 - ✅ Consola interactiva con \`input()\` en línea
+- ✅ Proyectos nuevos vacíos o carpetas existentes elegidas por el estudiante
+- ✅ Movimiento de archivos y carpetas mediante arrastre
+- ✅ Instalación de librerías por nombre desde la aplicación
 
 ## Instalación
 ### Windows
@@ -83,7 +86,7 @@ function run(cmd) {
 }
 
 async function main() {
-  console.log(`\n🚀 CodeGO ExamGuard — Publicando ${TAG} en GitHub Releases\n`);
+  console.log(`\n🚀 codeGO — Publicando ${TAG} en GitHub Releases\n`);
   if (DRY_RUN) console.log('📋 DRY RUN — no se ejecutarán comandos reales\n');
 
   // Generate SHA256 checksums
@@ -126,7 +129,7 @@ async function main() {
 
   // Create release
   const assetsArgs = ASSETS.map(name => `"${path.join(DIST, name)}"`).join(' ');
-  run(`gh release create ${TAG} ${assetsArgs} --title "CodeGO ExamGuard v${VERSION} — Versión Oficial" --notes-file "${notesPath}" --latest`);
+  run(`gh release create ${TAG} ${assetsArgs} --title "codeGO v${VERSION} — Versión oficial" --notes-file "${notesPath}" --latest`);
 
   console.log(`\n✅ Release publicado: https://github.com/f-lopez-velazquez/CodeGO/releases/tag/${TAG}`);
 }

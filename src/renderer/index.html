@@ -5,8 +5,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
   <meta name="author" content="Francisco López Velázquez · zolvek.com.mx">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="CodeGO ExamGuard - Entorno de Examen Seguro y Editor Python">
-  <title>CodeGO ExamGuard | Entorno de Examen Seguro</title>
+  <meta name="description" content="codeGO - Entorno educativo de programación en Python">
+  <title>codeGO</title>
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -26,8 +26,8 @@
     <div class="lobby-card">
       <div class="lobby-header">
         <div class="lobby-brand-row">
-          <img src="assets/logo.png" alt="CodeGO" class="brand-app-logo">
-          <h1 class="lobby-title">Code<span class="highlight">GO</span></h1>
+          <img src="assets/codego-mark.svg" alt="" class="brand-app-logo">
+          <h1 class="lobby-title">code<span class="highlight">GO</span></h1>
         </div>
         <p class="lobby-subtitle">Entorno Académico Python</p>
       </div>
@@ -96,7 +96,7 @@
             </div>
             <div class="continue-meta-text">
               <strong id="continue-subject-title">Materia: Programación en Python</strong>
-              <span id="continue-file-label" class="continue-file">Último archivo: main.py</span>
+              <span id="continue-file-label" class="continue-file">Carpeta de proyecto guardada</span>
             </div>
           </div>
           <button type="button" id="btn-continue-last-session" class="btn-continue-session">
@@ -119,6 +119,24 @@
           <label for="exam-subject">Materia / Actividad <span class="required">*</span></label>
           <input type="text" id="exam-subject" placeholder="Nombre de la materia" value="Examen de Programación en Python" required>
         </div>
+
+        <section class="project-picker" aria-labelledby="project-picker-title">
+          <div class="project-picker-copy">
+            <span class="project-picker-kicker">CARPETA DE TRABAJO</span>
+            <strong id="project-picker-title">Elige dónde vas a trabajar</strong>
+            <span id="workspace-selection-status" class="project-picker-status" role="status" aria-live="polite">Ninguna carpeta seleccionada</span>
+          </div>
+          <div class="project-picker-actions">
+            <button type="button" id="btn-lobby-open-folder" class="btn-project-choice">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span><strong>Abrir carpeta</strong><small>Continuar un proyecto</small></span>
+            </button>
+            <button type="button" id="btn-lobby-new-project" class="btn-project-choice">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              <span><strong>Proyecto nuevo</strong><small>Comenzar en blanco</small></span>
+            </button>
+          </div>
+        </section>
 
         <!-- Status & Tools Bar -->
         <div class="system-status-bar">
@@ -197,7 +215,7 @@
           </button>
         </div>
       </div>
-      <div class="app-credits"><span>CodeGO · Desarrollado por <strong>Francisco López Velázquez</strong> · <strong>zolvek.com.mx</strong></span></div>
+      <div class="app-credits"><span>codeGO · Programado por <strong>Francisco López Velázquez</strong> · <strong>zolvek.com.mx</strong></span></div>
     </div>
   </section>
 
@@ -242,8 +260,8 @@
     <header class="ide-navbar">
       <div class="nav-left">
         <div class="nav-brand">
-          <img src="assets/logo.png" alt="Logo" class="nav-app-logo">
-          <span class="nav-brand-title">Code<span class="highlight">GO</span></span>
+          <img src="assets/codego-mark.svg" alt="" class="nav-app-logo">
+          <span class="nav-brand-title">code<span class="highlight">GO</span></span>
         </div>
 
         <button id="btn-toggle-sidebar" class="btn-nav-toggle" title="Mostrar/Ocultar Explorador (Ctrl+B)">
@@ -257,9 +275,9 @@
         </div>
 
         <div class="nav-breadcrumbs" id="nav-breadcrumbs" title="Ruta del archivo activo en el espacio de trabajo">
-          <span class="crumb-root">📁 workspace</span>
+          <span class="crumb-root">Proyecto</span>
           <span class="crumb-sep">/</span>
-          <span class="crumb-file" id="crumb-current-file">main.py</span>
+          <span class="crumb-file" id="crumb-current-file">Sin archivo abierto</span>
         </div>
       </div>
 
@@ -461,6 +479,10 @@
           <!-- Renderizado dinámicamente -->
         </div>
 
+        <div class="explorer-drop-hint" id="explorer-drop-hint">
+          Arrastra un archivo sobre una carpeta para moverlo
+        </div>
+
         <div class="sidebar-footer">
           <div class="workspace-hint">
             <span id="workspace-hint-label">Espacio de Trabajo Aislado</span>
@@ -497,6 +519,15 @@
 
           <!-- Contenedor del Editor de Código con Resaltado de Sintaxis -->
           <div class="editor-workspace" id="editor-workspace">
+            <div class="editor-empty-state" id="editor-empty-state">
+              <img src="assets/codego-mark.svg" alt="" class="empty-state-mark">
+              <strong>Tu proyecto está listo</strong>
+              <p>Abre un archivo del panel izquierdo o crea uno para comenzar.</p>
+              <div class="empty-state-actions">
+                <button type="button" id="btn-empty-new-file" class="btn-empty-primary">Crear archivo Python</button>
+                <button type="button" id="btn-empty-open-folder" class="btn-empty-secondary activity-only-empty">Abrir otra carpeta</button>
+              </div>
+            </div>
             <div class="editor-line-numbers" id="editor-line-numbers"></div>
             <div class="editor-canvas">
               <pre id="editor-highlighting" aria-hidden="true"><code id="highlighting-content"></code></pre>
@@ -550,7 +581,10 @@
               <button id="btn-maximize-term" class="btn-term-action" title="Maximizar / Restaurar Terminal">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
               </button>
-              <button id="btn-clear-term" class="btn-term-action" title="Limpiar salida">Limpiar</button>
+              <button id="btn-clear-term" class="btn-term-action clear-terminal-action" title="Limpiar consola (Ctrl+L)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0l1 15h8l1-15"/></svg>
+                <span>Limpiar consola</span>
+              </button>
               <button id="btn-copy-term" class="btn-term-action" title="Copiar salida">Copiar</button>
             </div>
           </div>
@@ -571,9 +605,9 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
   <div id="modal-auto-installer" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="environment-setup-title">
     <div class="dialog-card auto-installer-card">
       <div class="dialog-header">
-        <span class="setup-mark" aria-hidden="true">C</span>
+        <img src="assets/codego-mark.svg" alt="" class="setup-mark" aria-hidden="true">
         <div>
-          <h3 id="environment-setup-title">Preparando CodeGO en este equipo</h3>
+          <h3 id="environment-setup-title">Preparando codeGO en este equipo</h3>
           <p class="dialog-desc">Deja todo listo para escribir y ejecutar programas. Los componentes esenciales ya vienen incluidos y esta comprobación se realiza una sola vez.</p>
         </div>
       </div>
@@ -595,7 +629,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
           <div class="step-num">1</div>
           <div class="step-details">
             <div class="step-title">Compatibilidad del equipo</div>
-            <div class="step-sub">Comprobamos que CodeGO pueda trabajar de forma estable.</div>
+            <div class="step-sub">Comprobamos que codeGO pueda trabajar de forma estable.</div>
           </div>
           <div class="step-badge pending" id="step-badge-vc">Pendiente</div>
         </div>
@@ -631,7 +665,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <aside class="setup-insight" aria-live="polite" aria-atomic="true">
         <span>Mientras preparamos tu entorno</span>
         <strong id="setup-insight-title">Tus proyectos siguen siendo tuyos</strong>
-        <p id="setup-insight-copy">CodeGO guarda tu trabajo en este equipo y no reemplaza la configuración de Python que ya tengas.</p>
+        <p id="setup-insight-copy">codeGO guarda tu trabajo en este equipo y no reemplaza la configuración de Python que ya tengas.</p>
       </aside>
 
       <section id="setup-error-panel" class="setup-error-panel hidden" role="alert" aria-live="assertive">
@@ -663,7 +697,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <div class="dialog-buttons">
         <button type="button" id="btn-close-auto-installer" class="btn-ghost hidden">Reintentar preparación</button>
         <button type="button" id="btn-rebuild-environment" class="btn-secondary hidden">Reconstruir entorno</button>
-        <button type="button" id="btn-finish-auto-installer" class="btn-primary hidden">Entrar a CodeGO</button>
+        <button type="button" id="btn-finish-auto-installer" class="btn-primary hidden">Entrar a codeGO</button>
       </div>
       <p class="setup-credits">by zolvek.com.mx · Programado por Francisco López Velázquez.</p>
     </div>
@@ -678,8 +712,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <div class="dialog-header">
         <span class="dialog-icon">📦</span>
         <div>
-          <h3>Gestor de Librerías de Python & Entorno</h3>
-          <p class="dialog-desc">Consulta las herramientas disponibles y vuelve a comprobarlas si alguna práctica lo necesita.</p>
+          <h3>Librerías de Python</h3>
+          <p class="dialog-desc">Busca una librería por nombre, instálala y continúa trabajando en el mismo entorno.</p>
         </div>
       </div>
 
@@ -698,7 +732,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <!-- Botón de Instalación Masiva -->
       <div class="batch-install-bar">
         <button type="button" id="btn-install-all-recommended" class="btn-primary-glow">
-          ⚡ Verificar y reparar las 28 librerías
+          Verificar herramientas incluidas
         </button>
       </div>
 
@@ -719,16 +753,17 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
 
       <!-- Barra para Instalar Cualquier Otra Librería por Nombre y Chips Rápidos -->
       <div class="custom-install-box">
-        <label for="custom-pkg-input">Instalar cualquier otra librería desde PyPI:</label>
+        <label for="custom-pkg-input">Añadir una librería</label>
         <div class="custom-install-inputs">
-          <input type="text" id="custom-pkg-input" placeholder="Escribe el nombre del paquete (ej. scikit-learn, flask, beautifulsoup4)..." autocomplete="off">
+          <input type="text" id="custom-pkg-input" placeholder="Nombre exacto, por ejemplo: flask" autocomplete="off" spellcheck="false">
           <button type="button" id="btn-install-custom-pkg" class="btn-primary">
-            + Instalar con Pip
+            Instalar
           </button>
         </div>
+        <p class="custom-install-note">Se instalará únicamente en el entorno privado de codeGO. Las librerías adicionales requieren internet.</p>
 
         <div class="custom-quick-tags">
-          <span class="quick-tag-label">Librerías populares con 1 clic:</span>
+          <span class="quick-tag-label">Sugerencias:</span>
           <div class="quick-tag-list">
             <button type="button" class="btn-quick-tag" data-tag="pyserial">+ pyserial (Arduino/ESP32)</button>
             <button type="button" class="btn-quick-tag" data-tag="scikit-learn">+ scikit-learn</button>
@@ -744,7 +779,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       <!-- Terminal Pip Integrada (Log en tiempo real) -->
       <div class="pip-terminal-wrapper">
         <div class="pip-term-header">
-          <span>SALIDA DE INSTALACIÓN PIP</span>
+          <span>Progreso de instalación</span>
           <button id="btn-clear-pip-log" class="btn-xs-ghost">Limpiar</button>
         </div>
         <div class="pip-terminal-output" id="pip-terminal-output">
@@ -753,7 +788,7 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
       </div>
 
       <div class="dialog-buttons single">
-        <button type="button" id="btn-close-pkg-manager" class="btn-ghost">Cerrar Gestor de Librerías</button>
+        <button type="button" id="btn-close-pkg-manager" class="btn-ghost">Cerrar</button>
       </div>
     </div>
   </div>
@@ -768,15 +803,15 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
     <div class="dialog-card shortcuts-card help-center-card">
       <div class="dialog-header">
         <span class="dialog-icon">?</span>
-        <div><h3>Centro de ayuda de CodeGO</h3><p class="dialog-desc">Guías breves para preparar el equipo, programar, usar archivos y conectar hardware.</p></div>
+        <div><h3>Centro de ayuda de codeGO</h3><p class="dialog-desc">Guías breves para preparar el equipo, programar, usar archivos y conectar hardware.</p></div>
       </div>
       <label class="help-search-label" for="help-search">Buscar una duda</label>
       <input id="help-search" class="help-search" type="search" placeholder="Ejemplo: Arduino, imagen, input, error…" autocomplete="off">
       <div class="compatibility-check"><button type="button" class="btn-tool-option" data-self-test>Comprobar este equipo</button><output role="status" aria-live="polite">Verifica guardado, Python y respuestas a input() sin modificar Wi-Fi ni audio.</output></div>
       <div id="help-topics" class="help-topics">
-        <details class="help-topic" open><summary>Primer inicio y trabajo sin internet</summary><div><p>Espera a que la barra llegue al 100 %. CodeGO prepara sus herramientas incluidas y comprueba que puedan ejecutarse en tu equipo. Puedes realizar este proceso sin conexión.</p><p>Si aparece un código de ayuda, sigue los pasos de la misma ventana. El editor se abrirá cuando la comprobación haya terminado correctamente.</p></div></details>
+        <details class="help-topic" open><summary>Primer inicio y trabajo sin internet</summary><div><p>Espera a que la barra llegue al 100 %. codeGO prepara sus herramientas incluidas y comprueba que puedan ejecutarse en tu equipo. Puedes realizar este proceso sin conexión.</p><p>Si aparece un código de ayuda, sigue los pasos de la misma ventana. El editor se abrirá cuando la comprobación haya terminado correctamente.</p></div></details>
         <details class="help-topic"><summary>Ejecutar y responder a input()</summary><div><p>Pulsa <kbd>F5</kbd> o Ejecutar. Cuando Python muestre una pregunta, el cursor aparece en esa misma línea de la terminal. Escribe la respuesta y pulsa Enter.</p><p>Detener cancela el programa actual. Limpiar borra el historial visual, sin cerrar el proceso que esté esperando entrada.</p></div></details>
-        <details class="help-topic"><summary>Imágenes, sonidos, CSV y otros archivos</summary><div><p>Guarda los recursos dentro de la carpeta del proyecto. CodeGO ejecuta cada archivo con su propia carpeta como directorio de trabajo, por lo que <code>pygame.image.load("recursos/nave.png")</code> funciona igual en Windows, macOS y Linux.</p><pre>from pathlib import Path
+        <details class="help-topic"><summary>Imágenes, sonidos, CSV y otros archivos</summary><div><p>Guarda los recursos dentro de la carpeta del proyecto. codeGO ejecuta cada archivo con su propia carpeta como directorio de trabajo, por lo que <code>pygame.image.load("recursos/nave.png")</code> funciona igual en Windows, macOS y Linux.</p><pre>from pathlib import Path
 BASE = Path(__file__).resolve().parent
 imagen = BASE / "recursos" / "nave.png"
 sonido = BASE / "recursos" / "salto.wav"</pre><p>Los archivos binarios aparecen en el explorador como recursos y no se abren como texto para evitar dañarlos.</p></div></details>
@@ -1026,7 +1061,7 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
         <span class="dialog-icon">🔍</span>
         <div style="flex: 1;">
           <div class="verifier-header-row">
-            <h3>Verificador Forense Docente CodeGO</h3>
+            <h3>Verificador Forense Docente codeGO</h3>
             <span id="verifier-status-badge" class="badge-status-waiting">Esperando archivo</span>
           </div>
           <p class="dialog-desc">Arrastra y suelta un archivo <code>.codego</code> o <code>.zip</code> aquí o búscalo en tu equipo para auditar su autenticidad y autoría.</p>
@@ -1077,7 +1112,7 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
           <div class="telemetry-card">
             <span class="telemetry-label">📋 Pegado Externo</span>
             <strong class="telemetry-value" id="verif-pastes">0</strong>
-            <span class="telemetry-sub" id="verif-pastes-sub">100% hecho en CodeGO</span>
+            <span class="telemetry-sub" id="verif-pastes-sub">100% hecho en codeGO</span>
           </div>
           <div class="telemetry-card">
             <span class="telemetry-label">⏱️ Tiempo Activo</span>

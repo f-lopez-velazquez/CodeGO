@@ -124,9 +124,13 @@ const state = {
   examStartTime: null,
   examTimerInterval: null,
   incidentsCount: 0,
-  activeFilePath: 'main.py',
+  activeFilePath: '',
   openTabs: [],
   filesTree: [],
+  workspaceSelected: false,
+  workspacePath: '',
+  workspaceName: '',
+  draggedTreeItem: null,
   isRunning: false,
   pythonGuiActive: false,
   pythonInfo: null,
@@ -206,6 +210,9 @@ const DOM = {
   studentNameInput: document.getElementById('student-name'),
   studentIdInput: document.getElementById('student-id'),
   examSubjectInput: document.getElementById('exam-subject'),
+  btnLobbyOpenFolder: document.getElementById('btn-lobby-open-folder'),
+  btnLobbyNewProject: document.getElementById('btn-lobby-new-project'),
+  workspaceSelectionStatus: document.getElementById('workspace-selection-status'),
   lobbyContinueCard: document.getElementById('lobby-continue-card'),
   continueModeBadge: document.getElementById('continue-mode-badge'),
   continueTimeLabel: document.getElementById('continue-time-label'),
@@ -314,9 +321,13 @@ const DOM = {
   btnNewFolder: document.getElementById('btn-new-folder'),
   btnImportAssets: document.getElementById('btn-import-assets'),
   btnRefreshFiles: document.getElementById('btn-refresh-files'),
+  explorerDropHint: document.getElementById('explorer-drop-hint'),
 
   // Editor
   editorTabsBar: document.getElementById('editor-tabs-bar'),
+  editorEmptyState: document.getElementById('editor-empty-state'),
+  btnEmptyNewFile: document.getElementById('btn-empty-new-file'),
+  btnEmptyOpenFolder: document.getElementById('btn-empty-open-folder'),
   btnToggleWrap: document.getElementById('btn-toggle-wrap'),
   btnToggleTermLayout: document.getElementById('btn-toggle-term-layout'),
   btnToggleTermView: document.getElementById('btn-toggle-term-view'),
@@ -874,21 +885,53 @@ function renderPackagesGrid(packages, category = 'all') {
 }
 
 async function installSinglePackage(pkgName) {
-  if (!window.electronAPI) {
-    appendPipLog(`[Simulador] Reparando ${pkgName} y verificando el entorno completo... Listo.\n`);
+  if (!window.electronAPI?.installPackage) {
+    appendPipLog(`[Vista previa] ${pkgName} se instalaría en el entorno privado de codeGO.\n`);
     return;
   }
-  DOM.modalPackageManager.classList.add('hidden');
-  await startAutoRepairProcess();
+  const normalized = String(pkgName || '').trim();
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*(?:==[a-zA-Z0-9.+_-]+)?$/.test(normalized)) {
+    appendPipLog('Escribe un nombre válido, por ejemplo: flask o flask==3.1.3.\n');
+    DOM.customPkgInput?.focus();
+    return;
+  }
+  DOM.btnInstallCustomPkg.disabled = true;
+  DOM.customPkgInput.disabled = true;
+  DOM.btnInstallCustomPkg.textContent = 'Instalando…';
+  appendPipLog(`\nPreparando ${normalized}…\n`);
+  try {
+    const result = await window.electronAPI.installPackage(normalized);
+    if (result.success) {
+      appendPipLog(`\n${normalized} quedó disponible en codeGO. ✓\n`);
+      await loadEnvironmentDiagnostics();
+    } else {
+      appendPipLog(`\nNo se pudo instalar ${normalized}: ${result.error || `pip terminó con código ${result.code}`}\n`);
+    }
+  } finally {
+    DOM.btnInstallCustomPkg.disabled = false;
+    DOM.customPkgInput.disabled = false;
+    DOM.btnInstallCustomPkg.textContent = 'Instalar';
+  }
 }
 
 async function installAllRecommendedPackages() {
-  if (!window.electronAPI) {
-    appendPipLog('[Simulador] Entorno completo de 28 librerías verificado con éxito.\n');
+  if (!window.electronAPI?.installRecommendedPackages) {
+    appendPipLog('[Vista previa] Las herramientas incluidas están listas.\n');
     return;
   }
-  DOM.modalPackageManager.classList.add('hidden');
-  await startAutoRepairProcess();
+  DOM.btnInstallAllRecommended.disabled = true;
+  DOM.btnInstallAllRecommended.textContent = 'Verificando…';
+  appendPipLog('\nComprobando las herramientas incluidas…\n');
+  try {
+    const result = await window.electronAPI.installRecommendedPackages();
+    appendPipLog(result.success
+      ? '\nLas herramientas incluidas están listas. ✓\n'
+      : `\nNo se pudo completar la comprobación: ${result.error || `código ${result.code}`}\n`);
+    await loadEnvironmentDiagnostics();
+  } finally {
+    DOM.btnInstallAllRecommended.disabled = false;
+    DOM.btnInstallAllRecommended.textContent = 'Verificar herramientas incluidas';
+  }
 }
 
 function appendPipLog(text) {
@@ -903,11 +946,11 @@ function appendPipLog(text) {
 
 // Auto-Installer Pipeline Helpers
 const SETUP_INSIGHTS = [
-  ['Tus proyectos siguen siendo tuyos', 'CodeGO guarda tu trabajo en este equipo y no reemplaza la configuración de Python que ya tengas.'],
+  ['Tus proyectos siguen siendo tuyos', 'codeGO guarda tu trabajo en este equipo y no reemplaza la configuración de Python que ya tengas.'],
   ['Una terminal fácil de entender', 'Cuando Python pida un dato, podrás escribirlo junto al mensaje del programa, en la misma consola.'],
   ['El mismo entorno para todo el grupo', 'Las herramientas incluidas ayudan a que una práctica se comporte igual en cada equipo compatible.'],
-  ['Ventanas gráficas siempre a la vista', 'CodeGO acompaña las ventanas de Pygame y otras interfaces para que no tengas que buscarlas.'],
-  ['Errores que ayudan a aprender', 'Si algo falla, CodeGO explica la causa, indica la línea y propone pasos claros para corregirla.'],
+  ['Ventanas gráficas siempre a la vista', 'codeGO acompaña las ventanas de Pygame y otras interfaces para que no tengas que buscarlas.'],
+  ['Errores que ayudan a aprender', 'Si algo falla, codeGO explica la causa, indica la línea y propone pasos claros para corregirla.'],
   ['Preparado para proyectos físicos', 'El entorno incluye herramientas para comunicarte con Arduino, ESP32 y otros dispositivos seriales.']
 ];
 
@@ -937,7 +980,7 @@ function setupProgressLabel(step) {
     2: 'Preparando el motor de Python incluido…',
     3: 'Configurando las herramientas educativas…',
     4: 'Realizando la comprobación final…'
-  }[step] || 'Preparando CodeGO…';
+  }[step] || 'Preparando codeGO…';
 }
 
 async function startAutoRepairProcess({ strategy = 'resume' } = {}) {
@@ -983,7 +1026,7 @@ function showSetupDiagnostic(diagnostic, fallbackError = '') {
   const safe = diagnostic || {
     code: 'CG-SETUP-900',
     title: 'No se pudo terminar la preparación',
-    summary: 'CodeGO mantuvo bloqueado el editor para evitar un entorno incompleto.',
+    summary: 'codeGO mantuvo bloqueado el editor para evitar un entorno incompleto.',
     actions: ['Pulsa Reintentar preparación.'],
     detail: fallbackError
   };
@@ -1050,7 +1093,7 @@ function simulateAutoInstaller() {
       clearInterval(interval);
       DOM.installerProgressBar.style.width = '100%';
       DOM.installerPercentLabel.textContent = '100%';
-      DOM.installerCurrentStepLabel.textContent = 'CodeGO está listo para comenzar';
+      DOM.installerCurrentStepLabel.textContent = 'codeGO está listo para comenzar';
       DOM.btnFinishAutoInstaller.classList.remove('hidden');
       return;
     }
@@ -1131,28 +1174,21 @@ function checkAndDisplayLastSession() {
       DOM.examSubjectInput.value = session.examSubject;
     }
 
-    if (DOM.lobbyContinueCard && session.activeFilePath) {
+    if (DOM.lobbyContinueCard && session.workspacePath) {
       const modeLabel = session.appMode === 'task'
         ? 'TAREA EN CURSO'
         : (session.appMode === 'activity' ? 'Actividad en curso' : 'Examen en curso');
       if (DOM.continueModeBadge) DOM.continueModeBadge.textContent = modeLabel;
       if (DOM.continueTimeLabel) DOM.continueTimeLabel.textContent = `Guardado: ${session.lastSavedDate || 'Recientemente'}`;
       if (DOM.continueSubjectTitle) DOM.continueSubjectTitle.textContent = `Materia: ${session.examSubject || 'Programación en Python'}`;
-      if (DOM.continueFileLabel) DOM.continueFileLabel.textContent = `Archivo: ${session.activeFilePath}`;
+      if (DOM.continueFileLabel) DOM.continueFileLabel.textContent = `Proyecto anterior: ${session.workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'Proyecto'}`;
       DOM.lobbyContinueCard.classList.remove('hidden');
 
       if (DOM.btnContinueLastSession) {
         DOM.btnContinueLastSession.onclick = async () => {
           setSessionMode(session.appMode || 'activity');
-          if (session.studentName) state.studentName = session.studentName;
-          if (session.studentId) state.studentId = session.studentId;
-          if (session.examSubject) state.examSubject = session.examSubject;
-          await startExamSession();
-          if (session.activeFilePath) {
-            setTimeout(() => {
-              openFile(session.activeFilePath);
-            }, 300);
-          }
+          const selected = await chooseWorkspaceFolder();
+          if (selected) await handleStartExamClick();
         };
       }
     }
@@ -1176,7 +1212,7 @@ function setSessionMode(mode) {
     if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante el examen';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
-        <li><strong>Entorno Aislado:</strong> No hay acceso a proyectos previos ni carpetas externas del sistema.</li>
+        <li><strong>Carpeta definida:</strong> La sesión utiliza únicamente la carpeta elegida antes de comenzar.</li>
         <li><strong>Modo Kiosk & Pantalla Completa:</strong> Bloqueo del entorno y supervisión de conectividad.</li>
         <li><strong>Supervisión de Ventana:</strong> El cambio de aplicación o pérdida de foco registra aviso de 12 segundos.</li>
         <li><strong>Entrega Final:</strong> Al entregar, el código queda sellado contra modificación y se genera el archivo auditado.</li>
@@ -1203,7 +1239,7 @@ function setSessionMode(mode) {
     if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante la tarea certificada';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
-        <li><strong>Registro de autoría:</strong> El código debe escribirse en CodeGO para conservar un historial claro del trabajo.</li>
+        <li><strong>Registro de autoría:</strong> El código debe escribirse en codeGO para conservar un historial claro del trabajo.</li>
         <li><strong>Supervisión y Modo Seguro:</strong> Bloquea la apertura de otras aplicaciones o navegadores con alarma de 12s.</li>
         <li><strong>Telemetría de Pulsaciones:</strong> Se auditan teclas pulsadas, tiempo de edición activo y pruebas realizadas.</li>
         <li><strong>Certificado Criptográfico .codego:</strong> Genera un contenedor sellado con firma digital HMAC-SHA256 para el docente.</li>
@@ -1327,6 +1363,8 @@ function setupEventListeners() {
 
   // Start Exam Button
   DOM.btnStartExam.addEventListener('click', handleStartExamClick);
+  DOM.btnLobbyOpenFolder?.addEventListener('click', chooseWorkspaceFolder);
+  DOM.btnLobbyNewProject?.addEventListener('click', createBlankWorkspace);
 
   // Auto-Repair and Auto-Installer Triggers
   if (DOM.btnAutoRepairAll) {
@@ -1579,6 +1617,8 @@ function setupEventListeners() {
 
   // Explorer Actions
   DOM.btnNewFile.addEventListener('click', promptNewFile);
+  DOM.btnEmptyNewFile?.addEventListener('click', promptNewFile);
+  DOM.btnEmptyOpenFolder?.addEventListener('click', handleOpenWorkspaceFolder);
   DOM.btnNewFolder.addEventListener('click', promptNewFolder);
   DOM.btnImportAssets?.addEventListener('click', async () => {
     if (!window.electronAPI?.importAssets) return;
@@ -1589,6 +1629,22 @@ function setupEventListeners() {
     } else if (!result.canceled) appendTerminalOutput(`No se pudieron agregar recursos: ${result.error}\n`, 'stderr');
   });
   DOM.btnRefreshFiles.addEventListener('click', loadWorkspaceFiles);
+  DOM.fileTreeContainer?.addEventListener('dragover', event => {
+    if (!state.draggedTreeItem || event.target.closest('.tree-folder')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    DOM.fileTreeContainer.classList.add('tree-root-drop-target');
+  });
+  DOM.fileTreeContainer?.addEventListener('dragleave', event => {
+    if (!DOM.fileTreeContainer.contains(event.relatedTarget)) DOM.fileTreeContainer.classList.remove('tree-root-drop-target');
+  });
+  DOM.fileTreeContainer?.addEventListener('drop', async event => {
+    if (event.target.closest('.tree-folder')) return;
+    event.preventDefault();
+    DOM.fileTreeContainer.classList.remove('tree-root-drop-target');
+    const sourcePath = state.draggedTreeItem?.path || event.dataTransfer.getData('text/plain');
+    if (sourcePath) await moveWorkspaceItem(sourcePath, '');
+  });
 
   // Modals & Warnings
   DOM.btnDismissHazard.addEventListener('click', dismissHazardWarning);
@@ -1701,6 +1757,11 @@ function setupEventListeners() {
       e.preventDefault();
       saveCurrentFile();
     }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l' && state.workspaceSessionActive) {
+      e.preventDefault();
+      clearTerminal();
+      DOM.terminalOutput?.focus();
+    }
   });
 
   // Smooth Zoom with Ctrl + Mouse Wheel
@@ -1770,7 +1831,7 @@ function setupElectronListeners() {
       DOM.setupErrorPanel?.classList.add('hidden');
       DOM.installerProgressBar.style.width = '100%';
       DOM.installerPercentLabel.textContent = '100%';
-      DOM.installerCurrentStepLabel.textContent = 'CodeGO está listo para comenzar';
+      DOM.installerCurrentStepLabel.textContent = 'codeGO está listo para comenzar';
       updateAutoInstallerStep(4, DOM.stepItemLibs, DOM.stepBadgeLibs, 5);
       DOM.btnCloseAutoInstaller.classList.add('hidden');
       DOM.btnRebuildEnvironment?.classList.add('hidden');
@@ -1850,6 +1911,40 @@ function setupElectronListeners() {
 // ==============================================================
 // 8. EXAM & ACTIVITY FLOW: START & TRANSITION
 // ==============================================================
+function setWorkspaceSelection(result) {
+  if (!result?.success) return false;
+  state.workspaceSelected = true;
+  state.workspacePath = result.workspacePath || '';
+  state.workspaceName = result.workspaceName || state.workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'Proyecto';
+  if (DOM.workspaceSelectionStatus) {
+    DOM.workspaceSelectionStatus.textContent = `Seleccionado: ${state.workspaceName}`;
+    DOM.workspaceSelectionStatus.title = state.workspacePath;
+    DOM.workspaceSelectionStatus.classList.add('selected');
+  }
+  if (DOM.lobbyValidationBanner) DOM.lobbyValidationBanner.classList.add('hidden');
+  return true;
+}
+
+async function chooseWorkspaceFolder() {
+  if (!window.electronAPI?.openFolderDialog) {
+    alert('La selección de carpetas está disponible en la aplicación de escritorio.');
+    return null;
+  }
+  const result = await window.electronAPI.openFolderDialog();
+  return setWorkspaceSelection(result) ? result : null;
+}
+
+async function createBlankWorkspace() {
+  const projectName = await requestName('Nombre del proyecto', 'Mi proyecto');
+  if (!projectName) return null;
+  if (!window.electronAPI?.createProjectDialog) {
+    alert('La creación de proyectos está disponible en la aplicación de escritorio.');
+    return null;
+  }
+  const result = await window.electronAPI.createProjectDialog(projectName);
+  return setWorkspaceSelection(result) ? result : null;
+}
+
 async function handleStartExamClick() {
   if (!state.environmentReady && window.electronAPI?.getEnvironmentStatus) {
     await startAutoRepairProcess();
@@ -1883,6 +1978,15 @@ async function handleStartExamClick() {
     }
     DOM.studentIdInput.focus();
     DOM.studentIdInput.select();
+    return;
+  }
+
+  if (!state.workspaceSelected) {
+    if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
+      DOM.lobbyValidationText.textContent = 'Elige una carpeta existente o crea un proyecto en blanco para continuar.';
+      DOM.lobbyValidationBanner.classList.remove('hidden');
+    }
+    DOM.btnLobbyOpenFolder?.focus();
     return;
   }
 
@@ -2318,49 +2422,108 @@ async function loadWorkspaceFiles() {
     if (res.success) {
       state.filesTree = res.tree;
       renderFileTree(res.tree);
-
-      // Open initial file (main.py)
-      if (state.openTabs.length === 0) {
-        const firstFile = tree => {
-          for (const item of tree) {
-            if (item.type === 'file' && item.name.endsWith('.py')) return item.path;
-            const nested = item.children && firstFile(item.children);
-            if (nested) return nested;
-          }
-        };
-        const initial = res.tree.find(item => item.name === 'main.py' && item.type === 'file')?.path || firstFile(res.tree);
-        if (initial) await openFileInEditor(initial);
-      }
+      updateEditorEmptyState();
     }
   } else {
-    // Mock files for testing
-    const mockTree = [
-      { name: 'main.py', path: 'main.py', type: 'file', size: 120 },
-      { name: 'juego_pygame.py', path: 'juego_pygame.py', type: 'file', size: 240 }
-    ];
-    renderFileTree(mockTree);
-    if (state.openTabs.length === 0) {
-      openFileInEditor('main.py');
-    }
+    state.filesTree = [];
+    renderFileTree([]);
+    updateEditorEmptyState();
   }
+}
+
+function updateEditorEmptyState() {
+  const isEmpty = state.openTabs.length === 0;
+  DOM.editorEmptyState?.classList.toggle('hidden', !isEmpty);
+  DOM.codeTextarea?.classList.toggle('editor-has-no-file', isEmpty);
+  DOM.editorHighlighting?.classList.toggle('editor-has-no-file', isEmpty);
+  DOM.editorLineNumbers?.classList.toggle('editor-has-no-file', isEmpty);
+  if (isEmpty) updateBreadcrumbs('');
 }
 
 function updateBreadcrumbs(relativePath) {
   if (!DOM.navBreadcrumbs) return;
-  const normalized = (relativePath || 'main.py').replace(/\\/g, '/');
+  const normalized = (relativePath || '').replace(/\\/g, '/');
   const parts = normalized.split('/').filter(Boolean);
-  const fileName = parts.pop() || 'main.py';
+  const fileName = parts.pop() || '';
 
-  let html = `<span class="crumb-root">📁 workspace</span>`;
+  let html = `<span class="crumb-root">${escapeHtml(state.workspaceName || 'Proyecto')}</span>`;
   for (const part of parts) {
     html += `<span class="crumb-sep">/</span><span class="crumb-folder">📁 ${escapeHtml(part)}</span>`;
   }
-  html += `<span class="crumb-sep">/</span><span class="crumb-file" id="crumb-current-file">🐍 ${escapeHtml(fileName)}</span>`;
+  if (fileName) html += `<span class="crumb-sep">/</span><span class="crumb-file" id="crumb-current-file">${escapeHtml(fileName)}</span>`;
   DOM.navBreadcrumbs.innerHTML = html;
 }
 
+function wireTreeDragSource(element, itemPath, itemType) {
+  element.draggable = !state.isExamSubmitted;
+  element.dataset.path = itemPath;
+  element.dataset.itemType = itemType;
+  element.addEventListener('dragstart', event => {
+    if (state.isExamSubmitted) { event.preventDefault(); return; }
+    state.draggedTreeItem = { path: itemPath, type: itemType };
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', itemPath);
+    requestAnimationFrame(() => element.classList.add('is-dragging'));
+  });
+  element.addEventListener('dragend', () => {
+    state.draggedTreeItem = null;
+    element.classList.remove('is-dragging');
+    document.querySelectorAll('.tree-drop-target').forEach(target => target.classList.remove('tree-drop-target'));
+    DOM.fileTreeContainer?.classList.remove('tree-root-drop-target');
+  });
+}
+
+function wireFolderDropTarget(element, targetDirectory) {
+  element.addEventListener('dragover', event => {
+    if (!state.draggedTreeItem || state.isExamSubmitted) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    element.classList.add('tree-drop-target');
+  });
+  element.addEventListener('dragleave', event => {
+    if (!element.contains(event.relatedTarget)) element.classList.remove('tree-drop-target');
+  });
+  element.addEventListener('drop', async event => {
+    event.preventDefault();
+    event.stopPropagation();
+    element.classList.remove('tree-drop-target');
+    const sourcePath = state.draggedTreeItem?.path || event.dataTransfer.getData('text/plain');
+    if (sourcePath) await moveWorkspaceItem(sourcePath, targetDirectory);
+  });
+}
+
+async function moveWorkspaceItem(sourcePath, targetDirectory = '') {
+  if (!window.electronAPI?.moveItem || state.isExamSubmitted) return;
+  if (!await saveAllFiles()) return;
+  const result = await window.electronAPI.moveItem({ sourcePath, targetDirectory });
+  if (!result.success) {
+    appendTerminalOutput(`No se pudo mover el elemento: ${result.error}\n`, 'stderr');
+    return;
+  }
+  const remapPath = current => current === result.oldPath || current.startsWith(`${result.oldPath}/`)
+    ? result.path + current.slice(result.oldPath.length)
+    : current;
+  state.openTabs.forEach(tab => {
+    tab.path = remapPath(tab.path);
+    tab.name = tab.path.split('/').pop();
+  });
+  state.activeFilePath = remapPath(state.activeFilePath);
+  state.collapsedFolders.delete(targetDirectory);
+  renderTabs();
+  if (state.activeFilePath) updateBreadcrumbs(state.activeFilePath);
+  await loadWorkspaceFiles();
+  appendTerminalOutput(`Movido a ${result.path}\n`, 'system');
+}
+
 function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
-  if (depth === 0) container.innerHTML = '';
+  if (depth === 0) {
+    container.innerHTML = '';
+    container.classList.toggle('is-empty', tree.length === 0);
+    if (tree.length === 0) {
+      container.innerHTML = '<div class="tree-empty"><strong>Carpeta vacía</strong><span>Crea un archivo o agrega una carpeta.</span></div>';
+    }
+  }
 
   tree.forEach((item) => {
     const itemPath = (item.path || '').replace(/\\/g, '/');
@@ -2373,12 +2536,17 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
       const isCollapsed = state.collapsedFolders.has(itemPath);
       const folderEl = document.createElement('div');
       folderEl.className = `tree-folder ${isCollapsed ? 'collapsed' : 'expanded'}`;
+      folderEl.tabIndex = 0;
+      folderEl.setAttribute('role', 'treeitem');
+      folderEl.setAttribute('aria-expanded', String(!isCollapsed));
       folderEl.style.paddingLeft = `${8 + depth * 14}px`;
+      wireTreeDragSource(folderEl, itemPath, 'directory');
+      wireFolderDropTarget(folderEl, itemPath);
 
       folderEl.innerHTML = `
         <div class="tree-folder-left">
-          <span class="folder-toggle-icon">${isCollapsed ? '▶' : '▼'}</span>
-          <span class="tree-item-icon">${isCollapsed ? '📁' : '📂'}</span>
+          <span class="folder-toggle-icon">›</span>
+          <svg class="tree-folder-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v10h-17z"/><path d="M3.5 8.5v-3h6l2 3"/></svg>
           <span class="folder-name">${escapeHtml(item.name)}</span>
         </div>
         <div class="tree-folder-actions">
@@ -2397,6 +2565,11 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
           state.collapsedFolders.add(itemPath);
         }
         renderFileTree(state.filesTree || tree);
+      });
+      folderEl.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        folderEl.click();
       });
 
       // Actions within this directory
@@ -2474,20 +2647,27 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
       // File item
       const itemEl = document.createElement('div');
       itemEl.className = `tree-item ${state.activeFilePath === itemPath ? 'active' : ''}`;
+      itemEl.tabIndex = 0;
+      itemEl.setAttribute('role', 'treeitem');
       itemEl.style.paddingLeft = `${10 + depth * 14}px`;
+      wireTreeDragSource(itemEl, itemPath, 'file');
 
-      let icon = item.kind === 'image' ? '🖼️' : item.kind === 'audio' ? '🔊' : item.kind === 'binary' ? '◇' : '📄';
+      let iconLabel = item.kind === 'image' ? 'IMG' : item.kind === 'audio' ? 'AUD' : item.kind === 'binary' ? 'BIN' : 'TXT';
+      let iconClass = item.kind || 'text';
       if (item.name.endsWith('.py')) {
-        icon = '🐍';
+        iconLabel = 'PY';
+        iconClass = 'python';
       } else if (item.name.endsWith('.json')) {
-        icon = '📦';
+        iconLabel = '{}';
+        iconClass = 'json';
       } else if (item.name.endsWith('.csv') || item.name.endsWith('.data')) {
-        icon = '📊';
+        iconLabel = 'CSV';
+        iconClass = 'data';
       }
 
       itemEl.innerHTML = `
         <div class="tree-item-left">
-          <span class="tree-item-icon">${icon}</span>
+          <span class="file-type-badge ${iconClass}" aria-hidden="true">${iconLabel}</span>
           <span class="tree-item-name">${escapeHtml(item.name)}</span>
         </div>
         <div class="tree-item-actions">
@@ -2502,6 +2682,11 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
           return;
         }
         openFileInEditor(itemPath);
+      });
+      itemEl.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        itemEl.click();
       });
 
       const deleteBtn = itemEl.querySelector('[data-action="delete"]');
@@ -2540,7 +2725,7 @@ async function openFileInEditor(relativePath) {
       if (state.fileOpenRequest !== request) return;
       content = res.content;
     } else {
-      content = `# CodeGO ExamGuard - Entorno de Examen\nimport pygame\nimport numpy as np\n\ndef main():\n    print("¡Bienvenido al Examen de Programación!")\n    print("NumPy version:", np.__version__)\n    print("Pygame version:", pygame.__version__)\n    nombre = input("Ingresa tu nombre: ")\n    print(f"Hola {nombre}, entorno verificado.")\n\nif __name__ == "__main__":\n    main()\n`;
+      content = '';
     }
 
     tab = {
@@ -2554,6 +2739,7 @@ async function openFileInEditor(relativePath) {
 
   state.activeFilePath = relativePath;
   renderTabs();
+  updateEditorEmptyState();
   DOM.codeTextarea.value = tab.content;
   if (state.isExamSubmitted) {
     DOM.codeTextarea.readOnly = true;
@@ -2569,8 +2755,7 @@ async function openFileInEditor(relativePath) {
 
   // Highlight active tree item
   document.querySelectorAll('.tree-item').forEach((el) => {
-    const isThis = el.querySelector('.tree-item-name')?.textContent === tab.name;
-    el.classList.toggle('active', isThis);
+    el.classList.toggle('active', el.dataset.path === relativePath.replace(/\\/g, '/'));
   });
 }
 
@@ -2583,9 +2768,9 @@ function renderTabs() {
     tabEl.setAttribute('aria-selected', String(tab.path === state.activeFilePath));
     tabEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFileInEditor(tab.path); } });
     tabEl.className = `editor-tab ${tab.path === state.activeFilePath ? 'active' : ''}`;
-    const icon = tab.name.endsWith('.py') ? '🐍' : '📄';
+    const icon = tab.name.endsWith('.py') ? 'PY' : 'TXT';
     tabEl.innerHTML = `
-      <span class="tab-icon">${icon}</span>
+      <span class="tab-file-badge">${icon}</span>
       <span class="tab-name">${escapeHtml(tab.name)}</span>
       <span class="tab-unsaved-dot ${tab.isDirty ? 'visible' : ''}"></span>
     `;
@@ -2608,6 +2793,7 @@ function closeTab(relativePath) {
     renderTabs();
     updateLineNumbers();
     updateSyntaxHighlighting();
+    updateEditorEmptyState();
   } else {
     renderTabs();
   }
@@ -2820,7 +3006,7 @@ function saveLastSession() {
       examSubject: DOM.examSubjectInput?.value?.trim() || state.examSubject || '',
       appMode: state.appMode || 'activity',
       workspacePath: state.workspacePath || null,
-      activeFilePath: state.activeFilePath || 'main.py',
+      activeFilePath: state.activeFilePath || '',
       openTabs: state.openTabs?.map(t => ({ path: t.path, title: t.title })) || [],
       lastSavedDate: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' + new Date().toLocaleDateString()
     };
@@ -2963,7 +3149,7 @@ function showPasteBlockedToast() {
     `;
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<span aria-hidden="true">Aviso</span><div><strong>No se puede pegar durante una tarea certificada</strong><br><span>Escribe el código en CodeGO para conservar el registro de autoría.</span></div>`;
+  toast.innerHTML = `<span aria-hidden="true">Aviso</span><div><strong>No se puede pegar durante una tarea certificada</strong><br><span>Escribe el código en codeGO para conservar el registro de autoría.</span></div>`;
   toast.style.opacity = '1';
   toast.style.transform = 'translateY(0)';
   try { sounds.playCountdownTick(true); } catch (_) {}
@@ -3015,7 +3201,7 @@ async function runCurrentPythonCode() {
     return;
   }
   if (!window.electronAPI) {
-    appendTerminalOutput('La vista previa no ejecuta Python. Abre CodeGO de escritorio para ejecutar y guardar.\n', 'system');
+    appendTerminalOutput('La vista previa no ejecuta Python. Abre codeGO de escritorio para ejecutar y guardar.\n', 'system');
     return;
   }
   state.isStarting = true;
@@ -3504,7 +3690,7 @@ async function verifyFileByPath(filePath) {
   if (DOM.verifPastes) DOM.verifPastes.textContent = tel.externalPasteAttempts || 0;
   if (DOM.verifPastesSub) {
     if (tel.externalPasteAttempts === 0) {
-      DOM.verifPastesSub.textContent = '✓ 100% hecho en CodeGO';
+      DOM.verifPastesSub.textContent = '✓ 100% hecho en codeGO';
       DOM.verifPastesSub.style.color = '#34d399';
     } else {
       DOM.verifPastesSub.textContent = '⚠️ Intentos de pegado detectados';
@@ -3591,6 +3777,7 @@ async function handleOpenWorkspaceFolder() {
   if (window.electronAPI && window.electronAPI.openFolderDialog) {
     const res = await window.electronAPI.openFolderDialog();
     if (res && res.success) {
+      setWorkspaceSelection(res);
       state.isExamSubmitted = false;
       DOM.codeTextarea.readOnly = false;
       DOM.codeTextarea.classList.remove('code-locked');
@@ -3607,8 +3794,9 @@ async function handleOpenWorkspaceFolder() {
       renderTabs();
       updateSyntaxHighlighting();
       await loadWorkspaceFiles();
-      appendTerminalOutput(`\n>>> [PROYECTO ABIERTO]: ${res.workspacePath}`, 'success');
-      appendTerminalOutput('>>> Entorno listo para edición y ejecución.', 'system');
+      updateEditorEmptyState();
+      appendTerminalOutput(`\nProyecto abierto: ${res.workspaceName || res.workspacePath}\n`, 'success');
+      appendTerminalOutput('Elige un archivo del panel izquierdo o crea uno nuevo.\n', 'system');
     }
   } else {
     alert('Función disponible en la aplicación de escritorio.');
@@ -3618,11 +3806,8 @@ async function handleOpenWorkspaceFolder() {
 async function handleCreateNewProject() {
   if (state.isRunning || state.isStarting) { appendTerminalOutput('Detén el programa antes de cambiar de proyecto.\n', 'system'); return; }
   if (!await saveAllFiles()) return;
-  const projectName = await requestName('Nuevo proyecto Python', 'MiNuevoProyecto');
-  if (!projectName || !projectName.trim()) return;
-
   if (window.electronAPI && window.electronAPI.createProjectDialog) {
-    const res = await window.electronAPI.createProjectDialog(projectName.trim());
+    const res = await createBlankWorkspace();
     if (res && res.success) {
       state.isExamSubmitted = false;
       DOM.codeTextarea.readOnly = false;
@@ -3636,10 +3821,13 @@ async function handleCreateNewProject() {
 
       state.openTabs = [];
       state.activeFilePath = '';
+      DOM.codeTextarea.value = '';
+      renderTabs();
       await loadWorkspaceFiles();
-      await openFileInEditor('main.py');
-      appendTerminalOutput(`\n>>> [NUEVO PROYECTO CREADO]: ${res.workspacePath}`, 'success');
-      appendTerminalOutput('>>> Archivo main.py inicializado y listo para programar.', 'system');
+      updateSyntaxHighlighting();
+      updateEditorEmptyState();
+      appendTerminalOutput(`\nProyecto creado: ${res.workspaceName || res.workspacePath}\n`, 'success');
+      appendTerminalOutput('El proyecto está vacío. Crea tu primer archivo cuando quieras.\n', 'system');
     }
   } else {
     alert('Función disponible en la aplicación de escritorio.');
@@ -3652,7 +3840,7 @@ function handleViewReceipt() {
 
 async function handleExitExamApp() {
   if (!await saveAllFiles()) return;
-  if (confirm('¿Deseas cerrar y salir de CodeGO?')) {
+  if (confirm('¿Deseas cerrar y salir de codeGO?')) {
     if (window.electronAPI && window.electronAPI.quitApp) {
       await window.electronAPI.quitApp();
     } else {
@@ -3707,7 +3895,7 @@ async function handleManualCheckUpdates() {
         state.availableUpdate = res;
         displayUpdateBanner(res);
       } else {
-        alert(`✓ CodeGO está actualizado.\n\nLa versión instalada (v${res.currentVersion}) es la más reciente.`);
+        alert(`✓ codeGO está actualizado.\n\nLa versión instalada (v${res.currentVersion}) es la más reciente.`);
       }
     } else {
       alert(`No se pudo verificar actualizaciones:\n${res?.error || 'Verifica tu conexión a internet.'}`);
@@ -3795,7 +3983,7 @@ async function handleStartUpdate() {
         DOM.updateProgressText.textContent = '¡Descarga completada! Aplicando actualización...';
       }
       if (DOM.updateProgressDetail) {
-        DOM.updateProgressDetail.textContent = 'Reiniciando CodeGO...';
+        DOM.updateProgressDetail.textContent = 'Reiniciando codeGO...';
       }
       if (res.action === 'downloaded') {
         alert(`La actualización se descargó exitosamente en:\n${res.path}`);

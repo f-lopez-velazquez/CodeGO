@@ -21,17 +21,17 @@ const extraEnv = {};
 if (platform === 'win32') {
   const destination = path.join(root, 'CodeGO');
   run(artifact('-setup-x64.exe'), ['/S', `/D=${destination}`]);
-  executable = path.join(destination, 'CodeGO ExamGuard.exe');
+  executable = path.join(destination, 'codeGO.exe');
 } else if (platform === 'darwin') {
   const mount = path.join(root, 'volume');
   fs.mkdirSync(mount);
   run('hdiutil', ['attach', artifact('.dmg'), '-nobrowse', '-readonly', '-mountpoint', mount]);
   try {
-    run('ditto', [path.join(mount, 'CodeGO ExamGuard.app'), path.join(root, 'CodeGO ExamGuard.app')]);
+    run('ditto', [path.join(mount, 'codeGO.app'), path.join(root, 'codeGO.app')]);
   } finally {
     run('hdiutil', ['detach', mount]);
   }
-  executable = path.join(root, 'CodeGO ExamGuard.app/Contents/MacOS/CodeGO ExamGuard');
+  executable = path.join(root, 'codeGO.app/Contents/MacOS/codeGO');
 } else {
   executable = artifact('.AppImage');
   fs.chmodSync(executable, 0o755);

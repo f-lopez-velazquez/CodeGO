@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   prepareEnvironment: (options = {}) => ipcRenderer.invoke('system:prepare-environment', options),
   checkPython: () => ipcRenderer.invoke('system:check-python'),
   checkFullEnvironment: () => ipcRenderer.invoke('system:check-full-environment'),
+  installPackage: (packageName) => ipcRenderer.invoke('system:install-package', packageName),
+  installRecommendedPackages: () => ipcRenderer.invoke('system:install-all-recommended'),
 
   // Kiosk & Security
   startKiosk: (studentData) => ipcRenderer.invoke('security:start-kiosk', studentData),
@@ -31,9 +33,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createFolder: (relativePath) => ipcRenderer.invoke('fs:create-folder', relativePath),
   deleteItem: (relativePath) => ipcRenderer.invoke('fs:delete', relativePath),
   renameItem: (data) => ipcRenderer.invoke('fs:rename', data),
+  moveItem: (data) => ipcRenderer.invoke('fs:move', data),
   importAssets: () => ipcRenderer.invoke('fs:import-assets'),
   openFolderDialog: () => ipcRenderer.invoke('workspace:open-folder-dialog'),
   createProjectDialog: (projectName) => ipcRenderer.invoke('workspace:create-project-dialog', projectName),
+  getCurrentWorkspace: () => ipcRenderer.invoke('workspace:get-current'),
   confirmClose: saved => ipcRenderer.invoke('app:confirm-close', saved),
   onBeforeClose: callback => {
     const handler = () => callback();

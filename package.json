@@ -1,6 +1,6 @@
 {
   "name": "codego-examguard",
-  "version": "1.3.3",
+  "version": "1.4.0",
   "description": "Entorno educativo de Python para aprender, practicar y evaluar",
   "homepage": "https://zolvek.com.mx/productos/codego",
   "author": {
@@ -50,7 +50,7 @@
   },
   "build": {
     "appId": "com.codego.examguard",
-    "productName": "CodeGO ExamGuard",
+    "productName": "codeGO",
     "copyright": "Copyright © 2026 Francisco López Velázquez · zolvek.com.mx",
     "directories": {
       "output": "dist",
@@ -85,10 +85,10 @@
       "category": "Education",
       "synopsis": "Entorno educativo de programación en Python",
       "description": "Editor educativo de Python con terminal interactiva, actividades, tareas certificadas y evaluación supervisada.",
-      "icon": "build/icons",
+      "icon": "build/icon.png",
       "desktop": {
         "entry": {
-          "Name": "CodeGO ExamGuard",
+          "Name": "codeGO",
           "Comment": "Aprende, practica y evalúa programación en Python",
           "Categories": "Education;Development;IDE;"
         }
@@ -108,8 +108,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "CodeGO ExamGuard",
-      "uninstallDisplayName": "Desinstalar CodeGO ExamGuard",
+      "shortcutName": "codeGO",
+      "uninstallDisplayName": "Desinstalar codeGO",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",

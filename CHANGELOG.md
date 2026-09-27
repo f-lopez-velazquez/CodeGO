@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.4.0 · Proyectos reales y explorador reorganizado
+
+- El inicio exige abrir una carpeta existente o crear un proyecto vacío antes de entrar al editor; las sesiones nuevas ya no generan ni abren `main.py` automáticamente.
+- Permite mover archivos y carpetas mediante arrastre, con soporte para subcarpetas, destino raíz, pestañas abiertas y movimientos entre volúmenes.
+- Agrega un estado vacío claro al editor con acciones para crear el primer archivo o cambiar de carpeta.
+- Conecta el gestor de librerías con el Python privado verificado de codeGO, admite instalación por nombre y muestra el progreso sin cerrar la ventana.
+- Hace visible `Limpiar consola`, añade el atajo `Ctrl/Cmd + L` y conserva el estado de una ejecución activa al limpiar.
+- Renueva logotipo, jerarquía, paleta, explorador, gestor de librerías y estados de foco con una presentación académica sobria y adaptable.
+- Simplifica el nombre público de la aplicación a `codeGO` y conserva los créditos de zolvek.com.mx y Francisco López Velázquez.
+- Amplía las pruebas nativas con movimientos de archivos, proyecto vacío, escalado hasta 180 % y ejecución interactiva real.
+
 ## 1.3.3 · Ventanas gráficas, ayuda de Python y experiencia de aula
 
 - Inicia correctamente en Omarchy y otras sesiones Linux que exportan variables de desarrollo de Electron; el paquete limpia esas variables y conserva un registro técnico silencioso.

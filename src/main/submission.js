@@ -38,7 +38,7 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Certificado Oficial de Tarea CodeGO — ${safeStr(student.name || 'Estudiante')}</title>
+  <title>Certificado oficial de tarea codeGO — ${safeStr(student.name || 'Estudiante')}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #080b12; color: #e2e8f0; margin: 0; padding: 24px; line-height: 1.5; }
     .card { max-width: 860px; margin: 0 auto; background: #0f1422; border: 1px solid #2b354f; border-radius: 14px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
@@ -57,7 +57,7 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
       <div>
         <h1 style="margin:0;font-size:22px;color:#fff;">Certificado de Autenticidad de Tarea</h1>
-        <p style="margin:4px 0 0;font-size:13px;color:#a0aec0;">CodeGO Certified Academic Task · zolvek.com.mx</p>
+        <p style="margin:4px 0 0;font-size:13px;color:#a0aec0;">Tarea académica certificada por codeGO · zolvek.com.mx</p>
       </div>
       <div class="badge">✓ FIRMA DIGITAL CODEGO VÁLIDA</div>
     </div>
@@ -72,7 +72,7 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
     <h3 style="margin-top:24px;margin-bottom:12px;font-size:15px;color:#90cdf4;">Auditoría Forense de Autoría & Integridad</h3>
     <div class="meta-grid">
       <div class="meta-box"><div class="meta-label">Pulsaciones de Tecla</div><div class="meta-val metric-ok">${tel.keystrokesCount || 0} pulsaciones</div></div>
-      <div class="meta-box"><div class="meta-label">Pegados Externos</div><div class="meta-val ${(tel.externalPasteAttempts || 0) === 0 ? 'metric-ok' : 'metric-warn'}">${tel.externalPasteAttempts || 0} (100% Escrito en CodeGO)</div></div>
+      <div class="meta-box"><div class="meta-label">Pegados Externos</div><div class="meta-val ${(tel.externalPasteAttempts || 0) === 0 ? 'metric-ok' : 'metric-warn'}">${tel.externalPasteAttempts || 0} (100% escrito en codeGO)</div></div>
       <div class="meta-box"><div class="meta-label">Tiempo Activo de Edición</div><div class="meta-val">${activeMinutes} min (${tel.activeTypingSeconds || 0}s)</div></div>
       <div class="meta-box"><div class="meta-label">Ejecuciones de Prueba</div><div class="meta-val">${tel.runsCount || 0} ejecuciones nativas</div></div>
       <div class="meta-box"><div class="meta-label">Alertas de Cambio de Ventana</div><div class="meta-val ${(tel.incidentsCount || 0) === 0 ? 'metric-ok' : 'metric-warn'}">${tel.incidentsCount || 0} incidencias</div></div>
@@ -83,7 +83,7 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
     ${filesHtml}
 
     <div class="footer">
-      Documento auditado por <strong>CodeGO ${safeStr(manifest.sistema || '')}</strong> · Desarrollado por Francisco López Velázquez · <a href="https://zolvek.com.mx" style="color:#63b3ed;">zolvek.com.mx</a>
+      Documento auditado por <strong>${safeStr(manifest.sistema || 'codeGO')}</strong> · Desarrollado por Francisco López Velázquez · <a href="https://zolvek.com.mx" style="color:#63b3ed;">zolvek.com.mx</a>
     </div>
   </div>
 </body>
@@ -112,7 +112,7 @@ function createSubmission({ workspace, outputDirectory, student, auditLog, versi
   }
   collect(workspace);
   const manifest = {
-    schemaVersion: 1, tipoEntrega: 'examen', sistema: `CodeGO ExamGuard ${version}`,
+    schemaVersion: 1, tipoEntrega: 'examen', sistema: `codeGO ${version}`,
     autor: 'Francisco López Velázquez', by: 'zolvek.com.mx',
     estudiante: student, fechaEntrega: new Date().toISOString(),
     totalIncidencias: auditLog.length, registroDeSeguridad: auditLog, files
@@ -167,7 +167,7 @@ function createCertifiedTaskSubmission({ workspace, outputDirectory, customFileP
   const manifest = {
     schemaVersion: 2,
     tipoEntrega: 'tarea_certificada',
-    sistema: `CodeGO ${version}`,
+    sistema: `codeGO ${version}`,
     plataforma: process.platform,
     autorSoftware: 'Francisco López Velázquez · zolvek.com.mx',
     estudiante: {
@@ -259,7 +259,7 @@ function verifySubmission(zipPath) {
       throw new Error('El contenido del certificado ha sido alterado manualmente.');
     }
     if (!verifyManifestSignature(expectedChecksum, manifest.signatureHMAC)) {
-      throw new Error('Firma digital no válida. El archivo no fue generado legítimamente por CodeGO.');
+      throw new Error('Firma digital no válida. El archivo no fue generado legítimamente por codeGO.');
     }
 
     const files = [];
@@ -297,7 +297,7 @@ function verifySubmission(zipPath) {
   // Otherwise, treat as Exam Submission (.zip)
   const examManifestEntry = zip.getEntry('REPORTE_SEGURIDAD_EXAMEN.json');
   if (!examManifestEntry) {
-    throw new Error('El archivo no contiene un reporte ni certificado válido de CodeGO.');
+    throw new Error('El archivo no contiene un reporte ni certificado válido de codeGO.');
   }
 
   const manifest = JSON.parse(zip.readAsText(examManifestEntry));

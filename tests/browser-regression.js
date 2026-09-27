@@ -6,7 +6,16 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.route(baseUrl + '/**', route => route.continue());
   await page.clock.install();
   await page.goto(baseUrl);
-  await page.evaluate(() => { setSessionMode('activity'); enterIdeWorkspace(); });
+  await page.evaluate(() => {
+    setSessionMode('activity');
+    state.workspaceSelected = true;
+    state.workspaceName = 'Proyecto de prueba';
+    enterIdeWorkspace();
+    state.openTabs = [{ path: 'main.py', name: 'main.py', content: '', isDirty: false }];
+    state.activeFilePath = 'main.py';
+    renderTabs();
+    updateEditorEmptyState();
+  });
   await page.waitForTimeout(100);
   // Use a deterministic bridge for renderer behavior; runtime.test.js exercises real Python.
   await page.evaluate(() => {
