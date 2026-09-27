@@ -3361,8 +3361,13 @@ function resizeTerminalInput() {
 }
 
 function focusTerminalInput() {
-  DOM.terminalOutput.scrollTop = DOM.terminalOutput.scrollHeight;
   DOM.terminalStdinInput.focus({ preventScroll: true });
+  // Read the final layout after focus. Browser zoom and a side/bottom layout
+  // change can invalidate the scrollHeight measured before the input receives
+  // focus, leaving the caret just below the visible terminal.
+  DOM.terminalOutput.scrollTop = DOM.terminalOutput.scrollHeight;
+  DOM.terminalStdinInput.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  DOM.terminalOutput.scrollTop = DOM.terminalOutput.scrollHeight;
 }
 
 function appendTerminalOutput(text, type = 'stdout') {
