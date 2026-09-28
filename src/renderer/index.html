@@ -50,6 +50,39 @@
         </button>
       </div>
 
+      <!-- Selector de Lenguaje Académico -->
+      <div class="lang-selector-section" aria-labelledby="lang-selector-title">
+        <div class="lang-selector-header">
+          <span class="lang-selector-kicker" id="lang-selector-title">LENGUAJE ACADÉMICO</span>
+          <button type="button" id="btn-open-offline-manager" class="btn-offline-manager-trigger" title="Verificar compiladores locales y preparar entornos offline">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Entornos Offline</span>
+          </button>
+        </div>
+        <div class="lang-segment-container" role="radiogroup" aria-label="Seleccionar lenguaje de programación">
+          <button type="button" class="lang-pill-choice active" data-lang="python" role="radio" aria-checked="true">
+            <span class="lang-icon">🐍</span>
+            <span class="lang-name">Python</span>
+          </button>
+          <button type="button" class="lang-pill-choice" data-lang="cpp" role="radio" aria-checked="false">
+            <span class="lang-icon">⚙️</span>
+            <span class="lang-name">C / C++</span>
+          </button>
+          <button type="button" class="lang-pill-choice" data-lang="java" role="radio" aria-checked="false">
+            <span class="lang-icon">☕</span>
+            <span class="lang-name">Java</span>
+          </button>
+          <button type="button" class="lang-pill-choice" data-lang="javascript" role="radio" aria-checked="false">
+            <span class="lang-icon">🟨</span>
+            <span class="lang-name">JavaScript</span>
+          </button>
+          <button type="button" class="lang-pill-choice" data-lang="r" role="radio" aria-checked="false">
+            <span class="lang-icon">📊</span>
+            <span class="lang-name">R</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Formulario de Identificación del Estudiante -->
       <div class="lobby-form">
         <!-- Banner de Validación no bloqueante -->
@@ -152,6 +185,7 @@
             <div class="status-tools">
               <button type="button" id="btn-verify-task-lobby" class="btn-text-action highlight-action-btn">Revisar entregas</button>
               <button type="button" id="btn-open-pkg-manager-lobby" class="btn-text-action">Administrar paquetes</button>
+              <button type="button" id="btn-open-offline-manager-menu" class="btn-text-action">Entornos offline (5 Lenguajes)</button>
               <button type="button" class="btn-text-action" data-self-test>Comprobar el equipo</button>
               <button type="button" id="btn-check-updates-lobby" class="btn-text-action">Buscar actualizaciones</button>
               <button type="button" id="btn-help-lobby" class="btn-text-action">Abrir ayuda</button>
@@ -283,6 +317,11 @@
           <span class="crumb-root">Proyecto</span>
           <span class="crumb-sep">/</span>
           <span class="crumb-file" id="crumb-current-file">Sin archivo abierto</span>
+        </div>
+
+        <div class="nav-lang-badge" id="nav-active-lang-badge" title="Lenguaje activo y compilador del archivo">
+          <span class="lang-badge-icon" id="nav-active-lang-icon">🐍</span>
+          <span class="lang-badge-text" id="nav-active-lang-text">Python</span>
         </div>
       </div>
 
@@ -708,6 +747,43 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
     </div>
   </div>
 
+
+  <!-- ============================================================== -->
+  <!-- MODAL GESTOR DE LENGUAJES Y ENTORNOS OFFLINE                   -->
+  <!-- ============================================================== -->
+  <div id="modal-offline-languages" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="offline-langs-title">
+    <div class="dialog-card offline-langs-card">
+      <div class="dialog-header">
+        <img src="assets/codego-mark.svg" alt="" class="setup-mark" aria-hidden="true">
+        <div>
+          <h3 id="offline-langs-title">Gestor de Lenguajes y Entornos Offline</h3>
+          <p class="dialog-desc">Verifica los compiladores y runtimes locales. Selecciona los lenguajes que deseas habilitar para exámenes y actividades en aulas o PCs sin internet.</p>
+        </div>
+        <button type="button" class="btn-close-modal" id="btn-close-offline-modal" title="Cerrar modal" aria-label="Cerrar">✕</button>
+      </div>
+
+      <div class="offline-langs-grid" id="offline-langs-grid">
+        <!-- Renderizado dinámico de los 5 lenguajes -->
+      </div>
+
+      <div class="offline-script-callout">
+        <div class="callout-header">
+          <strong>⚡ Preparación Offline Automática para Aulas</strong>
+        </div>
+        <p class="callout-text">Para instalar de forma desatendida todos los compiladores y dependencias sin internet en este equipo:</p>
+        <div class="script-cmd-box" id="offline-script-command-box">
+          <code id="offline-script-cmd-text">./scripts/setup-languages-linux.sh --all</code>
+          <button type="button" id="btn-copy-offline-cmd" class="btn-xs-ghost">Copiar</button>
+        </div>
+      </div>
+
+      <div class="dialog-buttons">
+        <button type="button" id="btn-test-compilers" class="btn-secondary">🧪 Probar Compiladores</button>
+        <button type="button" id="btn-close-offline-manager-confirm" class="btn-primary">Aceptar y Continuar</button>
+      </div>
+      <p class="setup-credits">by zolvek.com.mx · Programado por Francisco López Velázquez.</p>
+    </div>
+  </div>
 
   <!-- ============================================================== -->
   <!-- 4. MODAL GESTOR DE LIBRERÍAS DE PYTHON & DEPENDENCIAS -->

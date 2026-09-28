@@ -168,7 +168,9 @@ const state = {
   editorErrorLine: null,
   runtimeErrorLocation: null,
   setupTipInterval: null,
-  setupTipIndex: 0
+  setupTipIndex: 0,
+  selectedLanguage: 'python',
+  detectedToolchains: null
 };
 
 // DOM Elements
@@ -178,10 +180,23 @@ const DOM = {
   viewCountdown: document.getElementById('view-countdown'),
   viewIde: document.getElementById('view-ide'),
 
-  // Mode Selection (Lobby)
+  // Mode & Language Selection (Lobby)
   modeCardExam: document.getElementById('mode-card-exam'),
   modeCardTask: document.getElementById('mode-card-task'),
   modeCardActivity: document.getElementById('mode-card-activity'),
+  langPillChoices: document.querySelectorAll('.lang-pill-choice'),
+  btnOpenOfflineManager: document.getElementById('btn-open-offline-manager'),
+  btnOpenOfflineManagerMenu: document.getElementById('btn-open-offline-manager-menu'),
+  modalOfflineLanguages: document.getElementById('modal-offline-languages'),
+  btnCloseOfflineModal: document.getElementById('btn-close-offline-modal'),
+  btnCloseOfflineManagerConfirm: document.getElementById('btn-close-offline-manager-confirm'),
+  offlineLangsGrid: document.getElementById('offline-langs-grid'),
+  btnTestCompilers: document.getElementById('btn-test-compilers'),
+  btnCopyOfflineCmd: document.getElementById('btn-copy-offline-cmd'),
+  offlineScriptCmdText: document.getElementById('offline-script-cmd-text'),
+  navActiveLangBadge: document.getElementById('nav-active-lang-badge'),
+  navActiveLangIcon: document.getElementById('nav-active-lang-icon'),
+  navActiveLangText: document.getElementById('nav-active-lang-text'),
   startBtnTitle: document.getElementById('start-btn-title'),
   startBtnSubtitle: document.getElementById('start-btn-subtitle'),
   lobbyRulesTitle: document.getElementById('lobby-rules-title'),
@@ -890,6 +905,110 @@ function renderPackagesGrid(packages, category = 'all') {
 
     DOM.packagesGridContainer.appendChild(card);
   });
+}
+
+async function openOfflineLanguagesManager() {
+  if (DOM.modalOfflineLanguages) {
+    DOM.modalOfflineLanguages.classList.remove('hidden');
+    state.isInternalModalOpen = true;
+    await renderOfflineLanguagesGrid();
+  }
+}
+
+async function renderOfflineLanguagesGrid() {
+  if (!DOM.offlineLangsGrid) return;
+  DOM.offlineLangsGrid.innerHTML = '<div style="padding:18px; text-align:center; color:#8b949e;">Detectando compiladores y herramientas locales...</div>';
+
+  let toolchains = null;
+  if (window.electronAPI && window.electronAPI.detectLanguages) {
+    try {
+      toolchains = await window.electronAPI.detectLanguages();
+      state.detectedToolchains = toolchains;
+    } catch (e) {
+      console.error('Error detectando compiladores:', e);
+    }
+  }
+
+  const langs = [
+    {
+      id: 'python',
+      name: 'Python 3',
+      icon: '🐍',
+      desc: 'Intérprete Python 3, bibliotecas científicas (NumPy, Matplotlib, Pandas) y hardware/IoT (PySerial, Esptool).',
+      info: toolchains?.python,
+      cmd: toolchains?.python?.command,
+      ver: toolchains?.python?.version
+    },
+    {
+      id: 'cpp',
+      name: 'C / C++ (GNU GCC & G++)',
+      icon: '⚙️',
+      desc: 'Compilador nativo GNU GCC/G++, CMake, Make y bibliotecas estándar STL (iostream, vector, cmath, algorithm).',
+      info: toolchains?.cpp,
+      cmd: toolchains?.cpp?.compiler,
+      ver: toolchains?.cpp?.version
+    },
+    {
+      id: 'java',
+      name: 'Java (OpenJDK)',
+      icon: '☕',
+      desc: 'Entorno de desarrollo Java JDK (javac compiler, java runtime, Scanner, colecciones y Streams).',
+      info: toolchains?.java,
+      cmd: toolchains?.java?.compiler || toolchains?.java?.runner,
+      ver: toolchains?.java?.version
+    },
+    {
+      id: 'javascript',
+      name: 'JavaScript (Node.js)',
+      icon: '🟨',
+      desc: 'Motor V8 de ejecución de JavaScript en consola y scripts con módulos estándar (Node.js LTS).',
+      info: toolchains?.javascript,
+      cmd: toolchains?.javascript?.runner,
+      ver: toolchains?.javascript?.version
+    },
+    {
+      id: 'r',
+      name: 'R (Estadística)',
+      icon: '📊',
+      desc: 'Entorno estadístico y numérico con dataframes, gráficos y computación científica.',
+      info: toolchains?.r,
+      cmd: toolchains?.r?.runner,
+      ver: toolchains?.r?.version
+    }
+  ];
+
+  let html = '';
+  langs.forEach(item => {
+    const isInstalled = item.info ? Boolean(item.info.installed) : false;
+    const badgeClass = isInstalled ? 'ok' : 'missing';
+    const badgeText = isInstalled ? `✓ Listo ${item.ver ? '(' + item.ver + ')' : ''}` : '⚠️ No detectado';
+    const pathText = item.cmd ? `<span style="font-family:monospace; font-size:11px; color:#58a6ff;">${escapeHtml(item.cmd)}</span>` : '<span style="color:#f85149; font-size:11px;">Ejecutable no encontrado en PATH del sistema</span>';
+
+    html += `
+      <div class="offline-lang-item">
+        <div class="lang-item-left">
+          <span class="lang-item-icon">${item.icon}</span>
+          <div class="lang-item-info">
+            <span class="lang-item-name">${item.name}</span>
+            <span class="lang-item-detail">${item.desc}</span>
+            <div style="margin-top:4px;">${pathText}</div>
+          </div>
+        </div>
+        <div>
+          <span class="lang-item-badge ${badgeClass}">${badgeText}</span>
+        </div>
+      </div>
+    `;
+  });
+
+  DOM.offlineLangsGrid.innerHTML = html;
+
+  if (DOM.offlineScriptCmdText) {
+    const isWin = navigator.platform.toLowerCase().includes('win');
+    DOM.offlineScriptCmdText.textContent = isWin
+      ? '.\\scripts\\setup-languages-win.ps1 -All'
+      : './scripts/setup-languages-linux.sh --all';
+  }
 }
 
 async function installSinglePackage(pkgName) {
@@ -1630,6 +1749,59 @@ function setupEventListeners() {
     }
   });
 
+  // Language Selector Pills (Lobby)
+  DOM.langPillChoices?.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const lang = btn.dataset.lang;
+      state.selectedLanguage = lang;
+      DOM.langPillChoices.forEach(b => {
+        const active = (b.dataset.lang === lang);
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-checked', String(active));
+      });
+      updateActiveLanguageBadge();
+    });
+  });
+
+  // Offline Environments Manager Modal Handlers
+  DOM.btnOpenOfflineManager?.addEventListener('click', openOfflineLanguagesManager);
+  DOM.btnOpenOfflineManagerMenu?.addEventListener('click', openOfflineLanguagesManager);
+  DOM.btnCloseOfflineModal?.addEventListener('click', () => {
+    DOM.modalOfflineLanguages?.classList.add('hidden');
+    state.isInternalModalOpen = false;
+  });
+  DOM.btnCloseOfflineManagerConfirm?.addEventListener('click', () => {
+    DOM.modalOfflineLanguages?.classList.add('hidden');
+    state.isInternalModalOpen = false;
+  });
+  DOM.modalOfflineLanguages?.addEventListener('click', (e) => {
+    if (e.target === DOM.modalOfflineLanguages) {
+      DOM.modalOfflineLanguages.classList.add('hidden');
+      state.isInternalModalOpen = false;
+    }
+  });
+
+  DOM.btnCopyOfflineCmd?.addEventListener('click', () => {
+    const cmd = DOM.offlineScriptCmdText?.textContent || '';
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(cmd);
+      DOM.btnCopyOfflineCmd.textContent = '¡Copiado!';
+      setTimeout(() => { if (DOM.btnCopyOfflineCmd) DOM.btnCopyOfflineCmd.textContent = 'Copiar'; }, 2000);
+    }
+  });
+
+  DOM.btnTestCompilers?.addEventListener('click', async () => {
+    DOM.btnTestCompilers.disabled = true;
+    DOM.btnTestCompilers.textContent = 'Probando...';
+    try {
+      await renderOfflineLanguagesGrid();
+      alert('✓ Comprobación de compiladores finalizada.');
+    } finally {
+      DOM.btnTestCompilers.disabled = false;
+      DOM.btnTestCompilers.textContent = '🧪 Probar Compiladores';
+    }
+  });
+
   DOM.btnClearPipLog.addEventListener('click', () => {
     DOM.pipTerminalOutput.innerHTML = '';
   });
@@ -1895,6 +2067,10 @@ function setupEventListeners() {
   // Close any internal open modals with Escape key
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      if (DOM.modalOfflineLanguages && !DOM.modalOfflineLanguages.classList.contains('hidden')) {
+        DOM.modalOfflineLanguages.classList.add('hidden');
+        state.isInternalModalOpen = false;
+      }
       if (DOM.modalPackageManager && !DOM.modalPackageManager.classList.contains('hidden')) {
         DOM.modalPackageManager.classList.add('hidden');
         state.isInternalModalOpen = false;
@@ -2907,6 +3083,7 @@ async function openFileInEditor(relativePath) {
   updateCursorStats();
   updateSyntaxHighlighting();
   updateBreadcrumbs(relativePath);
+  updateActiveLanguageBadge();
 
   // Highlight active tree item
   document.querySelectorAll('.tree-item').forEach((el) => {
@@ -2923,7 +3100,15 @@ function renderTabs() {
     tabEl.setAttribute('aria-selected', String(tab.path === state.activeFilePath));
     tabEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFileInEditor(tab.path); } });
     tabEl.className = `editor-tab ${tab.path === state.activeFilePath ? 'active' : ''}`;
-    const icon = tab.name.endsWith('.py') ? 'PY' : 'TXT';
+    
+    const ext = tab.name.split('.').pop().toLowerCase();
+    let icon = 'TXT';
+    if (ext === 'py') icon = 'PY';
+    else if (['cpp', 'c', 'h', 'hpp', 'cc'].includes(ext)) icon = 'C++';
+    else if (ext === 'java') icon = 'JAVA';
+    else if (['js', 'mjs', 'cjs'].includes(ext)) icon = 'JS';
+    else if (ext === 'r') icon = 'R';
+
     tabEl.innerHTML = `
       <span class="tab-file-badge">${icon}</span>
       <span class="tab-name">${escapeHtml(tab.name)}</span>
@@ -2973,10 +3158,15 @@ async function promptNewFile() {
     alert('El examen ya ha sido entregado. No se permite crear nuevos archivos.');
     return;
   }
-  const fileName = await requestName('Nuevo archivo Python', 'solucion.py');
+  const currentLang = state.selectedLanguage || 'python';
+  const exts = { python: '.py', cpp: '.cpp', java: '.java', javascript: '.js', r: '.R' };
+  const ext = exts[currentLang] || '.py';
+  const placeholder = `solucion${ext}`;
+
+  const fileName = await requestName(`Nuevo archivo (${currentLang.toUpperCase()})`, placeholder);
   if (!fileName) return;
 
-  const validName = fileName.endsWith('.py') ? fileName : `${fileName}.py`;
+  const validName = fileName.includes('.') ? fileName : `${fileName}${ext}`;
   if (window.electronAPI) {
     const result = await window.electronAPI.createFile(validName);
     if (!result.success) { alert(result.error); return; }
@@ -3087,10 +3277,153 @@ function highlightPython(code) {
   return result;
 }
 
+function highlightCpp(code) {
+  if (!code) return '';
+  const tokenRegex = /(?:\/\*[\s\S]*?\*\/|\/\/.*$)|("(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')|(#\s*(?:include|define|ifdef|ifndef|endif|pragma|if|elif|else)(?:<[^>]+>|.*)?$)|(\b(?:int|float|double|char|void|bool|auto|const|static|struct|class|enum|union|if|else|for|while|do|switch|case|default|break|continue|return|goto|sizeof|typedef|template|typename|public|protected|private|virtual|friend|inline|namespace|using|try|catch|throw|new|delete|nullptr|true|false)\b)|(\b(?:std|cout|cin|cerr|endl|string|vector|map|set|pair|make_pair|push_back|size|printf|scanf|malloc|free|memcpy|memset)\b)|(\b0[xX][0-9a-fA-F]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(->|::|<<|>>|&&|\|\||==|!=|<=|>=|[+\-*/%&|^~<>!=]=?|[+\-*/%&|^~<>!=])/gm;
+
+  let result = '';
+  let lastIndex = 0;
+  let match;
+  while ((match = tokenRegex.exec(code)) !== null) {
+    if (match.index > lastIndex) result += escapeHtml(code.substring(lastIndex, match.index));
+    const [fullMatch, comment, str, preprocessor, keyword, builtin, numVal, operator] = match;
+    if (comment) result += `<span class="tok-comment">${escapeHtml(fullMatch)}</span>`;
+    else if (str) result += `<span class="tok-str">${escapeHtml(fullMatch)}</span>`;
+    else if (preprocessor) result += `<span class="tok-decorator">${escapeHtml(fullMatch)}</span>`;
+    else if (keyword) result += `<span class="tok-kw">${escapeHtml(fullMatch)}</span>`;
+    else if (builtin) result += `<span class="tok-builtin">${escapeHtml(fullMatch)}</span>`;
+    else if (numVal) result += `<span class="tok-num">${escapeHtml(fullMatch)}</span>`;
+    else if (operator) result += `<span class="tok-op">${escapeHtml(fullMatch)}</span>`;
+    else result += escapeHtml(fullMatch);
+    lastIndex = tokenRegex.lastIndex;
+  }
+  if (lastIndex < code.length) result += escapeHtml(code.substring(lastIndex));
+  return result;
+}
+
+function highlightJava(code) {
+  if (!code) return '';
+  const tokenRegex = /(?:\/\*[\s\S]*?\*\/|\/\/.*$)|("(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')|(@[a-zA-Z_]\w*)|(\b(?:public|protected|private|static|final|abstract|class|interface|enum|extends|implements|native|synchronized|transient|volatile|strictfp|void|boolean|byte|char|short|int|long|float|double|if|else|switch|case|default|while|do|for|break|continue|return|throw|throws|try|catch|finally|new|this|super|instanceof|assert|package|import|null|true|false)\b)|(\b(?:System|out|println|print|Scanner|String|Integer|Double|Boolean|List|ArrayList|Map|HashMap|Set|HashSet|Math|Arrays|Collections|Exception|Throwable|Thread|Runnable)\b)|(\b0[xX][0-9a-fA-F]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(->|&&|\|\||==|!=|<=|>=|[+\-*/%&|^~<>!=]=?|[+\-*/%&|^~<>!=])/gm;
+
+  let result = '';
+  let lastIndex = 0;
+  let match;
+  while ((match = tokenRegex.exec(code)) !== null) {
+    if (match.index > lastIndex) result += escapeHtml(code.substring(lastIndex, match.index));
+    const [fullMatch, comment, str, annotation, keyword, builtin, numVal, operator] = match;
+    if (comment) result += `<span class="tok-comment">${escapeHtml(fullMatch)}</span>`;
+    else if (str) result += `<span class="tok-str">${escapeHtml(fullMatch)}</span>`;
+    else if (annotation) result += `<span class="tok-decorator">${escapeHtml(fullMatch)}</span>`;
+    else if (keyword) result += `<span class="tok-kw">${escapeHtml(fullMatch)}</span>`;
+    else if (builtin) result += `<span class="tok-builtin">${escapeHtml(fullMatch)}</span>`;
+    else if (numVal) result += `<span class="tok-num">${escapeHtml(fullMatch)}</span>`;
+    else if (operator) result += `<span class="tok-op">${escapeHtml(fullMatch)}</span>`;
+    else result += escapeHtml(fullMatch);
+    lastIndex = tokenRegex.lastIndex;
+  }
+  if (lastIndex < code.length) result += escapeHtml(code.substring(lastIndex));
+  return result;
+}
+
+function highlightJS(code) {
+  if (!code) return '';
+  const tokenRegex = /(?:\/\*[\s\S]*?\*\/|\/\/.*$)|(`(?:\\[\s\S]|[^`\\])*`|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')|(\b(?:const|let|var|function|async|await|return|if|else|for|while|do|switch|case|default|break|continue|try|catch|finally|throw|class|extends|new|this|super|import|export|from|default|typeof|instanceof|void|delete|in|of|yield|null|undefined|true|false|NaN|Infinity)\b)|(\b(?:console|log|error|warn|info|Math|JSON|Promise|Array|Object|String|Number|Boolean|Date|RegExp|Map|Set|parseInt|parseFloat|setTimeout|setInterval|clearTimeout|clearInterval|document|window|process|require)\b)|(\b0[xX][0-9a-fA-F]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(=>|===|!==|==|!=|<=|>=|&&|\|\||[+\-*/%&|^~<>!=]=?|[+\-*/%&|^~<>!=])/gm;
+
+  let result = '';
+  let lastIndex = 0;
+  let match;
+  while ((match = tokenRegex.exec(code)) !== null) {
+    if (match.index > lastIndex) result += escapeHtml(code.substring(lastIndex, match.index));
+    const [fullMatch, comment, str, keyword, builtin, numVal, operator] = match;
+    if (comment) result += `<span class="tok-comment">${escapeHtml(fullMatch)}</span>`;
+    else if (str) result += `<span class="tok-str">${escapeHtml(fullMatch)}</span>`;
+    else if (keyword) result += `<span class="tok-kw">${escapeHtml(fullMatch)}</span>`;
+    else if (builtin) result += `<span class="tok-builtin">${escapeHtml(fullMatch)}</span>`;
+    else if (numVal) result += `<span class="tok-num">${escapeHtml(fullMatch)}</span>`;
+    else if (operator) result += `<span class="tok-op">${escapeHtml(fullMatch)}</span>`;
+    else result += escapeHtml(fullMatch);
+    lastIndex = tokenRegex.lastIndex;
+  }
+  if (lastIndex < code.length) result += escapeHtml(code.substring(lastIndex));
+  return result;
+}
+
+function highlightR(code) {
+  if (!code) return '';
+  const tokenRegex = /(#.*$)|("(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')|(\b(?:if|else|repeat|while|function|for|in|next|break|TRUE|FALSE|NULL|NA|Inf|NaN)\b)|(\b(?:c|cat|print|paste|paste0|readLines|scan|read\.csv|write\.csv|data\.frame|matrix|list|vector|length|dim|names|head|tail|summary|plot|hist|mean|median|sd|var|sum|min|max|seq|rep|which|subset|apply|lapply|sapply|file)\b)|(\b0[xX][0-9a-fA-F]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(<-|<<-|->|->>|%in%|%[*%]|==|!=|<=|>=|<|>|&&|\|\||&|\||!|\+|-|\*|\/|\^|%%|%\/%)/gm;
+
+  let result = '';
+  let lastIndex = 0;
+  let match;
+  while ((match = tokenRegex.exec(code)) !== null) {
+    if (match.index > lastIndex) result += escapeHtml(code.substring(lastIndex, match.index));
+    const [fullMatch, comment, str, keyword, builtin, numVal, operator] = match;
+    if (comment) result += `<span class="tok-comment">${escapeHtml(fullMatch)}</span>`;
+    else if (str) result += `<span class="tok-str">${escapeHtml(fullMatch)}</span>`;
+    else if (keyword) result += `<span class="tok-kw">${escapeHtml(fullMatch)}</span>`;
+    else if (builtin) result += `<span class="tok-builtin">${escapeHtml(fullMatch)}</span>`;
+    else if (numVal) result += `<span class="tok-num">${escapeHtml(fullMatch)}</span>`;
+    else if (operator) result += `<span class="tok-op">${escapeHtml(fullMatch)}</span>`;
+    else result += escapeHtml(fullMatch);
+    lastIndex = tokenRegex.lastIndex;
+  }
+  if (lastIndex < code.length) result += escapeHtml(code.substring(lastIndex));
+  return result;
+}
+
+function getActiveLanguage() {
+  if (state.activeFilePath) {
+    const ext = state.activeFilePath.split('.').pop().toLowerCase();
+    if (ext === 'py') return 'python';
+    if (['cpp', 'c', 'h', 'hpp', 'cc'].includes(ext)) return 'cpp';
+    if (ext === 'java') return 'java';
+    if (['js', 'mjs', 'cjs'].includes(ext)) return 'javascript';
+    if (ext === 'r') return 'r';
+  }
+  return state.selectedLanguage || 'python';
+}
+
+function highlightCode(code, lang = 'python') {
+  switch (lang) {
+    case 'cpp':
+    case 'c':
+      return highlightCpp(code);
+    case 'java':
+      return highlightJava(code);
+    case 'javascript':
+    case 'js':
+      return highlightJS(code);
+    case 'r':
+      return highlightR(code);
+    case 'python':
+    case 'py':
+    default:
+      return highlightPython(code);
+  }
+}
+
+function updateActiveLanguageBadge() {
+  const lang = getActiveLanguage();
+  const defs = {
+    python: { name: 'Python', icon: '🐍' },
+    cpp: { name: 'C / C++', icon: '⚙️' },
+    java: { name: 'Java', icon: '☕' },
+    javascript: { name: 'JavaScript', icon: '🟨' },
+    r: { name: 'R', icon: '📊' }
+  };
+  const def = defs[lang] || { name: lang.toUpperCase(), icon: '📄' };
+  if (DOM.navActiveLangBadge) {
+    if (DOM.navActiveLangIcon) DOM.navActiveLangIcon.textContent = def.icon;
+    if (DOM.navActiveLangText) DOM.navActiveLangText.textContent = def.name;
+    DOM.navActiveLangBadge.title = `Lenguaje activo: ${def.name}`;
+  }
+}
+
 function updateSyntaxHighlighting() {
   if (!DOM.highlightingContent || !DOM.codeTextarea) return;
   const code = DOM.codeTextarea.value;
-  DOM.highlightingContent.innerHTML = highlightPython(code) + (code.endsWith('\n') ? ' ' : '');
+  const lang = getActiveLanguage();
+  DOM.highlightingContent.innerHTML = highlightCode(code, lang) + (code.endsWith('\n') ? ' ' : '');
   syncEditorScroll();
 }
 

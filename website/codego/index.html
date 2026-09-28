@@ -30,6 +30,7 @@
       </a>
       <nav class="nav-links" aria-label="Navegación principal">
         <a class="nav-link" href="/">← Zolvek MX</a>
+        <a class="nav-link" href="webapp/index.html" style="color:var(--accent); font-weight:700;">🌐 WebApp en Línea</a>
         <a class="nav-link" href="/productos">Productos</a>
         <a class="nav-link" href="https://github.com/f-lopez-velazquez/CodeGO" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
       </nav>
@@ -41,17 +42,33 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="badge-pill">
         <span class="dot" aria-hidden="true"></span>
-        <span>v1.5.2 · Entorno incluido · Windows · macOS · Linux</span>
+        <span>v1.5.2 · 5 Lenguajes Académicos · Offline & Web · Windows · macOS · Linux</span>
       </div>
       <h1 id="hero-title">Sus alumnos programan.<br><span class="accent-text">Usted recibe proyectos verificables.</span></h1>
-      <p class="hero-subtitle">Un mismo Python, las mismas librerías y la misma experiencia en cada computadora del aula. CodeGO prepara el equipo sin internet, enseña con una terminal clara y ofrece modos de actividad, tarea certificada y examen.</p>
+      <p class="hero-subtitle">Entorno educativo unificado para <strong>Python, C/C++, Java, JavaScript y R</strong>. CodeGO prepara el equipo sin internet, enseña con terminal interactiva, bloquea el plagio y certifica tareas tanto en escritorios como en cursos a distancia.</p>
 
-      <p class="release-note"><strong>Versión v1.5.2.</strong> Proyectos recientes con apertura directa, edición flexible en Tarea y certificados de integridad más claros. <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/tag/v1.5.2">Ver detalles del lanzamiento ↗</a></p>
+      <!-- Badges de Lenguajes Soportados -->
+      <div class="languages-badge-strip" aria-label="Lenguajes Académicos Soportados">
+        <span class="lang-badge-tag">🐍 Python 3</span>
+        <span class="lang-badge-tag">⚙️ C / C++ (GCC)</span>
+        <span class="lang-badge-tag">☕ Java (OpenJDK)</span>
+        <span class="lang-badge-tag">🟨 JavaScript (V8)</span>
+        <span class="lang-badge-tag">📊 R (Estadística)</span>
+      </div>
+
+      <!-- Botón de Acceso a WebApp sin Instalación -->
+      <div style="text-align: center; margin: 10px 0 24px;">
+        <a class="btn-webapp-launch" href="webapp/index.html">
+          <span>🌐 Probar WebApp en línea (Sin instalación) →</span>
+        </a>
+      </div>
+
+      <p class="release-note"><strong>Soporte Multi-Lenguaje & Integración Cognago.</strong> Ejecución nativa cliente, instaladores offline configurables y certificación forense de autoría. <a href="https://github.com/f-lopez-velazquez/CodeGO/releases/tag/v1.5.2">Ver detalles del lanzamiento ↗</a></p>
       <div class="classroom-proof" aria-label="Ventajas para el aula">
+        <div><strong>5 Lenguajes</strong><span>Python, C++, Java, JS y R</span></div>
         <div><strong>Sin internet</strong><span>Preparación inicial local</span></div>
-        <div><strong>28 librerías</strong><span>Python, ciencia y hardware</span></div>
-        <div><strong>3 sistemas</strong><span>Windows, macOS y Linux</span></div>
-        <div><strong>100 % probado</strong><span>Acceso después de microtests</span></div>
+        <div><strong>Web & Desktop</strong><span>Navegador y Apps Nativas</span></div>
+        <div><strong>Sello Criptográfico</strong><span>Certificados anti-plagio</span></div>
       </div>
       <!-- Direct Downloads Hub -->
       <div class="downloads-hub" id="descargar" aria-label="Descargas por sistema">
@@ -486,6 +503,20 @@
             <li>Wi-Fi desconectado automáticamente — restaura solo con PIN docente</li>
             <li>Flash estroboscópico visible a distancia si pierde el foco</li>
             <li>Entrega sellada en ZIP auditado con sello SHA-256</li>
+          </ul>
+        </article>
+
+        <!-- Modalidad Web & Cognago -->
+        <article class="mode-box" style="border-color: rgba(88, 166, 255, 0.4); background: rgba(88, 166, 255, 0.03);">
+          <p class="mode-box-tag" style="color: var(--accent);">04 · Cursos a Distancia & Cognago</p>
+          <h2>Modalidad WebApp & SDK</h2>
+          <p>Para instituciones y docentes que certifican cursos en línea y desean comprobar autoría sin instalar software.</p>
+          <ul class="mode-list">
+            <li>Ejecución en navegador de Python, C++, Java, JS y R vía WebAssembly</li>
+            <li>Telemetría forense anti-plagio (PPM, pulsaciones, bloqueo de copia/pega)</li>
+            <li>Sello HMAC-SHA256 con WebCrypto y <code>CERTIFICADO_DOCENTE.html</code></li>
+            <li>SDK autónomo integrable en Cognago, Moodle o plataformas LMS</li>
+            <li><a href="webapp/index.html" style="color:var(--accent); font-weight:700;">Abrir WebApp en el navegador ↗</a></li>
           </ul>
         </article>
       </div>

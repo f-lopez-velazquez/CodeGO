@@ -51,7 +51,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setFullScreen: (flag) => ipcRenderer.invoke('window:set-fullscreen', flag),
   maximizeWindow: () => ipcRenderer.invoke('window:maximize'),
 
-  // Python Execution
+  // Multi-Language Code Execution
+  runCode: (data) => ipcRenderer.invoke('code:run', data),
+  sendCodeStdin: (text) => ipcRenderer.invoke('code:stdin', text),
+  killCode: () => ipcRenderer.invoke('code:kill'),
+  detectLanguages: () => ipcRenderer.invoke('languages:detect'),
+
+  // Python Execution (Preserved for compatibility)
   runPython: (data) => ipcRenderer.invoke('python:run', data),
   sendPythonStdin: (text) => ipcRenderer.invoke('python:stdin', text),
   killPython: () => ipcRenderer.invoke('python:kill'),
@@ -122,6 +128,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (event, data) => callback(data);
     ipcRenderer.on('python:error', handler);
     return () => ipcRenderer.removeListener('python:error', handler);
+  },
+
+  // Multi-Language Output Listeners
+  onCodeStdout: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('code:stdout', handler);
+    return () => ipcRenderer.removeListener('code:stdout', handler);
+  },
+  onCodeStderr: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('code:stderr', handler);
+    return () => ipcRenderer.removeListener('code:stderr', handler);
+  },
+  onCodeFinished: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('code:finished', handler);
+    return () => ipcRenderer.removeListener('code:finished', handler);
   },
 
   // Pip Installation Listeners

@@ -26,6 +26,7 @@ const { classifyWorkspaceFile } = require('./file-types');
 const { moveDirectory } = require('./fs-operations');
 const { sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow } = require('./window-integration');
 const { createFocusGuard } = require('./focus-guard');
+const { MultiLanguageRunner, detectLanguage, detectToolchains, LANGUAGE_DEFS } = require('./language-runner');
 const updater = require('./updater');
 const wifiControl = createWifiControl();
 
@@ -163,6 +164,21 @@ async function withNativeDialog(fn) {
   }
 }
 const pythonRunner = new PythonRunner({
+  send: (channel, data) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, data);
+  },
+  onProcess: child => {
+    activeProcess = child;
+    if (child) {
+      prepareMainWindowForPythonGui(child);
+    } else {
+      restoreMainWindowAfterPython();
+      activePythonGuiExpected = false;
+      activePythonWorkspace = null;
+    }
+  }
+});
+const multiLanguageRunner = new MultiLanguageRunner({
   send: (channel, data) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, data);
   },
@@ -1920,12 +1936,59 @@ except Exception:
     }
   });
 
-  // Python Code Execution
-  handle('python:run', async (event, { relativePath }) => {
-    if (!environmentReady && !diagnosticMode) return { success: false, error: 'El entorno de Python todavía no está preparado o verificado.' };
+  // Multi-Language Code Execution
+  handle('code:run', async (event, { relativePath, language } = {}) => {
     try {
       const filePath = resolveWorkspacePath(currentWorkspace, relativePath);
-      if (path.extname(filePath).toLowerCase() !== '.py') throw new Error('Selecciona un archivo Python (.py).');
+      if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        throw new Error('El archivo seleccionado no existe.');
+      }
+      const lang = language || detectLanguage(filePath);
+      if (lang === 'python') {
+        if (!environmentReady && !diagnosticMode) return { success: false, error: 'El entorno de Python todavía no está preparado o verificado.' };
+        const source = fs.readFileSync(filePath, 'utf8');
+        activePythonGuiExpected = sourceLikelyOpensGui(source);
+        activePythonWorkspace = activePythonGuiExpected ? activeHyprlandWorkspace() : null;
+        const result = pythonRunner.run(resolvePythonBinary().command, filePath);
+        if (!result.success) {
+          activePythonGuiExpected = false;
+          activePythonWorkspace = null;
+        }
+        return result;
+      }
+      return multiLanguageRunner.run({ filePath, language: lang });
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  handle('code:stdin', (event, value) => {
+    if (multiLanguageRunner.child) return multiLanguageRunner.stdin(value);
+    return pythonRunner.stdin(value);
+  });
+
+  handle('code:kill', () => {
+    if (multiLanguageRunner.child) return multiLanguageRunner.kill();
+    return pythonRunner.kill();
+  });
+
+  handle('languages:detect', async () => {
+    return {
+      success: true,
+      toolchains: detectToolchains(),
+      languages: LANGUAGE_DEFS
+    };
+  });
+
+  // Python Code Execution (Preserved with smart polyglot fallback)
+  handle('python:run', async (event, { relativePath }) => {
+    try {
+      const filePath = resolveWorkspacePath(currentWorkspace, relativePath);
+      const lang = detectLanguage(filePath);
+      if (lang !== 'python') {
+        return multiLanguageRunner.run({ filePath, language: lang });
+      }
+      if (!environmentReady && !diagnosticMode) return { success: false, error: 'El entorno de Python todavía no está preparado o verificado.' };
       if (!fs.statSync(filePath).isFile()) throw new Error('El archivo no existe.');
       const source = fs.readFileSync(filePath, 'utf8');
       activePythonGuiExpected = sourceLikelyOpensGui(source);
@@ -1940,8 +2003,14 @@ except Exception:
       return { success: false, error: error.message };
     }
   });
-  handle('python:stdin', (event, value) => pythonRunner.stdin(value));
-  handle('python:kill', () => pythonRunner.kill());
+  handle('python:stdin', (event, value) => {
+    if (multiLanguageRunner.child) return multiLanguageRunner.stdin(value);
+    return pythonRunner.stdin(value);
+  });
+  handle('python:kill', () => {
+    if (multiLanguageRunner.child) return multiLanguageRunner.kill();
+    return pythonRunner.kill();
+  });
 
   // Final Exam Submission & Package Creation
   handle('exam:submit', async (event, studentData) => {

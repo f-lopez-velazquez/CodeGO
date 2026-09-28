@@ -178,6 +178,52 @@ body {
   line-height: 1.5;
 }
 
+.languages-badge-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 auto 20px;
+}
+
+.lang-badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c9d1d9;
+}
+
+.btn-webapp-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(88, 166, 255, 0.18), rgba(63, 185, 80, 0.18));
+  border: 1px solid rgba(88, 166, 255, 0.4);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 12px 26px;
+  border-radius: 9999px;
+  text-decoration: none;
+  margin: 0 auto 24px;
+  box-shadow: 0 4px 20px rgba(88, 166, 255, 0.15);
+  transition: all 0.2s ease;
+}
+
+.btn-webapp-launch:hover {
+  background: linear-gradient(135deg, rgba(88, 166, 255, 0.3), rgba(63, 185, 80, 0.3));
+  border-color: #58a6ff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(88, 166, 255, 0.25);
+}
+
 .classroom-proof {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
