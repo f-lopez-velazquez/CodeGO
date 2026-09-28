@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>codeGO Web — Entorno de Aprendizaje y Certificación Académica</title>
   <meta name="description" content="Entorno web de programación para Python, C/C++, Java, JavaScript y R con telemetría anti-plagio, sellado criptográfico y compatibilidad con Cognago.">
-  <link rel="icon" type="image/png" href="../website/codego/icon.png">
+  <link rel="icon" type="image/png" href="icon.png">
   <link rel="stylesheet" href="site.css">
 </head>
 <body>
@@ -15,8 +15,8 @@
   <!-- ============================================================== -->
   <header class="web-navbar">
     <div class="nav-brand-group">
-      <a href="../website/codego/index.html" class="brand-badge" title="Volver a la página principal de CodeGO">
-        <img src="../website/codego/icon.png" alt="codeGO" class="brand-logo">
+      <a href="../index.html" class="brand-badge" title="Volver a la página principal de CodeGO">
+        <img src="icon.png" alt="codeGO" class="brand-logo">
         <span class="brand-title">code<span class="brand-accent">GO</span> Web</span>
       </a>
       <span class="brand-tag">Cognago Core v1.2</span>
@@ -385,8 +385,9 @@
       // Selector de Lenguajes
       document.querySelectorAll('.lang-pill-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          if (codeEditor.value.trim().length > 50) {
-            if (!confirm('¿Cambiar de lenguaje? Se cargará la plantilla correspondiente.')) return;
+          const isModified = telemetry.charactersWritten > 0;
+          if (isModified && codeEditor.value.trim().length > 20) {
+            if (!confirm('¿Cambiar de lenguaje? Se reemplazará el código actual por la plantilla seleccionada.')) return;
           }
           setLanguage(btn.dataset.lang);
         });
