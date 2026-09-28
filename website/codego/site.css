@@ -135,6 +135,20 @@ body {
   text-align: center;
 }
 
+.hero-product-mark {
+  display: block;
+  width: clamp(120px, 14vw, 178px);
+  height: auto;
+  margin: 0 auto 18px;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 30px rgba(0, 168, 255, 0.2)) drop-shadow(0 22px 34px rgba(0, 0, 0, 0.4));
+  transition: transform 0.3s ease;
+}
+
+.hero-product-mark:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
 .badge-pill {
   display: inline-flex;
   align-items: center;

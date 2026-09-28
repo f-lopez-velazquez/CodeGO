@@ -566,7 +566,9 @@ function logSecurityIncident(type, details) {
 function createMainWindow() {
   // Screen metrics are in device-independent pixels, including OS display scaling.
   const { workAreaSize } = screen.getPrimaryDisplay();
+  const appIconPath = path.join(__dirname, '../../build/icon.png');
   mainWindow = new BrowserWindow({
+    icon: appIconPath,
     width: Math.min(1440, workAreaSize.width),
     height: Math.min(900, workAreaSize.height),
     minWidth: Math.min(640, workAreaSize.width),
