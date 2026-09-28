@@ -1107,3 +1107,286 @@ body {
 .release-note a, .compatibility-note a { color:#7cc7fd; text-decoration:underline; text-underline-offset:3px; }
 .compatibility-note { color:#a0adbf; font-size:12px; line-height:1.8; margin:0 0 48px; }
 @media (max-width:520px) { .nav-links { gap:10px; } .nav-link { font-size:12px; } .brand { gap:8px; } .header-inner { gap:12px; } }
+
+/* Hero Actions */
+.hero-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 12px auto 28px;
+}
+
+.btn-hero-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #c9d1d9;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 12px 24px;
+  border-radius: 9999px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-hero-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.nav-link-highlight {
+  color: var(--accent) !important;
+  font-weight: 700;
+}
+
+/* Section Centered Badge */
+.section-badge-center {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* Comparison Section */
+.comparison-section {
+  padding: 72px 0;
+  text-align: center;
+}
+
+.comparison-title {
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.comparison-lead {
+  font-size: clamp(15px, 2vw, 17px);
+  color: var(--ink-secondary);
+  max-width: 680px;
+  margin: 0 auto 36px;
+  line-height: 1.6;
+}
+
+.comparison-table-wrap {
+  overflow-x: auto;
+  max-width: 980px;
+  margin: 0 auto;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.comparison-table th {
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+
+.comparison-table .th-feature {
+  width: 34%;
+  color: #fff;
+}
+
+.comparison-table .th-generic {
+  width: 33%;
+  color: #ff7b72;
+}
+
+.comparison-table .th-codego {
+  width: 33%;
+  color: #58a6ff;
+  background: rgba(88, 166, 255, 0.06);
+}
+
+.comparison-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--ink-secondary);
+  vertical-align: middle;
+}
+
+.comparison-table tr:last-child td {
+  border-bottom: none;
+}
+
+.comparison-table td:last-child {
+  background: rgba(88, 166, 255, 0.03);
+  color: #e6edf3;
+}
+
+.comparison-table .status-bad {
+  color: #e06c75;
+}
+
+.comparison-table .status-good {
+  color: #7ee787;
+}
+
+/* Remote Education / Cognago Section */
+.remote-edu-section {
+  padding: 60px 0;
+}
+
+.remote-box-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, rgba(88, 166, 255, 0.08), rgba(56, 139, 253, 0.02));
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  border-radius: 18px;
+  padding: clamp(28px, 5vw, 48px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
+.remote-content {
+  max-width: 820px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.remote-title {
+  font-size: clamp(22px, 3.5vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+  margin: 10px 0 16px;
+}
+
+.remote-lead {
+  font-size: 16px;
+  color: var(--ink-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.remote-benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 32px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+
+.remote-benefits-list li {
+  font-size: 14px;
+  color: var(--ink-secondary);
+  line-height: 1.5;
+  position: relative;
+  padding-left: 20px;
+}
+
+.remote-benefits-list li::before {
+  content: "✔";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.remote-benefits-list strong {
+  color: #fff;
+}
+
+.remote-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .remote-benefits-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Languages Cards Grid */
+.languages-section {
+  padding: 60px 0 20px;
+  text-align: center;
+}
+
+.languages-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.lang-feature-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 16px;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.lang-feature-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.lang-feature-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.lang-feature-card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.lang-feature-card p {
+  font-size: 12.5px;
+  color: var(--ink-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.modes-header-wrap {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.modes-title {
+  font-size: clamp(24px, 4vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+  margin: 8px 0;
+}
+
+.modes-subtitle {
+  font-size: 16px;
+  color: var(--ink-secondary);
+}
+
