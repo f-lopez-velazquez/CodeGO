@@ -1,0 +1,69 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { ProcessOutputBuffer } = require('../src/main/process-output-buffer');
+const { BrowserGuard, DisplayGuard } = require('../src/main/session-guards');
+const { diagnosePython, explainSyntaxMessage } = require('../src/main/syntax-diagnostics');
+
+test('Editor diagnostics parse Python and translate common syntax guidance', async () => {
+  const python = process.env.CODEGO_TEST_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+  assert.equal((await diagnosePython(python, 'for i in range(3):\n    print(i)\n', 'bien.py')).success, true);
+  const missingColon = await diagnosePython(python, 'for i in range(3)\n    print(i)\n', 'error.py');
+  assert.equal(missingColon.success, false);
+  assert.equal(missingColon.line, 1);
+  assert.match(`${missingColon.title} ${missingColon.hint}`, /dos puntos|:/i);
+  assert.match(explainSyntaxMessage('expected an indented block').hint, /4 espacios/i);
+});
+
+test('Output buffer bounds a print flood and reports omitted output', () => {
+  const events = [];
+  const buffer = new ProcessOutputBuffer({ send: (channel, data) => events.push({ channel, data }), intervalMs: 1000, maxChunk: 16, maxPending: 32 });
+  buffer.write('python:stdout', 'x'.repeat(500));
+  buffer.close();
+  assert(events.length < 10);
+  assert.match(events.map(event => event.data).join(''), /limitó 468 caracteres/);
+});
+
+test('Display guard maximizes and restores Linux brightness without shell commands', async () => {
+  const calls = [];
+  const run = async (command, args) => {
+    calls.push([command, args]);
+    if (args[0] === 'get') return { stdout: '40\n' };
+    if (args[0] === 'max') return { stdout: '100\n' };
+    return { stdout: '' };
+  };
+  const guard = new DisplayGuard({ platform: 'linux', run });
+  assert.equal((await guard.maximize()).success, true);
+  assert.equal((await guard.restore()).restored, true);
+  assert.deepEqual(calls.at(-1), ['brightnessctl', ['set', '40%']]);
+});
+
+test('Display guard preserves a valid zero-percent starting brightness', async () => {
+  const calls = [];
+  const run = async (command, args) => {
+    calls.push([command, args]);
+    if (args[0] === 'get') return { stdout: '0\n' };
+    if (args[0] === 'max') return { stdout: '100\n' };
+    return { stdout: '' };
+  };
+  const guard = new DisplayGuard({ platform: 'linux', run });
+  await guard.maximize();
+  await guard.maximize();
+  assert.equal((await guard.restore()).restored, true);
+  assert.deepEqual(calls.at(-1), ['brightnessctl', ['set', '0%']]);
+});
+
+test('Browser guard closes known browsers only through fixed executable arguments', async () => {
+  const calls = [];
+  const guard = new BrowserGuard({
+    platform: 'linux',
+    run: async (command, args) => { calls.push([command, args]); return { stdout: '' }; },
+    wait: async () => {}
+  });
+  const result = await guard.closeAll();
+  assert.equal(result.success, true);
+  assert(result.closed.includes('firefox'));
+  assert(calls.every(([command, args]) => command === 'pkill' && ['-TERM', '-KILL'].includes(args[0]) && args[1] === '-x'));
+  assert(calls.some(([, args]) => args[0] === '-TERM' && args.includes('firefox')));
+  assert(calls.some(([, args]) => args[0] === '-KILL' && args.includes('firefox')));
+  assert(!calls.some(([, args]) => args.includes('codego-examguard')));
+});

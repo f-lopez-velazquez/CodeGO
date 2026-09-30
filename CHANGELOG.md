@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.6.1 · Editor guiado y supervisión resistente
+
+- Añade guías de sangría reales por nivel, navegación con `F8` y comprobación de sintaxis Python en vivo con explicaciones concretas en español.
+- Protege la interfaz frente a programas que imprimen salida sin límite mediante lotes acotados, sin perder la capacidad de detener la ejecución.
+- Refuerza `Detener`: termina el grupo completo del proceso, ofrece una segunda detención forzada y recupera la interfaz aun si el proceso no confirma su cierre.
+- Cierra navegadores conocidos al iniciar un examen con una fase normal y otra forzada en Linux y macOS; Windows termina el árbol completo del navegador.
+- Eleva el brillo y el volumen únicamente durante una alarma, bloquea bajar o silenciar el audio mientras está activa y restaura el brillo anterior al terminar.
+- Acelera la baliza docente a una alternancia roja y blanca de 0.36 segundos, visible a distancia y sin filtros gráficos costosos.
+- Mantiene codeGO a pantalla completa y libera temporalmente el escritorio para Pygame, Tkinter, Turtle y Matplotlib; la aplicación vuelve a pantalla completa al terminar.
+- Amplía las pruebas nativas con ciclos infinitos, procesos hijos, inundación de salida, diagnósticos de sintaxis, brillo y cierre de navegadores.
+
 ## 1.6.0 · Exámenes aislados y ejecución resistente
 
 - Elimina el ajuste periódico de volumen durante el trabajo normal; el sistema solo protege el audio mientras una alarma de supervisión está activa.

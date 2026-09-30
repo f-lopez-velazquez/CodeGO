@@ -112,6 +112,9 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     window.electronAPI = {
       saveFile: async data => { window.testWrites.push(data); return { success: true }; },
       runPython: async () => ({ success: true }),
+      diagnoseCode: async ({ source }) => source.startsWith('if True\n')
+        ? { success: false, title: 'Faltan dos puntos', hint: 'Agrega : al final de la línea.', line: 1 }
+        : { success: true },
       sendPythonStdin: async value => { window.testInputs.push(value); return { success: true }; },
       killPython: async () => { setTimeout(() => handleExecutionFinished({ exitCode: null, signal: 'SIGKILL', duration: 1 }), 10); return { success: true }; },
       setInternalInteraction: async active => { (window.testInternalInteractions ||= []).push(active); return { success: true }; }
@@ -228,6 +231,18 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     return { paired, skipped, removed };
   });
   assert(editorPairs.paired && editorPairs.skipped && editorPairs.removed, `Editor pairs failed: ${JSON.stringify(editorPairs)}`);
+  await page.evaluate(() => {
+    DOM.codeTextarea.value = 'if True\n    print("hola")';
+    DOM.codeTextarea.setSelectionRange(DOM.codeTextarea.value.length, DOM.codeTextarea.value.length);
+    handleEditorInput();
+  });
+  await page.clock.runFor(500);
+  assert(await page.locator('#editor-indent-guides .indent-guide-level').count() === 1, 'Indentation guide is not rendered for a four-space block');
+  assert(await page.locator('#editor-diagnostic').isVisible(), 'Live syntax diagnostic is not visible');
+  assert(await page.locator('#editor-diagnostic').evaluate(element => element.classList.contains('error')), 'Invalid Python is not marked as an error');
+  assert((await page.locator('#editor-diagnostic-title').innerText()).includes('dos puntos'), 'Live syntax guidance is not specific');
+  await page.locator('#btn-editor-diagnostic-line').click();
+  assert(await page.locator('.editor-line-numbers .has-error').count() === 1, 'Live syntax issue does not navigate to its line');
   await page.locator('#btn-toggle-term-view').click();
   assert(await page.locator('#terminal-panel').isHidden(), 'Collapse failed');
   await page.locator('#btn-run-code').click();
@@ -330,7 +345,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     };
   });
   assert(beacon.animation.includes('hazard-teacher-beacon'), `Strong warning beacon missing: ${JSON.stringify(beacon)}`);
-  assert(beacon.duration === '0.7s' && beacon.backdrop === 'none' && beacon.cardAnimation === 'none', `Warning beacon is not lightweight: ${JSON.stringify(beacon)}`);
+  assert(beacon.duration === '0.36s' && beacon.backdrop === 'none' && beacon.cardAnimation === 'none', `Warning beacon is not lightweight: ${JSON.stringify(beacon)}`);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm can be dismissed immediately');
   await page.clock.runFor(15000);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Countdown started while the student was still outside codeGO');

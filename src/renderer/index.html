@@ -474,7 +474,7 @@
         <!-- Botón Detener Ejecución -->
         <button id="btn-stop-code" class="btn-action stop" title="Detener Ejecución" disabled>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-          <span class="action-label">Detener</span>
+          <span class="action-label" id="stop-code-label">Detener</span>
         </button>
 
         <!-- Botón Entregar Examen (Exclusivo en Modo Examen) -->
@@ -586,9 +586,19 @@
             </div>
             <div class="editor-line-numbers" id="editor-line-numbers"></div>
             <div class="editor-canvas">
+              <div id="editor-indent-guides" class="editor-indent-guides" aria-hidden="true"></div>
               <pre id="editor-highlighting" aria-hidden="true"><code id="highlighting-content"></code></pre>
               <textarea id="code-textarea" aria-label="Editor de código Python" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
             </div>
+          </div>
+
+          <div id="editor-diagnostic" class="editor-diagnostic hidden" role="status" aria-live="polite">
+            <span id="editor-diagnostic-icon" class="editor-diagnostic-icon" aria-hidden="true">✓</span>
+            <div class="editor-diagnostic-copy">
+              <strong id="editor-diagnostic-title">Sintaxis correcta</strong>
+              <span id="editor-diagnostic-hint">Python puede interpretar el archivo.</span>
+            </div>
+            <button type="button" id="btn-editor-diagnostic-line" class="editor-diagnostic-line hidden">Ir a la línea</button>
           </div>
 
           <!-- Barra de Estado Inferior del Editor -->

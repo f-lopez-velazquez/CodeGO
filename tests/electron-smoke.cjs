@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { PythonRunner } = require('../src/main/python-runner');
+const { diagnosePython } = require('../src/main/syntax-diagnostics');
 const dir = process.env.CODEGO_TEST_DIRECTORY || fs.mkdtempSync(path.join(os.tmpdir(), 'codego-electron-'));
 app.setPath('userData', path.join(dir, 'user-data'));
 app.disableHardwareAcceleration();
@@ -35,7 +36,9 @@ app.whenReady().then(async () => {
       'fs:save-file': (_, data) => { fs.writeFileSync(path.join(dir,data.relativePath),data.content); return {success:true}; },
       'python:run': (_, data) => runner.run(python,path.join(dir,data.relativePath)),
       'python:stdin': (_, value) => runner.stdin(value),
-      'python:kill': () => runner.kill()
+      'python:kill': () => runner.kill(),
+      'code:force-kill': () => runner.kill(),
+      'code:diagnose': (_, payload) => diagnosePython(python, payload.source, payload.relativePath || 'archivo.py')
     };
     for (const [channel, handler] of Object.entries(fixtureHandlers)) ipcMain.handle(channel, handler);
     window = new BrowserWindow({show:true,width:1280,height:800,frame:false,webPreferences:{preload:path.resolve(__dirname,'../src/preload/preload.js'),contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});

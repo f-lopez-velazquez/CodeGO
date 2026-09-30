@@ -130,7 +130,7 @@ jobs:
           - **Comprobación previa**: importaciones, gráficos, archivos, entrada interactiva y comunicación serial antes de abrir el editor.
           - **Ventanas gráficas visibles**: mejor integración con Pygame y otros entornos gráficos, incluida la ubicación automática en Hyprland.
           - **Errores para aprender**: explicación clara, detección de línea y acceso directo al código.
-          - **Edición asistida**: pares automáticos de símbolos y sangría o desangría de bloques.
+          - **Edición asistida**: guías de sangría, comprobación de sintaxis en vivo, salto con F8, pares automáticos y sangría o desangría de bloques.
           - **Interfaz académica**: preparación adaptable, consejos útiles y lenguaje dirigido al usuario final.
           - **Proyectos desde el inicio**: abre una carpeta existente o crea un proyecto vacío; no se impone un archivo inicial.
           - **Explorador organizado**: mueve archivos y carpetas mediante arrastre, incluso entre subcarpetas.
@@ -138,8 +138,8 @@ jobs:
           - **Tarea sin interrupciones**: portapapeles disponible, registro de sesión y sello de integridad Ed25519 sin alarmas ni kiosk.
           - **Proyectos recientes**: abre directamente hasta tres carpetas usadas recientemente sin volver a mostrar el selector del sistema.
           - **Examen limpio por ID**: crea un espacio aislado y un archivo vacío con el nombre del alumno y el ID dictado en el aula.
-          - **Detención resistente**: termina el árbol completo de procesos ante ciclos infinitos y procesos hijos.
-          - **Supervisión precisa**: el audio solo se protege durante una alarma; continúa hasta regresar y entonces comienza la espera de 12 segundos.
+          - **Detención resistente**: termina el árbol completo de procesos ante ciclos infinitos, procesos hijos e inundaciones de salida sin bloquear la interfaz.
+          - **Supervisión precisa**: cierra navegadores al iniciar el examen; durante una alarma maximiza brillo y volumen, bloquea su reducción y alterna rojo/blanco cada 0.36 s hasta regresar, cuando comienza la espera de 12 segundos.
           - **Calificación trazable**: genera una huella Ed25519 vinculada al SHA-256 exacto del examen entregado.
           - **macOS guiado**: firma de forma ad hoc los componentes internos y muestra una solución copiable si Gatekeeper conserva la cuarentena.
           - **Revisión de grupos**: compara sellos, duplicados y similitud estructural entre todas las entregas seleccionadas.

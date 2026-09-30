@@ -30,8 +30,12 @@ const { createFocusGuard } = require('./focus-guard');
 const { MultiLanguageRunner, detectLanguage, detectToolchains, LANGUAGE_DEFS } = require('./language-runner');
 const updater = require('./updater');
 const { NotificationGuard } = require('./notification-guard');
+const { BrowserGuard, DisplayGuard } = require('./session-guards');
+const { diagnosePython } = require('./syntax-diagnostics');
 const wifiControl = createWifiControl();
 const notificationGuard = new NotificationGuard();
+const browserGuard = new BrowserGuard();
+const displayGuard = new DisplayGuard();
 
 // Native Wayland keeps GPU compositing for a responsive editor. Vulkan remains
 // disabled because some Mesa/Hyprland combinations report noisy startup errors;
@@ -124,19 +128,23 @@ function restoreMainWindowAfterPython() {
   clearPythonWindowTimers();
   if (!mainWindow || mainWindow.isDestroyed() || !protectedWindowTemporarilyReleased) return;
   protectedWindowTemporarilyReleased = false;
-  if (activeSessionMode === 'exam') {
-    try {
-      mainWindow.setFullScreen(true);
+  try {
+    mainWindow.maximize();
+    mainWindow.setFullScreen(true);
+    if (activeSessionMode === 'exam') {
       mainWindow.setKiosk(true);
       mainWindow.setAlwaysOnTop(true, 'screen-saver');
-      mainWindow.focus();
-    } catch (_) {}
-  }
+    }
+    mainWindow.focus();
+  } catch (_) {}
 }
 
 function prepareMainWindowForPythonGui(child) {
   if (!activePythonGuiExpected || !child?.pid || !mainWindow || mainWindow.isDestroyed()) return;
-  protectedWindowTemporarilyReleased = activeSessionMode === 'exam';
+  // Native learning windows (Pygame, Tkinter, Turtle, Matplotlib) need a real
+  // desktop surface. Pause fullscreen enforcement only while that child lives,
+  // then restore codeGO automatically when it exits or is stopped.
+  protectedWindowTemporarilyReleased = true;
   try {
     mainWindow.setAlwaysOnTop(false);
     if (mainWindow.isKiosk()) mainWindow.setKiosk(false);
@@ -254,7 +262,7 @@ function runAudioCommand(command, args, done) {
   execFile(command, args, { windowsHide: true, timeout: 2500 }, error => done(!error));
 }
 
-function enforceSystemAudioUnmute(targetVolume = 0.85) {
+function enforceSystemAudioUnmute(targetVolume = 1, raiseFully = false) {
   const currentTime = Date.now();
   if (audioEnforcementInFlight || currentTime - lastAudioEnforcementAt < 1200) return;
   audioEnforcementInFlight = true;
@@ -270,7 +278,8 @@ function enforceSystemAudioUnmute(targetVolume = 0.85) {
       });
     });
   } else if (platform === 'win32') {
-    const psCmd = '$wscript = New-Object -ComObject WScript.Shell; $wscript.SendKeys([char]175); $wscript.SendKeys([char]175)';
+    const presses = raiseFully ? 50 : 1;
+    const psCmd = `$wscript = New-Object -ComObject WScript.Shell; 1..${presses} | ForEach-Object { $wscript.SendKeys([char]175) }`;
     runAudioCommand('powershell', ['-NoProfile', '-NonInteractive', '-Command', psCmd], finish);
   } else if (platform === 'darwin') {
     runAudioCommand('osascript', ['-e', `set volume output volume ${Math.round(targetVolume * 100)}`], finish);
@@ -281,12 +290,21 @@ function enforceSystemAudioUnmute(targetVolume = 0.85) {
 
 function startAudioWatchdog() {
   stopAudioWatchdog();
-  enforceSystemAudioUnmute(0.85);
+  void displayGuard.maximize();
+  enforceSystemAudioUnmute(1, true);
+  for (const accelerator of ['VolumeMute', 'VolumeDown']) {
+    try {
+      globalShortcut.register(accelerator, () => {
+        enforceSystemAudioUnmute(1, true);
+        logSecurityIncident('ALARM_AUDIO_KEY_BLOCKED', { accelerator });
+      });
+    } catch (_) {}
+  }
   audioWatchdogInterval = setInterval(() => {
     if (activeSessionMode === 'exam' || activeSessionMode === 'activity') {
-      enforceSystemAudioUnmute(0.85);
+      enforceSystemAudioUnmute(1);
     }
-  }, 4000);
+  }, 1000);
 }
 
 function stopAudioWatchdog() {
@@ -294,6 +312,10 @@ function stopAudioWatchdog() {
     clearInterval(audioWatchdogInterval);
     audioWatchdogInterval = null;
   }
+  for (const accelerator of ['VolumeMute', 'VolumeDown']) {
+    try { globalShortcut.unregister(accelerator); } catch (_) {}
+  }
+  void displayGuard.restore();
 }
 
 function disableSystemWifi() { return wifiControl.disable(); }
@@ -632,10 +654,12 @@ function createMainWindow() {
   // operating system leaves fullscreen, keep the window maximized so native
   // scaling never exposes an unsupported floating-window layout.
   mainWindow.on('leave-full-screen', () => {
-    if (diagnosticMode || !mainWindow || mainWindow.isDestroyed()) return;
+    if (diagnosticMode || protectedWindowTemporarilyReleased || !mainWindow || mainWindow.isDestroyed()) return;
     setTimeout(() => {
-      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMaximized()) mainWindow.maximize();
-    }, 0);
+      if (!mainWindow || mainWindow.isDestroyed() || protectedWindowTemporarilyReleased) return;
+      mainWindow.maximize();
+      mainWindow.setFullScreen(true);
+    }, 120);
   });
   mainWindow.on('unmaximize', () => {
     if (diagnosticMode || protectedWindowTemporarilyReleased || !mainWindow || mainWindow.isDestroyed()) return;
@@ -1550,7 +1574,7 @@ except Exception:
 
       if (mainWindow) {
         mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(false);
+        mainWindow.setFullScreen(true);
         mainWindow.setAlwaysOnTop(false);
         mainWindow.maximize();
         globalShortcut.unregisterAll();
@@ -1573,7 +1597,7 @@ except Exception:
 
       if (mainWindow) {
         mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(false);
+        mainWindow.setFullScreen(true);
         mainWindow.setAlwaysOnTop(false);
         mainWindow.maximize();
         globalShortcut.unregisterAll();
@@ -1587,6 +1611,7 @@ except Exception:
     // Each exam gets a new private directory. Previous projects are never
     // mounted into the exam session and the initial source file is blank.
     const examWorkspace = createFreshExamWorkspace(studentData);
+    const browserResult = await browserGuard.closeAll();
 
     const wifiResult = disableSystemWifi();
     if (!wifiResult.success) {
@@ -1601,6 +1626,7 @@ except Exception:
     // Wi-Fi was verified before activating the protected session.
     logSecurityIncident('EXAM_STARTED', {
       student: studentData,
+      browsersClosed: browserResult.closed,
       startTime: new Date().toISOString()
     });
 
@@ -1638,7 +1664,7 @@ except Exception:
 
       if (mainWindow) {
         mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(false);
+        mainWindow.setFullScreen(true);
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
       }
@@ -1662,6 +1688,7 @@ except Exception:
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setAlwaysOnTop(false);
       mainWindow.maximize();
+      mainWindow.setFullScreen(true);
     }
     return { success: true };
   });
@@ -1678,7 +1705,7 @@ except Exception:
 
   handle('system:enforce-audio', async () => {
     try {
-      enforceSystemAudioUnmute(0.90);
+      enforceSystemAudioUnmute(1, true);
       return { success: true };
     } catch (_) {
       return { success: false };
@@ -1778,7 +1805,7 @@ except Exception:
   // Window Screen Controls
   handle('window:set-fullscreen', async (event, flag) => {
     if (diagnosticMode) return { success: true };
-    if (isKioskActive && flag === false) return { success: false, error: 'Pantalla completa obligatoria durante el examen.' };
+    if (flag === false) return { success: false, error: 'codeGO trabaja siempre en pantalla completa.' };
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setFullScreen(flag !== false);
       return { success: true, isFullScreen: mainWindow.isFullScreen() };
@@ -2063,6 +2090,28 @@ except Exception:
     return pythonRunner.kill();
   });
 
+  handle('code:force-kill', () => {
+    const results = [];
+    if (multiLanguageRunner.child) results.push(multiLanguageRunner.kill());
+    if (pythonRunner.child) results.push(pythonRunner.kill());
+    if (activeProcess?.pid) {
+      try {
+        if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(activeProcess.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true, timeout: 4000 });
+        else {
+          try { process.kill(-activeProcess.pid, 'SIGKILL'); } catch (_) {}
+          try { process.kill(activeProcess.pid, 'SIGKILL'); } catch (_) {}
+        }
+        results.push({ success: true });
+      } catch (_) {}
+    }
+    return { success: results.some(result => result?.success) || !activeProcess };
+  });
+
+  handle('code:diagnose', async (event, payload = {}) => {
+    if (payload.language !== 'python') return { success: true, unsupported: true };
+    return diagnosePython(resolvePythonBinary().command, payload.source, payload.relativePath || 'archivo.py');
+  });
+
   // Final Exam Submission & Package Creation
   handle('exam:submit', async (event, studentData) => {
     if (activeProcess) return { success: false, error: 'Detén Python antes de entregar.' };
@@ -2080,7 +2129,7 @@ except Exception:
 
       if (mainWindow) {
         mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(false);
+        mainWindow.setFullScreen(true);
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
       }
@@ -2135,7 +2184,7 @@ except Exception:
       await notificationGuard.restore();
       if (mainWindow) {
         mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(false);
+        mainWindow.setFullScreen(true);
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
       }

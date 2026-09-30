@@ -14,8 +14,9 @@ La aplicación opera bajo **tres modalidades especializadas**:
    - **Objetivo**: Evaluación formal supervisada con integridad académica estricta.
    - **Modo Kiosk**: La ventana se fija en pantalla completa y primer plano absoluto (`setKiosk(true)`, `setAlwaysOnTop(true)`).
    - **Desconexión Wi-Fi**: Deshabilita automáticamente las interfaces de red al iniciar y las restaura al entregar o con PIN de docente.
+   - **Inicio limpio**: Cierra navegadores conocidos antes de activar el espacio aislado del examen.
    - **Watchdog de Audio Anti-Mute**: Impide que el estudiante silencie el equipo para ocultar alarmas.
-   - **Alerta Lumínica Estroboscópica de 12 Segundos ("Flashazo Docente")**: Si el estudiante cambia de ventana o pierde el foco, se registra una incidencia, se activa un flash estroboscópico de alta intensidad (`hazard-teacher-beacon`) visible a través del aula para alertar al docente inmediatamente, junto a un aviso sonoro armónico que dura **12 segundos exactos** antes de permitir reanudar.
+   - **Alerta Lumínica de 12 Segundos ("Flashazo Docente")**: Si el estudiante cambia de ventana o pierde el foco, se registra una incidencia, se eleva el brillo cuando el sistema lo permite y se activa una alternancia roja/blanca de 0.36 segundos (`hazard-teacher-beacon`) visible a través del aula. El sonido no se puede silenciar durante el aviso y, al regresar, corre una espera de **12 segundos exactos** antes de permitir reanudar.
    - **Excepciones legítimas**: NO se alarma si se abren ventanas gráficas de Python (Pygame, Tkinter, Turtle, Matplotlib).
    - **Entrega Sellada**: Al presionar "Entregar", el código se bloquea contra modificación, copia y pegado, y se empaqueta en un archivo ZIP auditado con sello SHA-256.
 
@@ -98,6 +99,8 @@ La petición del usuario de septiembre de 2026 sustituye la barra separada anter
 2. `#terminal-transcript` contiene la salida; `#terminal-stdin-input` es un control nativo sin borde ni fondo, dibujado inmediatamente después en la misma línea. No agregar una barra inferior ni botón de envío separado.
 3. Enter envía stdin y conserva el eco junto al prompt. Limpiar borra únicamente la transcripción, nunca el control activo. Al terminar, el cursor de entrada se oculta.
 4. El tamaño inicial y mínimo de BrowserWindow deben caber en las dimensiones lógicas del monitor. Probar escalado del SO además de zoom de la aplicación, y verificar también los créditos y el pie del editor.
+5. El editor mantiene guías de sangría por cada cuatro espacios y usa el Python privado para comprobar sintaxis en vivo. `F8` abre la línea del diagnóstico actual.
+6. La salida de procesos se agrupa y limita antes de enviarla al renderer; `Detener` debe finalizar el grupo completo, incluidos procesos hijos y programas con salida infinita.
 
 ---
 

@@ -2,6 +2,7 @@ const { spawn, execSync, spawnSync, execFileSync } = require('node:child_process
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
+const { ProcessOutputBuffer } = require('./process-output-buffer');
 
 /**
  * Mapeo de extensiones de archivo a lenguajes soportados.
@@ -208,6 +209,7 @@ class MultiLanguageRunner {
     this.child = null;
     this.activeLanguage = null;
     this.compiledBinary = null;
+    this.outputBuffer = null;
   }
 
   run({ language, filePath, customCommand } = {}) {
@@ -363,13 +365,15 @@ class MultiLanguageRunner {
 
   attachChild(child, started) {
     this.child = child;
+    const outputBuffer = new ProcessOutputBuffer({ send: (channel, data) => this.emitOutput(channel === 'code:stderr' ? 'stderr' : 'stdout', data) });
+    this.outputBuffer = outputBuffer;
     this.onProcess(child);
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
 
-    child.stdout.on('data', chunk => this.emitOutput('stdout', chunk));
-    child.stderr.on('data', chunk => this.emitOutput('stderr', chunk));
+    child.stdout.on('data', chunk => outputBuffer.write('code:stdout', chunk));
+    child.stderr.on('data', chunk => outputBuffer.write('code:stderr', chunk));
 
     child.stdin.on('error', () => {});
     child.on('error', error => {
@@ -378,6 +382,8 @@ class MultiLanguageRunner {
 
     child.once('close', (exitCode, signal) => {
       if (this.child !== child) return;
+      outputBuffer.close();
+      if (this.outputBuffer === outputBuffer) this.outputBuffer = null;
       this.child = null;
       this.onProcess(null);
       this.emitFinished({
@@ -426,7 +432,7 @@ class MultiLanguageRunner {
       let success = false;
       if (process.platform === 'win32') {
         try {
-          execFileSync('taskkill', ['/PID', String(this.child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+          execFileSync('taskkill', ['/PID', String(this.child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true, timeout: 4000 });
           success = true;
         } catch (_) {
           success = this.child.kill('SIGKILL');
@@ -438,7 +444,9 @@ class MultiLanguageRunner {
         } catch (_) {
           success = this.child.kill('SIGKILL');
         }
+        try { process.kill(this.child.pid, 'SIGKILL'); } catch (_) {}
       }
+      try { this.child.stdin.destroy(); } catch (_) {}
       return success ? { success: true } : { success: false, error: 'No se pudo detener el proceso.' };
     } catch (error) {
       return { success: false, error: error.message };

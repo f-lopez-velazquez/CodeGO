@@ -176,7 +176,10 @@ const state = {
   selectedLanguage: 'python',
   detectedToolchains: null,
   examInitialFile: '',
-  returnHomeAfterUnlock: false
+  returnHomeAfterUnlock: false,
+  syntaxDiagnosticTimer: null,
+  syntaxDiagnosticGeneration: 0,
+  syntaxDiagnosticLine: null
 };
 
 // DOM Elements
@@ -330,6 +333,7 @@ const DOM = {
   btnHelpShortcuts: document.getElementById('btn-help-shortcuts'),
   btnRunCode: document.getElementById('btn-run-code'),
   btnStopCode: document.getElementById('btn-stop-code'),
+  stopCodeLabel: document.getElementById('stop-code-label'),
   btnFinishExam: document.getElementById('btn-finish-exam'),
   btnSubmitTask: document.getElementById('btn-submit-task'),
   btnVerifySubmissionIde: document.getElementById('btn-verify-submission-ide'),
@@ -366,7 +370,13 @@ const DOM = {
   codeTextarea: document.getElementById('code-textarea'),
   editorHighlighting: document.getElementById('editor-highlighting'),
   highlightingContent: document.getElementById('highlighting-content'),
+  editorIndentGuides: document.getElementById('editor-indent-guides'),
   editorLineNumbers: document.getElementById('editor-line-numbers'),
+  editorDiagnostic: document.getElementById('editor-diagnostic'),
+  editorDiagnosticIcon: document.getElementById('editor-diagnostic-icon'),
+  editorDiagnosticTitle: document.getElementById('editor-diagnostic-title'),
+  editorDiagnosticHint: document.getElementById('editor-diagnostic-hint'),
+  btnEditorDiagnosticLine: document.getElementById('btn-editor-diagnostic-line'),
   sbCursorPos: document.getElementById('sb-cursor-pos'),
   sbCharsCount: document.getElementById('sb-chars-count'),
   sbSaveStatus: document.getElementById('sb-save-status'),
@@ -1924,6 +1934,7 @@ function setupEventListeners() {
   // Python Execution Controls
   DOM.btnRunCode.addEventListener('click', runCurrentPythonCode);
   DOM.btnStopCode.addEventListener('click', stopRunningPythonCode);
+  DOM.btnEditorDiagnosticLine?.addEventListener('click', () => goToEditorLine(state.syntaxDiagnosticLine));
 
   // Terminal Actions
   DOM.btnClearTerm.addEventListener('click', clearTerminal);
@@ -2057,8 +2068,9 @@ function setupEventListeners() {
 
   // Global Keyboard Shortcuts (F5: Run, Ctrl+S: Save, Ctrl++/Ctrl-: Zoom, Ctrl+0: Reset, Ctrl+B: Sidebar)
   window.addEventListener('keydown', (e) => {
-    // Intercept volume tampering & mute keys so alarms cannot be silenced
-    if (state.examSessionActive && (state.appMode === 'exam' || state.appMode === 'task') && (['AudioVolumeMute', 'VolumeMute', 'AudioVolumeDown', 'VolumeDown'].includes(e.key) || e.code === 'AudioVolumeMute' || e.code === 'AudioVolumeDown')) {
+    // Media keys remain available during ordinary work. They are intercepted
+    // only while the classroom alarm is actually sounding.
+    if (sounds.isSirenPlaying && (state.appMode === 'exam' || state.appMode === 'activity') && (['AudioVolumeMute', 'VolumeMute', 'AudioVolumeDown', 'VolumeDown'].includes(e.key) || e.code === 'AudioVolumeMute' || e.code === 'AudioVolumeDown')) {
       e.preventDefault();
       e.stopPropagation();
       return false;
@@ -2087,6 +2099,10 @@ function setupEventListeners() {
     if (e.key === 'F5') {
       e.preventDefault();
       runCurrentPythonCode();
+    }
+    if (e.key === 'F8' && state.syntaxDiagnosticLine) {
+      e.preventDefault();
+      goToEditorLine(state.syntaxDiagnosticLine);
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();
@@ -3464,7 +3480,68 @@ function updateSyntaxHighlighting() {
   const code = DOM.codeTextarea.value;
   const lang = getActiveLanguage();
   DOM.highlightingContent.innerHTML = highlightCode(code, lang) + (code.endsWith('\n') ? ' ' : '');
+  updateIndentGuides();
+  scheduleSyntaxDiagnostic();
   syncEditorScroll();
+}
+
+function updateIndentGuides() {
+  if (!DOM.editorIndentGuides || !DOM.codeTextarea) return;
+  const cursorLine = DOM.codeTextarea.value.slice(0, DOM.codeTextarea.selectionStart).split('\n').length - 1;
+  const lines = DOM.codeTextarea.value.split('\n');
+  DOM.editorIndentGuides.innerHTML = lines.map((line, index) => {
+    const leading = (line.match(/^[ \t]*/) || [''])[0];
+    const spaces = [...leading].reduce((total, character) => total + (character === '\t' ? 4 : 1), 0);
+    const levels = Math.floor(spaces / 4);
+    return `<div class="indent-guide-line${index === cursorLine ? ' current' : ''}">${'<span class="indent-guide-level"></span>'.repeat(Math.min(levels, 40))}</div>`;
+  }).join('');
+}
+
+function hideSyntaxDiagnostic() {
+  state.syntaxDiagnosticLine = null;
+  DOM.editorDiagnostic?.classList.add('hidden');
+  DOM.editorDiagnostic?.classList.remove('error');
+  DOM.btnEditorDiagnosticLine?.classList.add('hidden');
+}
+
+function scheduleSyntaxDiagnostic() {
+  clearTimeout(state.syntaxDiagnosticTimer);
+  const source = DOM.codeTextarea?.value || '';
+  if (!source.trim() || getActiveLanguage() !== 'python' || !window.electronAPI?.diagnoseCode) {
+    hideSyntaxDiagnostic();
+    return;
+  }
+  const generation = ++state.syntaxDiagnosticGeneration;
+  state.syntaxDiagnosticTimer = setTimeout(async () => {
+    const result = await window.electronAPI.diagnoseCode({ language: 'python', source, relativePath: state.activeFilePath }).catch(() => null);
+    if (!result || generation !== state.syntaxDiagnosticGeneration || DOM.codeTextarea.value !== source) return;
+    if (result.unavailable) {
+      hideSyntaxDiagnostic();
+      return;
+    }
+    DOM.editorDiagnostic?.classList.remove('hidden');
+    if (result.success) {
+      state.syntaxDiagnosticLine = null;
+      if (state.editorErrorLine && !state.isRunning) state.editorErrorLine = null;
+      DOM.editorDiagnostic?.classList.remove('error');
+      if (DOM.editorDiagnosticIcon) DOM.editorDiagnosticIcon.textContent = '✓';
+      if (DOM.editorDiagnosticTitle) DOM.editorDiagnosticTitle.textContent = 'Sintaxis correcta';
+      if (DOM.editorDiagnosticHint) DOM.editorDiagnosticHint.textContent = 'Python puede interpretar la estructura del archivo.';
+      DOM.btnEditorDiagnosticLine?.classList.add('hidden');
+    } else {
+      state.syntaxDiagnosticLine = Number(result.line) || 1;
+      state.editorErrorLine = state.syntaxDiagnosticLine;
+      DOM.editorDiagnostic?.classList.add('error');
+      if (DOM.editorDiagnosticIcon) DOM.editorDiagnosticIcon.textContent = '!';
+      if (DOM.editorDiagnosticTitle) DOM.editorDiagnosticTitle.textContent = result.title || 'Revisa la sintaxis';
+      if (DOM.editorDiagnosticHint) DOM.editorDiagnosticHint.textContent = result.hint || result.message || 'Python encontró una estructura incompleta.';
+      if (DOM.btnEditorDiagnosticLine) {
+        DOM.btnEditorDiagnosticLine.textContent = `Línea ${state.syntaxDiagnosticLine}`;
+        DOM.btnEditorDiagnosticLine.classList.remove('hidden');
+      }
+    }
+    updateLineNumbers();
+  }, 450);
 }
 
 function handleEditorInput() {
@@ -3671,6 +3748,7 @@ function updateCursorStats() {
 
   DOM.sbCursorPos.textContent = `Lín ${lineNum}, Col ${colNum}`;
   DOM.sbCharsCount.textContent = `${value.length} caracteres`;
+  updateIndentGuides();
 }
 
 function syncEditorScroll() {
@@ -3680,6 +3758,10 @@ function syncEditorScroll() {
   }
   if (DOM.editorLineNumbers && DOM.codeTextarea) {
     DOM.editorLineNumbers.scrollTop = DOM.codeTextarea.scrollTop;
+  }
+  if (DOM.editorIndentGuides && DOM.codeTextarea) {
+    DOM.editorIndentGuides.scrollTop = DOM.codeTextarea.scrollTop;
+    DOM.editorIndentGuides.scrollLeft = DOM.codeTextarea.scrollLeft;
   }
 }
 
@@ -3736,24 +3818,32 @@ async function runCurrentPythonCode() {
 }
 
 async function stopRunningPythonCode() {
-  if (!state.isRunning || state.isStopping) return;
+  if (!state.isRunning) return;
+  const forcing = state.isStopping;
   state.isStopping = true;
-  DOM.btnStopCode.disabled = true;
+  DOM.btnStopCode.disabled = false;
+  if (DOM.stopCodeLabel) DOM.stopCodeLabel.textContent = forcing ? 'Forzando…' : 'Deteniendo…';
   try {
-    const result = await window.electronAPI.killPython();
+    const result = forcing
+      ? await window.electronAPI.forceKillCode()
+      : await window.electronAPI.killPython();
     if (!result.success) throw new Error(result.error);
     // Completion comes from process close, after the output streams are drained.
     setTimeout(async () => {
       if (!state.isStopping) return;
-      await window.electronAPI.killPython().catch(() => null);
+      await window.electronAPI.forceKillCode?.().catch(() => null);
       setTimeout(() => {
         if (state.isStopping) handleExecutionFinished({ exitCode: null, signal: 'SIGKILL', duration: 0 });
-      }, 750);
-    }, 1250);
+      }, 900);
+    }, 650);
   } catch (error) {
-    state.isStopping = false;
-    DOM.btnStopCode.disabled = !state.isRunning;
-    appendTerminalOutput(`No se pudo detener: ${error.message}\n`, 'stderr');
+    appendTerminalOutput(`Reintentando detención forzada: ${error.message}\n`, 'system');
+    const forced = await window.electronAPI.forceKillCode?.().catch(() => ({ success: false }));
+    if (!forced?.success) {
+      state.isStopping = false;
+      DOM.btnStopCode.disabled = false;
+      if (DOM.stopCodeLabel) DOM.stopCodeLabel.textContent = 'Detener';
+    }
   }
 }
 
@@ -3766,6 +3856,7 @@ function handleExecutionFinished(result) {
   DOM.btnRunCode.disabled = false;
   DOM.btnStopCode.disabled = true;
   DOM.btnStopCode.classList.remove('active');
+  if (DOM.stopCodeLabel) DOM.stopCodeLabel.textContent = 'Detener';
   const hadFocus = document.activeElement === DOM.terminalStdinInput;
   DOM.terminalStdinInput.disabled = true;
   DOM.terminalStdinInput.value = '';

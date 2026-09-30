@@ -105,6 +105,15 @@ test('UTF-8 output survives byte boundaries', { timeout: 10000 }, async t => {
   assert.equal(r.events.filter(e => e.channel === 'python:stdout').map(e => e.data).join(''), 'áñ🐍');
 });
 
+test('A print flood remains bounded so Stop and the interface stay responsive', { timeout: 10000 }, async t => {
+  const r = runtime(t, 'for i in range(250000): print(i)');
+  r.runner.run(python, r.file);
+  assert.equal((await r.finished).exitCode, 0);
+  const outputEvents = r.events.filter(event => event.channel === 'python:stdout');
+  assert(outputEvents.length < 80, `Se emitieron ${outputEvents.length} eventos IPC`);
+  assert.match(outputEvents.map(event => event.data).join(''), /codeGO limitó/);
+});
+
 test('Workspace rejects traversal, sibling prefixes, root deletion and external links', t => {
   const dir = fixture(t);
   const root = path.join(dir, 'project');

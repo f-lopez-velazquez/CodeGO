@@ -1,11 +1,13 @@
 const { spawn, execFileSync } = require('node:child_process');
 const path = require('node:path');
+const { ProcessOutputBuffer } = require('./process-output-buffer');
 
 class PythonRunner {
   constructor({ send, onProcess = () => {} }) {
     this.send = send;
     this.onProcess = onProcess;
     this.child = null;
+    this.outputBuffer = null;
   }
 
   run(command, filePath) {
@@ -21,12 +23,14 @@ class PythonRunner {
         windowsHide: true
       });
       this.child = child;
+      const outputBuffer = new ProcessOutputBuffer({ send: this.send });
+      this.outputBuffer = outputBuffer;
       this.onProcess(child);
       // Stream decoders preserve accented characters split between OS buffers.
       child.stdout.setEncoding('utf8');
       child.stderr.setEncoding('utf8');
-      child.stdout.on('data', chunk => this.send('python:stdout', chunk));
-      child.stderr.on('data', chunk => this.send('python:stderr', chunk));
+      child.stdout.on('data', chunk => outputBuffer.write('python:stdout', chunk));
+      child.stderr.on('data', chunk => outputBuffer.write('python:stderr', chunk));
       // EPIPE can arrive asynchronously after Python exits; never crash Electron.
       child.stdin.on('error', () => {});
       child.on('error', error => {
@@ -34,6 +38,8 @@ class PythonRunner {
       });
       child.once('close', (exitCode, signal) => {
         if (this.child !== child) return;
+        outputBuffer.close();
+        if (this.outputBuffer === outputBuffer) this.outputBuffer = null;
         this.child = null;
         this.onProcess(null);
         this.send('python:finished', { exitCode, signal, duration: Number(((Date.now() - started) / 1000).toFixed(2)) });
@@ -65,7 +71,7 @@ class PythonRunner {
       const pid = this.child.pid;
       let success = false;
       if (process.platform === 'win32') {
-        execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+        execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true, timeout: 4000 });
         success = true;
       } else {
         try {
@@ -74,7 +80,9 @@ class PythonRunner {
         } catch (_) {
           success = this.child.kill('SIGKILL');
         }
+        try { process.kill(pid, 'SIGKILL'); } catch (_) {}
       }
+      try { this.child.stdin.destroy(); } catch (_) {}
       // Keep the process owned until close; a new run must not race the old close event.
       return success ? { success: true } : { success: false, error: 'No se pudo detener el proceso.' };
     } catch (error) {

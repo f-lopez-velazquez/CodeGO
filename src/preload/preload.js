@@ -57,6 +57,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   runCode: (data) => ipcRenderer.invoke('code:run', data),
   sendCodeStdin: (text) => ipcRenderer.invoke('code:stdin', text),
   killCode: () => ipcRenderer.invoke('code:kill'),
+  forceKillCode: () => ipcRenderer.invoke('code:force-kill'),
+  diagnoseCode: (payload) => ipcRenderer.invoke('code:diagnose', payload),
   detectLanguages: () => ipcRenderer.invoke('languages:detect'),
 
   // Python Execution (Preserved for compatibility)
