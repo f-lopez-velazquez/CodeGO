@@ -12,5 +12,9 @@ test('Setup diagnostics turn technical failures into stable actionable codes', (
   const python = setupDiagnostic(new Error('Python runtime unavailable'), { offlineAvailable: true });
   assert.equal(python.code, 'CG-SETUP-106');
   assert.match(python.actions.join(' '), /directamente dentro de tu perfil/i);
+  assert.equal(setupDiagnostic(new Error('Python runtime unavailable'), { offlineAvailable: true, platform: 'darwin' }).code, 'CG-SETUP-106');
+  const gatekeeper = setupDiagnostic(new Error('app is damaged: com.apple.quarantine'), { platform: 'darwin' });
+  assert.equal(gatekeeper.code, 'CG-SETUP-108');
+  assert.match(gatekeeper.command, /^xattr /);
   assert.equal(setupDiagnostic(new Error('ECONNRESET timeout')).code, 'CG-SETUP-107');
 });

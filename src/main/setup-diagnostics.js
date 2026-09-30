@@ -1,4 +1,4 @@
-function setupDiagnostic(error, { offlineAvailable = false } = {}) {
+function setupDiagnostic(error, { offlineAvailable = false, platform = process.platform } = {}) {
   const detail = String(error?.message || error || 'Error desconocido').replace(/\s+/g, ' ').trim().slice(0, 1200);
   const lower = detail.toLowerCase();
   const diagnostic = {
@@ -9,7 +9,8 @@ function setupDiagnostic(error, { offlineAvailable = false } = {}) {
     detail,
     offlineAvailable
   };
-  if (process.platform === 'darwin' && /quarantine|notar|developer|damaged|killed|operation not permitted|python/.test(lower)) {
+  const macSecurityBlock = /quarantine|notari[sz]|unidentified developer|developer cannot be verified|is damaged|killed:\s*9|operation not permitted|code signature|mach-o/.test(lower);
+  if (platform === 'darwin' && macSecurityBlock) {
     return {
       ...diagnostic,
       code: 'CG-SETUP-108',
