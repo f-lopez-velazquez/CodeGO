@@ -106,7 +106,9 @@ test('Updater: Linux atomically replaces the installed AppImage and restarts it'
   assert.deepEqual(calls[0].args, ['--updated']);
   const desktopEntry = path.join(home, '.local', 'share', 'applications', 'codego-examguard.desktop');
   assert.match(fs.readFileSync(desktopEntry, 'utf8'), /Exec=.*codego/);
-  assert.equal(fs.statSync(desktopEntry).mode & 0o111, 0o111);
+  // Windows does not represent Unix executable bits in stat(). The launcher
+  // permission is meaningful only when this test itself runs on Unix.
+  if (process.platform !== 'win32') assert.equal(fs.statSync(desktopEntry).mode & 0o111, 0o111);
 });
 
 test('Updater: Linux falls back to the user profile when the AppImage is not writable', t => {
