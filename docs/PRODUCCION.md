@@ -2,7 +2,7 @@
 
 ## Descargas públicas
 
-La Release `v1.3.3` contiene instaladores autónomos para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados de desarrollador ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la apertura por sus políticas de seguridad. En equipos administrados consulta al responsable de TI; no desactives las protecciones del sistema.
+La Release `v1.6.0` contiene instaladores autónomos para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados comerciales ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la primera apertura. En macOS mueve la aplicación a `/Applications` y usa `xattr -dr com.apple.quarantine "/Applications/codeGO.app" && open "/Applications/codeGO.app"` si Gatekeeper conserva la cuarentena. En equipos administrados consulta al responsable de TI.
 
 La primera apertura bloquea el acceso mientras extrae Python 3.13.15 y 28 librerías desde el propio instalador. Primero verifica tamaño y SHA-256 de cada archivo, después instala únicamente desde el almacén local y ejecuta micropruebas; solo habilita la aplicación tras llegar al 100 %. El proceso no modifica el Python del usuario y no necesita internet. Las operaciones transitorias se reintentan automáticamente; la preparación puede reanudarse conservando paquetes completos o reconstruirse en una ubicación alternativa dentro del perfil. Ambas rutas conservan proyectos y entregas. Si un componente falta, fue alterado o el sistema impide escribir, CodeGO muestra un diagnóstico y conserva el bloqueo.
 
@@ -16,8 +16,8 @@ La publicación actual es verificable por SHA-256 pero no está firmada comercia
 
 1. Instalar en equipos representativos y ejecutar la comprobación integrada, un programa con dos `input()` y las librerías usadas en clase.
 2. Probar Actividad: ejecución, parada, proyectos, guardado/cierre, zoom y consola; sin Entregar ni modificación de Wi-Fi/audio.
-3. Configurar un PIN de docente privado con `CODEGO_TEACHER_PIN` (mínimo ocho caracteres). Preparar permisos de administración de red.
-4. Probar Examen: desconexión verificada, error seguro si falla, kiosk, incidencia de 12 segundos, excepciones gráficas legítimas y salida autorizada.
+3. Opcionalmente configurar un PIN de docente privado con `CODEGO_TEACHER_PIN`; sin configuración se usa `1234` para la salida supervisada. Preparar permisos de administración de red.
+4. Probar Examen: introducir el ID dictado, confirmar el archivo inicial vacío, desconexión verificada, kiosk, alarma hasta el regreso, espera posterior de 12 segundos, excepciones gráficas legítimas y salida autorizada.
 5. Verificar restauración de las interfaces modificadas y entrega ZIP con su checksum conservado por el docente.
 6. Registrar versión, SHA-256 del instalador, SO, arquitectura, resultado y responsable antes de autorizar evaluaciones reales.
 

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const crypto = require('node:crypto');
 const AdmZip = require('adm-zip');
 const {
   createSubmission,
@@ -10,6 +11,7 @@ const {
   verifySubmission,
   analyzeSubmissionBatch,
   extractSubmissionFiles,
+  createGradeReceipt,
   ensureSigningIdentity
 } = require('../src/main/submission');
 const { runSelfTest } = require('../src/main/self-test');
@@ -193,6 +195,32 @@ test('Submission includes real hashes and detects ZIP tampering', t => {
   assert.equal(result.manifest.autor,'Francisco López Velázquez');
   fs.appendFileSync(result.zipPath, 'tampering');
   assert.throws(()=>verifySubmission(result.zipPath), /SHA-256/);
+});
+
+test('A graded exam leaves an Ed25519 receipt bound to the exact submission', t => {
+  const root = temporary(t), workspace = path.join(root, 'exam');
+  fs.mkdirSync(workspace);
+  fs.writeFileSync(path.join(workspace, 'Ana_EX-4.py'), 'print("respuesta")');
+  const submission = createSubmission({
+    workspace,
+    outputDirectory: path.join(root, 'out'),
+    student: { name: 'Ana', id: 'A-10', examId: 'EX-4' },
+    auditLog: [],
+    version: 'test'
+  });
+  const identity = ensureSigningIdentity(path.join(root, 'teacher'));
+  const graded = createGradeReceipt({
+    submissionPath: submission.zipPath,
+    teacher: 'Profesora Rivera',
+    grade: '9.5/10',
+    feedback: 'Correcto',
+    signingIdentity: identity
+  });
+  const receipt = JSON.parse(fs.readFileSync(graded.receiptPath, 'utf8'));
+  const { seal, ...payload } = receipt;
+  assert.equal(receipt.examId, 'EX-4');
+  assert.equal(receipt.submissionSha256, submission.zipChecksum);
+  assert.equal(crypto.verify(null, Buffer.from(JSON.stringify(payload)), seal.publicKey, Buffer.from(seal.signature, 'base64')), true);
 });
 
 test('Certified Task creates an Ed25519-sealed container with subfolders and verifies integrity', t => {

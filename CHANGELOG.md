@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.6.0 · Exámenes aislados y ejecución resistente
+
+- Elimina el ajuste periódico de volumen durante el trabajo normal; el sistema solo protege el audio mientras una alarma de supervisión está activa.
+- Mantiene la alarma hasta que el alumno regresa a codeGO y comienza entonces la espera obligatoria de 12 segundos.
+- Termina el árbol completo del proceso en Windows, macOS y Linux para detener ciclos infinitos y ventanas o procesos hijos.
+- Crea cada examen en un espacio nuevo, sin archivos antiguos, con un archivo vacío nombrado a partir del alumno y el ID dictado por el docente.
+- Añade pestañas cerrables, carpetas inicialmente colapsadas, regreso seguro al inicio y un indicador de modo con el ID del examen.
+- Suspende avisos del sistema cuando la plataforma ofrece un mecanismo seguro y restaura la configuración al terminar la sesión.
+- Permite generar una huella Ed25519 de examen calificado vinculada al SHA-256 exacto de la entrega.
+- Mejora el diagnóstico de macOS con un comando copiable para retirar la cuarentena de toda la aplicación y firma de forma ad hoc sus componentes internos.
+- Amplía las explicaciones de errores de Python y añade recuperación visual si un proceso tarda en confirmar su terminación.
+- Mantiene visible el acceso a una nueva versión en el editor una vez detectada y repite la comprobación de actualizaciones durante el día.
+
 ## 1.5.2 · Proyectos recientes y edición flexible
 
 - Muestra hasta tres proyectos recientes en el inicio y los abre directamente, con su modo y datos de sesión, sin volver a pedir una carpeta.

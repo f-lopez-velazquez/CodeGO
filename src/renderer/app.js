@@ -119,7 +119,8 @@ const state = {
   student: {
     name: '',
     id: '',
-    subject: ''
+    subject: '',
+    examId: ''
   },
   examStartTime: null,
   examTimerInterval: null,
@@ -147,6 +148,7 @@ const state = {
   isExamSubmitted: false,
   isTaskSubmitted: false,
   collapsedFolders: new Set(),
+  workspaceTreeInitialized: false,
   taskTelemetry: {
     keystrokes: 0,
     charactersWritten: 0,
@@ -165,12 +167,16 @@ const state = {
   availableUpdate: null,
   isUpdating: false,
   executionError: '',
+  hazardCountdownInterval: null,
+  hazardAwaitingReturn: false,
   editorErrorLine: null,
   runtimeErrorLocation: null,
   setupTipInterval: null,
   setupTipIndex: 0,
   selectedLanguage: 'python',
-  detectedToolchains: null
+  detectedToolchains: null,
+  examInitialFile: '',
+  returnHomeAfterUnlock: false
 };
 
 // DOM Elements
@@ -217,6 +223,8 @@ const DOM = {
   updateProgressText: document.getElementById('update-progress-text'),
   updateProgressDetail: document.getElementById('update-progress-detail'),
   btnCheckUpdatesLobby: document.getElementById('btn-check-updates-lobby'),
+  btnUpdateIde: document.getElementById('btn-update-ide'),
+  updateIdeLabel: document.getElementById('update-ide-label'),
   modalReleaseNotes: document.getElementById('modal-release-notes'),
   modalReleaseNotesTitle: document.getElementById('modal-release-notes-title'),
   modalReleaseNotesBody: document.getElementById('modal-release-notes-body'),
@@ -225,6 +233,9 @@ const DOM = {
   studentNameInput: document.getElementById('student-name'),
   studentIdInput: document.getElementById('student-id'),
   examSubjectInput: document.getElementById('exam-subject'),
+  examIdInput: document.getElementById('exam-id'),
+  projectPicker: document.getElementById('project-picker'),
+  btnGoHome: document.getElementById('btn-go-home'),
   btnLobbyOpenFolder: document.getElementById('btn-lobby-open-folder'),
   btnLobbyNewProject: document.getElementById('btn-lobby-new-project'),
   workspaceSelectionStatus: document.getElementById('workspace-selection-status'),
@@ -279,6 +290,9 @@ const DOM = {
   setupErrorSummary: document.getElementById('setup-error-summary'),
   setupErrorActions: document.getElementById('setup-error-actions'),
   setupErrorDetail: document.getElementById('setup-error-detail'),
+  setupErrorCommandWrap: document.getElementById('setup-error-command-wrap'),
+  setupErrorCommand: document.getElementById('setup-error-command'),
+  btnCopySetupCommand: document.getElementById('btn-copy-setup-command'),
   setupInsightTitle: document.getElementById('setup-insight-title'),
   setupInsightCopy: document.getElementById('setup-insight-copy'),
 
@@ -467,6 +481,12 @@ const DOM = {
   verifCodeContent: document.getElementById('verif-code-content'),
   btnExtractSubmissionCode: document.getElementById('btn-extract-submission-code'),
   btnRunSubmissionCode: document.getElementById('btn-run-submission-code'),
+  gradeReceiptPanel: document.getElementById('grade-receipt-panel'),
+  gradeTeacher: document.getElementById('grade-teacher'),
+  gradeValue: document.getElementById('grade-value'),
+  gradeFeedback: document.getElementById('grade-feedback'),
+  btnSaveGradeReceipt: document.getElementById('btn-save-grade-receipt'),
+  gradeReceiptStatus: document.getElementById('grade-receipt-status'),
   btnCloseVerifySubmission: document.getElementById('btn-close-verify-submission'),
 
   modalSubmissionSuccess: document.getElementById('modal-submission-success'),
@@ -1166,6 +1186,10 @@ function showSetupDiagnostic(diagnostic, fallbackError = '') {
     return item;
   }));
   DOM.setupErrorDetail.textContent = `${safe.code}\n${safe.detail || fallbackError || 'Sin detalle adicional.'}`;
+  if (DOM.setupErrorCommandWrap && DOM.setupErrorCommand) {
+    DOM.setupErrorCommandWrap.classList.toggle('hidden', !safe.command);
+    DOM.setupErrorCommand.textContent = safe.command || '';
+  }
   DOM.setupErrorPanel.classList.remove('hidden');
 }
 
@@ -1282,6 +1306,8 @@ async function initApp() {
   await loadEnvironmentDiagnostics();
   startWifiMonitoring();
   checkUpdatesSilently();
+  window.addEventListener('online', checkUpdatesSilently);
+  setInterval(checkUpdatesSilently, 6 * 60 * 60 * 1000);
 }
 
 const RECENT_PROJECTS_KEY = 'codego_recent_projects';
@@ -1291,7 +1317,10 @@ function readRecentProjects() {
   try {
     const parsed = JSON.parse(localStorage.getItem(RECENT_PROJECTS_KEY) || '[]');
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(project => project && typeof project.workspacePath === 'string' && project.workspacePath.trim());
+    return parsed.filter(project => project
+      && project.appMode !== 'exam'
+      && typeof project.workspacePath === 'string'
+      && project.workspacePath.trim());
   } catch (_) {
     return [];
   }
@@ -1309,7 +1338,7 @@ function removeRecentProject(workspacePath) {
 }
 
 function rememberRecentProject() {
-  if (!state.workspacePath) return;
+  if (!state.workspacePath || state.appMode === 'exam') return;
   const current = {
     workspacePath: state.workspacePath,
     workspaceName: state.workspaceName || state.workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'Proyecto',
@@ -1332,7 +1361,7 @@ function applySavedProjectDetails(project) {
 }
 
 async function openSavedProject(project, triggerButton = null) {
-  if (!project?.workspacePath || !window.electronAPI?.restoreWorkspace) {
+  if (!project?.workspacePath || project.appMode === 'exam' || !window.electronAPI?.restoreWorkspace) {
     showLobbyValidation('No se pudo abrir el proyecto guardado. Elige una carpeta para continuar.');
     return false;
   }
@@ -1395,6 +1424,10 @@ function checkAndDisplayLastSession() {
     if (!raw) return;
     const session = JSON.parse(raw);
     if (!session) return;
+    if (session.appMode === 'exam') {
+      localStorage.removeItem('codego_last_session');
+      return;
+    }
 
     if (session.workspacePath && !readRecentProjects().some(project => project.workspacePath === session.workspacePath)) {
       writeRecentProjects([{
@@ -1454,7 +1487,7 @@ function setSessionMode(mode) {
     if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante el examen';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
-        <li><strong>Carpeta definida:</strong> La sesión utiliza únicamente la carpeta elegida antes de comenzar.</li>
+        <li><strong>Espacio limpio:</strong> codeGO crea un archivo vacío y aislado con tu nombre y el ID del examen.</li>
         <li><strong>Modo Kiosk & Pantalla Completa:</strong> Bloqueo del entorno y supervisión de conectividad.</li>
         <li><strong>Supervisión de Ventana:</strong> El cambio de aplicación o pérdida de foco registra aviso de 12 segundos.</li>
         <li><strong>Entrega Final:</strong> Al entregar, el código queda sellado contra modificación y se genera el archivo auditado.</li>
@@ -1559,6 +1592,20 @@ function setupEventListeners() {
       if (DOM.lobbyValidationBanner) DOM.lobbyValidationBanner.classList.add('hidden');
     });
   }
+  DOM.examIdInput?.addEventListener('input', () => {
+    DOM.examIdInput.classList.remove('input-field-error');
+    DOM.lobbyValidationBanner?.classList.add('hidden');
+  });
+  DOM.btnCopySetupCommand?.addEventListener('click', async () => {
+    const command = DOM.setupErrorCommand?.textContent || '';
+    if (!command) return;
+    await navigator.clipboard.writeText(command);
+    DOM.btnCopySetupCommand.textContent = 'Copiado';
+    setTimeout(() => { DOM.btnCopySetupCommand.textContent = 'Copiar comando'; }, 1600);
+  });
+  DOM.btnGoHome?.addEventListener('click', handleGoHome);
+  DOM.btnUpdateIde?.addEventListener('click', handleStartUpdate);
+  DOM.btnSaveGradeReceipt?.addEventListener('click', handleSaveGradeReceipt);
 
   // Activity toolbar actions (open folder, create project)
   if (DOM.btnActivityOpenFolder) {
@@ -2204,13 +2251,15 @@ function setWorkspaceSelection(result) {
   state.workspaceSelected = true;
   state.workspacePath = result.workspacePath || '';
   state.workspaceName = result.workspaceName || state.workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'Proyecto';
+  state.collapsedFolders = new Set();
+  state.workspaceTreeInitialized = false;
   if (DOM.workspaceSelectionStatus) {
     DOM.workspaceSelectionStatus.textContent = `Seleccionado: ${state.workspaceName}`;
     DOM.workspaceSelectionStatus.title = state.workspacePath;
     DOM.workspaceSelectionStatus.classList.add('selected');
   }
   if (DOM.lobbyValidationBanner) DOM.lobbyValidationBanner.classList.add('hidden');
-  rememberRecentProject();
+  if (state.appMode !== 'exam') rememberRecentProject();
   return true;
 }
 
@@ -2242,10 +2291,12 @@ async function handleStartExamClick() {
   const name = DOM.studentNameInput.value.trim();
   const id = DOM.studentIdInput.value.trim();
   const subject = DOM.examSubjectInput.value.trim() || (state.appMode === 'exam' ? 'Examen de Programación' : 'Actividad Práctica');
+  const examId = DOM.examIdInput?.value.trim() || '';
 
   // Clean previous visual error states
   DOM.studentNameInput.classList.remove('input-field-error');
   DOM.studentIdInput.classList.remove('input-field-error');
+  DOM.examIdInput?.classList.remove('input-field-error');
   if (DOM.lobbyValidationBanner) DOM.lobbyValidationBanner.classList.add('hidden');
 
   if (!name) {
@@ -2270,7 +2321,17 @@ async function handleStartExamClick() {
     return;
   }
 
-  if (!state.workspaceSelected) {
+  if (state.appMode === 'exam' && !examId) {
+    DOM.examIdInput?.classList.add('input-field-error');
+    if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
+      DOM.lobbyValidationText.textContent = 'Escribe el ID que el profesor dictó para este examen.';
+      DOM.lobbyValidationBanner.classList.remove('hidden');
+    }
+    DOM.examIdInput?.focus();
+    return;
+  }
+
+  if (state.appMode !== 'exam' && !state.workspaceSelected) {
     if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
       DOM.lobbyValidationText.textContent = 'Elige una carpeta existente o crea un proyecto en blanco para continuar.';
       DOM.lobbyValidationBanner.classList.remove('hidden');
@@ -2292,6 +2353,8 @@ async function handleStartExamClick() {
   state.student.name = name;
   state.student.id = id;
   state.student.subject = subject;
+  state.student.examId = examId;
+  state.student.language = state.selectedLanguage;
   state.student.mode = state.appMode;
 
   // Update IDE topbar info
@@ -2325,6 +2388,8 @@ async function startCountdownSequence() {
   if (window.electronAPI && window.electronAPI.startKiosk) {
     const result = await window.electronAPI.startKiosk({ ...state.student, mode: 'exam' });
     if (!result.success) { alert(result.error); return; }
+    setWorkspaceSelection(result);
+    state.examInitialFile = result.initialFile || '';
   }
 
   switchView('countdown');
@@ -2386,7 +2451,7 @@ function enterIdeWorkspace() {
       DOM.navModeIndicator.title = 'Sesión de Examen Supervisada con Auditoría de Integridad Activa';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = 'Examen supervisado';
+      DOM.navModeText.textContent = state.student.examId ? `Examen · ${state.student.examId}` : 'Examen supervisado';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.remove('hidden');
@@ -2503,7 +2568,9 @@ function enterIdeWorkspace() {
     DOM.navWaitingReviewBadge.classList.add('hidden');
   }
 
-  loadWorkspaceFiles();
+  loadWorkspaceFiles().then(() => {
+    if (state.appMode === 'exam' && state.examInitialFile) openFileInEditor(state.examInitialFile);
+  });
   syncEditorScroll();
 }
 
@@ -2554,137 +2621,98 @@ function isInternalModalOpen() {
 // ==============================================================
 // 9. ANTI-CHEAT & SECURITY VIOLATION ENGINE
 // ==============================================================
+function beginHazardCountdown(isActivity) {
+  let remainingSeconds = 12;
+  state.hazardAwaitingReturn = false;
+  sounds.stopAlarmSiren();
+  window.electronAPI?.setAlarmActive?.(false);
+
+  if (DOM.btnDismissHazard) {
+    DOM.btnDismissHazard.disabled = true;
+    DOM.btnDismissHazard.classList.remove('ready-to-resume');
+    DOM.btnDismissHazard.classList.add('waiting');
+  }
+
+  const renderRemaining = () => {
+    if (DOM.hazardCountdownText) DOM.hazardCountdownText.textContent = `${remainingSeconds}s`;
+    if (DOM.hazardBtnLabel) DOM.hazardBtnLabel.textContent = `Espera ${remainingSeconds}s para reanudar...`;
+  };
+  renderRemaining();
+
+  if (state.hazardCountdownInterval) clearInterval(state.hazardCountdownInterval);
+  state.hazardCountdownInterval = setInterval(() => {
+    remainingSeconds -= 1;
+    if (remainingSeconds > 0) {
+      renderRemaining();
+      return;
+    }
+
+    clearInterval(state.hazardCountdownInterval);
+    state.hazardCountdownInterval = null;
+    DOM.modalFocusWarning.classList.remove('hazard-luminescent');
+    DOM.modalFocusWarning.querySelector('.modal-academic-warning-box')?.classList.remove('luminescent-box');
+
+    if (DOM.btnDismissHazard) {
+      DOM.btnDismissHazard.disabled = false;
+      DOM.btnDismissHazard.classList.remove('waiting');
+      DOM.btnDismissHazard.classList.add('ready-to-resume');
+    }
+    if (DOM.hazardCountdownText) DOM.hazardCountdownText.textContent = '0s';
+    if (DOM.hazardBtnLabel) DOM.hazardBtnLabel.textContent = isActivity ? 'Continuar actividad' : 'Reanudar examen';
+  }, 1000);
+}
+
 function handleSecurityViolation(incidentData = {}) {
-  if (state.appMode === 'task') return;
-  // Trigger during any active workspace session (Exam or Activity) before final submission
-  if (!state.workspaceSessionActive || state.isExamSubmitted) {
+  if (state.appMode === 'task' || !state.workspaceSessionActive || state.isExamSubmitted) return;
+
+  const isReturned = incidentData.phase === 'returned';
+  const warningVisible = !DOM.modalFocusWarning.classList.contains('hidden');
+
+  if (isReturned) {
+    if (!warningVisible || !state.hazardAwaitingReturn) return;
+    if (incidentData.durationSeconds) DOM.hazardDuration.textContent = `${incidentData.durationSeconds} segundos`;
+    beginHazardCountdown(state.appMode === 'activity');
     return;
   }
 
-  // If any internal modal (Package Manager, Auto Installer, Verifier, etc.) is open, do NOT alarm!
-  if (isInternalModalOpen()) {
-    console.log('[Supervisión]: Omitiendo aviso porque hay un diálogo interno del entorno abierto.');
-    return;
-  }
-
-  // If Python process is actively running or GUI window (Pygame/Tkinter/Turtle) is active, do NOT alarm!
-  if (state.isRunning || state.pythonGuiActive) {
-    console.log('[Supervisión]: Omitiendo aviso porque Python o ventana gráfica está en ejecución.');
-    return;
-  }
+  if (isInternalModalOpen()) return;
+  if (state.pythonGuiActive) return;
+  if (warningVisible) return;
 
   const reportedIncidents = Number(incidentData.totalIncidents);
   if (Number.isFinite(reportedIncidents) && reportedIncidents >= 0) {
     state.incidentsCount = Math.max(state.incidentsCount, reportedIncidents);
-    updateIncidentsDisplay();
+  } else {
+    state.incidentsCount += 1;
   }
-
-  // If already counting down and modal is visible, update duration without resetting the 12s countdown
-  if (state.hazardCountdownInterval && !DOM.modalFocusWarning.classList.contains('hidden')) {
-    if (incidentData && incidentData.durationSeconds) {
-      DOM.hazardDuration.textContent = `${incidentData.durationSeconds} segundos`;
-    }
-    return;
-  }
-
-  if (!Number.isFinite(reportedIncidents)) state.incidentsCount++;
   updateIncidentsDisplay();
 
   const isActivity = state.appMode === 'activity';
   const titleEl = DOM.modalFocusWarning.querySelector('.academic-title');
   const subtitleEl = DOM.modalFocusWarning.querySelector('.academic-subtitle');
   const descEl = DOM.modalFocusWarning.querySelector('.academic-desc');
+  if (titleEl) titleEl.textContent = isActivity ? 'Aviso de supervisión' : 'Aviso de integridad';
+  if (subtitleEl) subtitleEl.textContent = 'REGRESA A CODEGO';
+  if (descEl) descEl.textContent = 'La alarma permanecerá activa hasta regresar. Al volver comenzará la espera obligatoria de 12 segundos.';
+  if (DOM.hazardStrobeText) DOM.hazardStrobeText.textContent = isActivity ? 'AVISO DE SUPERVISIÓN' : 'ALERTA DE EVALUACIÓN';
 
-  if (titleEl) {
-    titleEl.textContent = isActivity
-      ? 'Aviso de Supervisión'
-      : 'Aviso de Integridad';
-  }
-  if (subtitleEl) {
-    subtitleEl.textContent = isActivity
-      ? 'CAMBIO DE PROGRAMA DETECTADO'
-      : 'CAMBIO DE VENTANA DETECTADO';
-  }
-  if (descEl) {
-    descEl.textContent = 'Se ha detectado una salida del entorno de trabajo. La acción queda registrada.';
-  }
-  if (DOM.hazardStrobeText) {
-    DOM.hazardStrobeText.textContent = isActivity
-      ? 'AVISO DE SUPERVISIÓN'
-      : 'ALERTA DE EVALUACIÓN';
-  }
-
-  // Display Academic Integrity Incident Modal
   DOM.hazardTime.textContent = incidentData.timestamp || new Date().toLocaleTimeString();
-  DOM.hazardDuration.textContent = `${incidentData.durationSeconds || 1.0}s`;
+  DOM.hazardDuration.textContent = 'Fuera del entorno';
   DOM.hazardTotalIncidents.textContent = state.incidentsCount;
-
-  // Preparar temporizador lumínico de 12 segundos para poder reanudar
-  let remainingSeconds = 12;
+  if (DOM.hazardCountdownText) DOM.hazardCountdownText.textContent = '—';
+  if (DOM.hazardBtnLabel) DOM.hazardBtnLabel.textContent = 'Regresa a codeGO para iniciar la cuenta';
   if (DOM.btnDismissHazard) {
     DOM.btnDismissHazard.disabled = true;
     DOM.btnDismissHazard.classList.remove('ready-to-resume');
     DOM.btnDismissHazard.classList.add('waiting');
   }
-  if (DOM.hazardBtnLabel) {
-    DOM.hazardBtnLabel.textContent = `Espera ${remainingSeconds}s para reanudar...`;
-  }
-  if (DOM.hazardCountdownText) {
-    DOM.hazardCountdownText.textContent = `${remainingSeconds}s`;
-  }
 
+  state.hazardAwaitingReturn = true;
   DOM.modalFocusWarning.classList.remove('hidden');
   DOM.modalFocusWarning.classList.add('hazard-luminescent');
-  const box = DOM.modalFocusWarning.querySelector('.modal-academic-warning-box');
-  if (box) box.classList.add('luminescent-box');
-
-  // Ensure system audio is active and unmuted
-  try {
-    if (window.electronAPI && window.electronAPI.enforceAudio) window.electronAPI.enforceAudio();
-    if (window.electronAPI && window.electronAPI.beep) window.electronAPI.beep();
-  } catch (_) {}
-
-  // Trigger warning sound (armónico, suave, no estridente)
+  DOM.modalFocusWarning.querySelector('.modal-academic-warning-box')?.classList.add('luminescent-box');
+  window.electronAPI?.setAlarmActive?.(true);
   sounds.startAlarmSiren();
-
-  if (state.hazardCountdownInterval) {
-    clearInterval(state.hazardCountdownInterval);
-  }
-
-  state.hazardCountdownInterval = setInterval(() => {
-    remainingSeconds--;
-    if (remainingSeconds > 0) {
-      if (DOM.hazardCountdownText) {
-        DOM.hazardCountdownText.textContent = `${remainingSeconds}s`;
-      }
-      if (DOM.hazardBtnLabel) {
-        DOM.hazardBtnLabel.textContent = `Espera ${remainingSeconds}s para reanudar...`;
-      }
-    } else {
-      clearInterval(state.hazardCountdownInterval);
-      state.hazardCountdownInterval = null;
-      sounds.stopAlarmSiren();
-
-      // Apagar parpadeo lumínico
-      DOM.modalFocusWarning.classList.remove('hazard-luminescent');
-      if (box) box.classList.remove('luminescent-box');
-
-      // Habilitar botón de reanudación
-      if (DOM.btnDismissHazard) {
-        DOM.btnDismissHazard.disabled = false;
-        DOM.btnDismissHazard.classList.remove('waiting');
-        DOM.btnDismissHazard.classList.add('ready-to-resume');
-      }
-      if (DOM.hazardCountdownText) {
-        DOM.hazardCountdownText.textContent = '0s';
-      }
-      if (DOM.hazardBtnLabel) {
-        DOM.hazardBtnLabel.textContent = isActivity
-          ? 'Continuar actividad'
-          : 'Reanudar examen';
-      }
-    }
-  }, 1000);
 }
 
 function dismissHazardWarning() {
@@ -2692,10 +2720,11 @@ function dismissHazardWarning() {
     clearInterval(state.hazardCountdownInterval);
     state.hazardCountdownInterval = null;
   }
+  state.hazardAwaitingReturn = false;
+  window.electronAPI?.setAlarmActive?.(false);
   sounds.stopAlarmSiren();
   DOM.modalFocusWarning.classList.remove('hazard-luminescent');
-  const box = DOM.modalFocusWarning.querySelector('.modal-academic-warning-box');
-  if (box) box.classList.remove('luminescent-box');
+  DOM.modalFocusWarning.querySelector('.modal-academic-warning-box')?.classList.remove('luminescent-box');
   DOM.modalFocusWarning.classList.add('hidden');
 }
 
@@ -2717,6 +2746,10 @@ async function loadWorkspaceFiles() {
     const res = await window.electronAPI.listWorkspace();
     if (res.success) {
       state.filesTree = res.tree;
+      if (!state.workspaceTreeInitialized) {
+        state.collapsedFolders = new Set(workspaceFolderPaths(res.tree));
+        state.workspaceTreeInitialized = true;
+      }
       renderFileTree(res.tree);
       updateEditorEmptyState();
     }
@@ -3113,10 +3146,17 @@ function renderTabs() {
       <span class="tab-file-badge">${icon}</span>
       <span class="tab-name">${escapeHtml(tab.name)}</span>
       <span class="tab-unsaved-dot ${tab.isDirty ? 'visible' : ''}"></span>
+      <button type="button" class="tab-close" aria-label="Cerrar ${escapeHtml(tab.name)}" title="Cerrar pestaña">×</button>
     `;
 
     tabEl.addEventListener('click', () => {
       openFileInEditor(tab.path);
+    });
+    tabEl.querySelector('.tab-close')?.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      if (tab.isDirty && !confirm(`¿Cerrar ${tab.name}? Los cambios pendientes se guardarán antes de cerrar.`)) return;
+      if (tab.isDirty && !await saveAllFiles()) return;
+      closeTab(tab.path);
     });
 
     DOM.editorTabsBar.appendChild(tabEl);
@@ -3488,6 +3528,7 @@ async function saveAllFiles() {
 
 function saveLastSession() {
   try {
+    if (state.appMode === 'exam') return;
     const session = {
       studentName: DOM.studentNameInput?.value?.trim() || state.studentName || '',
       studentId: DOM.studentIdInput?.value?.trim() || state.studentId || '',
@@ -3702,6 +3743,13 @@ async function stopRunningPythonCode() {
     const result = await window.electronAPI.killPython();
     if (!result.success) throw new Error(result.error);
     // Completion comes from process close, after the output streams are drained.
+    setTimeout(async () => {
+      if (!state.isStopping) return;
+      await window.electronAPI.killPython().catch(() => null);
+      setTimeout(() => {
+        if (state.isStopping) handleExecutionFinished({ exitCode: null, signal: 'SIGKILL', duration: 0 });
+      }, 750);
+    }, 1250);
   } catch (error) {
     state.isStopping = false;
     DOM.btnStopCode.disabled = !state.isRunning;
@@ -3741,8 +3789,15 @@ function explainPythonError(raw) {
     [/SerialException|could not open port|ClearCommError/, 'No se pudo abrir el puerto de la placa', 'Otro programa usa el puerto, la placa se desconectó o falta permiso o controlador.', ['Cierra Arduino IDE y otros monitores seriales.', 'Reconecta la placa, confirma el puerto y consulta Arduino en Ayuda.']],
     [/NameError/, 'Se usó un nombre que no existe', 'La variable o función no fue definida antes de usarla, o cambia entre mayúsculas y minúsculas.', ['Compara el nombre con su definición.', 'Asegúrate de asignarlo antes de esta línea.']],
     [/TypeError/, 'La operación recibió un tipo de dato incorrecto', 'Por ejemplo, se intentó sumar texto y números o llamar una función con argumentos incorrectos.', ['Lee la última línea para identificar los tipos.', 'Convierte el dato con int(), float() o str() cuando corresponda.']],
+    [/ValueError/, 'El dato tiene el formato equivocado', 'El tipo de dato es correcto, pero su contenido no puede convertirse o procesarse como se pidió.', ['Revisa el valor recibido en la línea indicada.', 'Valida la entrada antes de convertirla con int(), float() u otra función.']],
+    [/UnboundLocalError/, 'La variable local se usó antes de asignarle un valor', 'Python encontró una asignación dentro de la función y por eso trata ese nombre como local.', ['Asigna un valor en todos los caminos antes de usar la variable.', 'Si necesitas el valor exterior, pásalo como argumento o revisa el alcance.']],
+    [/AttributeError/, 'El objeto no tiene esa propiedad o método', 'El valor de la izquierda del punto no ofrece el nombre que intentaste usar.', ['Comprueba el tipo del objeto con type().', 'Revisa la escritura del método y la documentación de esa clase.']],
     [/IndexError|KeyError/, 'El elemento solicitado no existe', 'El índice rebasa una lista o la clave no aparece en el diccionario.', ['Imprime len(lista) o diccionario.keys() antes de acceder.', 'Valida la existencia del elemento con una condición.']],
     [/ZeroDivisionError/, 'Se intentó dividir entre cero', 'El divisor llegó a cero durante la ejecución.', ['Comprueba el divisor antes de operar.', 'Decide qué resultado debe producir tu programa cuando sea cero.']],
+    [/RecursionError/, 'La función se llamó demasiadas veces', 'La recursión no alcanzó un caso base y Python detuvo el programa para proteger el equipo.', ['Asegura que cada llamada se acerque al caso base.', 'Prueba primero con un valor pequeño y revisa cuándo debe terminar.']],
+    [/MemoryError/, 'El programa solicitó demasiada memoria', 'Una lista, imagen, archivo o ciclo está creciendo más de lo que el equipo puede mantener.', ['Detén el crecimiento de listas o datos dentro del ciclo.', 'Procesa archivos grandes por partes en lugar de cargarlos completos.']],
+    [/UnicodeDecodeError|UnicodeEncodeError/, 'El texto usa una codificación distinta', 'El archivo contiene caracteres que no coinciden con la codificación usada para abrirlo.', ['Abre archivos de texto con encoding="utf-8".', 'Si el archivo viene de otro programa, confirma su codificación antes de leerlo.']],
+    [/EOFError/, 'Python esperaba una entrada y no recibió datos', 'El programa llamó input(), pero la entrada se cerró antes de responder.', ['Ejecuta de nuevo y escribe la respuesta en la misma línea de la terminal.', 'No cierres ni detengas el programa mientras espera datos.']],
     [/pygame\.error/, 'Pygame no pudo abrir un recurso o dispositivo', 'La imagen, sonido, formato o dispositivo gráfico no está disponible como se solicitó.', ['Revisa la ruta y el formato del recurso.', 'Inicializa pygame y el módulo correspondiente antes de usarlo.']]
   ];
   const match = rules.find(([pattern]) => pattern.test(raw));
@@ -3900,7 +3955,14 @@ async function handleTeacherUnlockConfirm() {
     const res = await window.electronAPI.exitKiosk(pin);
     if (res.success) {
       DOM.modalTeacherUnlock.classList.add('hidden');
-      alert('Modo Kiosk desactivado por autorización docente.');
+      if (state.returnHomeAfterUnlock) {
+        state.returnHomeAfterUnlock = false;
+        state.workspaceSessionActive = false;
+        switchView('lobby');
+        renderRecentProjects();
+      } else {
+        alert('Modo Kiosk desactivado por autorización docente.');
+      }
     } else {
       DOM.teacherPinError.textContent = res.error || 'PIN incorrecto.';
       DOM.teacherPinError.classList.remove('hidden');
@@ -3909,6 +3971,29 @@ async function handleTeacherUnlockConfirm() {
     DOM.teacherPinError.textContent = 'La autorización docente requiere la aplicación de escritorio.';
     DOM.teacherPinError.classList.remove('hidden');
   }
+}
+
+async function handleGoHome() {
+  if (state.isRunning) {
+    alert('Detén el programa en ejecución antes de volver al inicio.');
+    return;
+  }
+  if (state.appMode === 'exam' && !state.isExamSubmitted) {
+    const proceed = confirm('Salir al inicio interrumpe el examen y queda registrado. Solicita al profesor que autorice la salida con su PIN.');
+    if (!proceed) return;
+    state.returnHomeAfterUnlock = true;
+    openTeacherUnlockModal();
+    return;
+  }
+  const message = state.appMode === 'task' && !state.isTaskSubmitted
+    ? 'La tarea aún no se ha entregado. Los archivos se guardarán y podrás continuar después. ¿Volver al inicio?'
+    : 'Se guardará el proyecto actual. ¿Volver al inicio?';
+  if (!confirm(message) || !await saveAllFiles()) return;
+  await window.electronAPI?.endSession?.();
+  rememberRecentProject();
+  state.workspaceSessionActive = false;
+  switchView('lobby');
+  renderRecentProjects();
 }
 
 function lockExamEnvironment() {
@@ -4192,6 +4277,8 @@ function showVerifiedSubmission(res) {
   if (DOM.verifierResultContainer) DOM.verifierResultContainer.classList.remove('hidden');
   if (DOM.btnExtractSubmissionCode) DOM.btnExtractSubmissionCode.classList.remove('hidden');
   if (DOM.btnRunSubmissionCode) DOM.btnRunSubmissionCode.classList.remove('hidden');
+  DOM.gradeReceiptPanel?.classList.toggle('hidden', res.mode !== 'exam');
+  if (DOM.gradeReceiptStatus) DOM.gradeReceiptStatus.textContent = '';
 
   // Authentic badge & banner
   if (DOM.verifierStatusBadge) {
@@ -4257,6 +4344,27 @@ function showVerifiedSubmission(res) {
       if (DOM.verifCodeContent) DOM.verifCodeContent.textContent = '(Sin archivos de código legibles)';
     }
   }
+}
+
+async function handleSaveGradeReceipt() {
+  if (!state.currentVerifiedFile || !window.electronAPI?.gradeSubmission) return;
+  const teacher = DOM.gradeTeacher?.value.trim();
+  const grade = DOM.gradeValue?.value.trim();
+  if (!teacher || !grade) {
+    DOM.gradeReceiptStatus.textContent = 'Escribe el docente y la calificación.';
+    return;
+  }
+  DOM.btnSaveGradeReceipt.disabled = true;
+  DOM.gradeReceiptStatus.textContent = 'Generando huella firmada…';
+  const result = await window.electronAPI.gradeSubmission({
+    filePath: state.currentVerifiedFile,
+    teacher,
+    grade,
+    feedback: DOM.gradeFeedback?.value.trim() || ''
+  });
+  DOM.btnSaveGradeReceipt.disabled = false;
+  if (result?.success) DOM.gradeReceiptStatus.textContent = `Huella guardada: ${result.receiptPath}`;
+  else if (!result?.canceled) DOM.gradeReceiptStatus.textContent = result?.error || 'No se pudo guardar la huella.';
 }
 
 async function handleExtractSubmissionCode() {
@@ -4410,6 +4518,11 @@ function displayUpdateBanner(updateInfo) {
     DOM.updateBannerDesc.textContent = updateInfo.releaseName || 'Hay mejoras y correcciones listas para instalar.';
   }
   DOM.lobbyUpdateBanner.classList.remove('hidden');
+  if (DOM.btnUpdateIde) {
+    DOM.btnUpdateIde.classList.remove('hidden');
+    DOM.btnUpdateIde.title = `Actualizar a codeGO ${updateInfo.latestVersion}`;
+  }
+  if (DOM.updateIdeLabel) DOM.updateIdeLabel.textContent = `v${updateInfo.latestVersion}`;
 }
 
 async function handleManualCheckUpdates() {

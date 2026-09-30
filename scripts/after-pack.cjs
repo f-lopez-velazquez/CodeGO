@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 /**
  * Linux desktop sessions can export Electron development variables globally.
@@ -7,6 +8,16 @@ const path = require('node:path');
  * into a plain Node process and records non-user-facing Chromium messages.
  */
 module.exports = async function afterPack(context) {
+  if (context.electronPlatformName === 'darwin') {
+    const product = context.packager.appInfo?.productFilename || 'codeGO';
+    const appPath = path.join(context.appOutDir, `${product}.app`);
+    // Ad-hoc signing keeps the embedded Python and native wheels under one
+    // coherent code signature. Public distribution still needs Apple
+    // Developer ID + notarization to remove the first-launch Gatekeeper step.
+    execFileSync('codesign', ['--force', '--deep', '--sign', '-', '--timestamp=none', appPath], { stdio: 'inherit' });
+    execFileSync('codesign', ['--verify', '--deep', '--strict', appPath], { stdio: 'inherit' });
+    return;
+  }
   if (context.electronPlatformName !== 'linux') return;
 
   const executableName = context.packager.executableName

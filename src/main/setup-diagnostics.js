@@ -9,6 +9,16 @@ function setupDiagnostic(error, { offlineAvailable = false } = {}) {
     detail,
     offlineAvailable
   };
+  if (process.platform === 'darwin' && /quarantine|notar|developer|damaged|killed|operation not permitted|python/.test(lower)) {
+    return {
+      ...diagnostic,
+      code: 'CG-SETUP-108',
+      title: 'macOS bloqueó un componente incluido',
+      summary: 'Gatekeeper conservó la cuarentena en codeGO o en su Python privado.',
+      actions: ['Mueve codeGO a Aplicaciones.', 'Copia el comando mostrado, pégalo en Terminal y vuelve a abrir codeGO.'],
+      command: 'xattr -dr com.apple.quarantine "/Applications/codeGO.app" && open "/Applications/codeGO.app"'
+    };
+  }
   if (/sha-?256|firma|manifiesto|corrupt|falta un componente autónomo/.test(lower)) {
     return { ...diagnostic, code: 'CG-SETUP-101', title: 'El instalador está incompleto o dañado', summary: 'Un archivo interno no coincide con la copia verificada.', actions: ['Descarga nuevamente el instalador oficial desde zolvek.com.mx.', 'Elimina la copia anterior antes de volver a instalar.'] };
   }
@@ -16,7 +26,8 @@ function setupDiagnostic(error, { offlineAvailable = false } = {}) {
     return { ...diagnostic, code: 'CG-SETUP-102', title: 'No hay espacio suficiente', summary: 'codeGO necesita espacio para extraer Python y las librerías educativas.', actions: ['Libera al menos 5 GB en la unidad del perfil del usuario.', 'Pulsa Reintentar preparación.'] };
   }
   if (/eacces|eperm|access.*denied|permiso|antivirus/.test(lower)) {
-    return { ...diagnostic, code: 'CG-SETUP-103', title: 'Windows o el antivirus bloqueó un archivo', summary: 'codeGO no pudo escribir o ejecutar un componente de su entorno aislado.', actions: ['Permite codeGO en Seguridad de Windows o en el antivirus institucional.', 'Abre codeGO desde tu cuenta normal y pulsa Reintentar.'] };
+    const windows = process.platform === 'win32';
+    return { ...diagnostic, code: 'CG-SETUP-103', title: windows ? 'Windows o el antivirus bloqueó un archivo' : 'El sistema bloqueó un archivo', summary: 'codeGO no pudo escribir o ejecutar un componente de su entorno aislado.', actions: windows ? ['Abre Seguridad de Windows > Protección contra virus > Historial de protección.', 'Permite el elemento de codeGO, abre la aplicación desde tu cuenta normal y pulsa Reintentar.'] : ['Comprueba los permisos de tu perfil de usuario.', 'Abre codeGO desde tu cuenta normal y pulsa Reintentar.'] };
   }
   if (/visual c\+\+|vc_redist|3010/.test(lower)) {
     return { ...diagnostic, code: 'CG-SETUP-104', title: 'Visual C++ necesita atención', summary: 'Windows no confirmó el componente nativo requerido por algunas librerías.', actions: ['Reinicia Windows si el instalador lo solicitó.', 'Abre codeGO y pulsa Reintentar preparación.'] };

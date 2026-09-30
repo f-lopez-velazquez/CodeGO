@@ -14,6 +14,7 @@ const {
   verifySubmission,
   analyzeSubmissionBatch,
   extractSubmissionFiles,
+  createGradeReceipt,
   ensureSigningIdentity
 } = require('./submission');
 const { runSelfTest } = require('./self-test');
@@ -28,7 +29,9 @@ const { sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow } = r
 const { createFocusGuard } = require('./focus-guard');
 const { MultiLanguageRunner, detectLanguage, detectToolchains, LANGUAGE_DEFS } = require('./language-runner');
 const updater = require('./updater');
+const { NotificationGuard } = require('./notification-guard');
 const wifiControl = createWifiControl();
+const notificationGuard = new NotificationGuard();
 
 // Native Wayland keeps GPU compositing for a responsive editor. Vulkan remains
 // disabled because some Mesa/Hyprland combinations report noisy startup errors;
@@ -202,7 +205,7 @@ let activeSessionMode = null; // 'exam', 'activity', or null
 const focusGuard = createFocusGuard();
 let securityAuditLog = [];
 let monitorWatchdogTimer = null;
-const teacherPin = process.env.CODEGO_TEACHER_PIN || '';
+const teacherPin = process.env.CODEGO_TEACHER_PIN || '1234';
 
 // Dynamic student workspace directory (supports opening & creating projects)
 let currentWorkspace = path.join(app.getPath('userData'), 'exam_workspace');
@@ -212,6 +215,33 @@ if (!fs.existsSync(currentWorkspace)) {
 const defaultWorkspace = currentWorkspace;
 let workspaceExplicitlySelected = diagnosticMode;
 let workspaceSealed = false;
+
+function safeExamName(value, fallback) {
+  const cleaned = String(value || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 48);
+  return cleaned || fallback;
+}
+
+function createFreshExamWorkspace(studentData = {}) {
+  const student = safeExamName(studentData.name, 'Alumno');
+  const examId = safeExamName(studentData.examId, 'Examen');
+  const sessionId = `${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+  const examRoot = path.join(app.getPath('userData'), 'exam_sessions', examId);
+  fs.mkdirSync(examRoot, { recursive: true });
+  const root = path.join(examRoot, `${student}-${sessionId}`);
+  fs.mkdirSync(root, { recursive: false });
+  const extensions = { python: 'py', cpp: 'cpp', java: 'java', javascript: 'js', r: 'R' };
+  const extension = extensions[studentData.language] || 'py';
+  const initialFile = `${student}_${examId}.${extension}`;
+  fs.writeFileSync(path.join(root, initialFile), '', { encoding: 'utf8', flag: 'wx' });
+  currentWorkspace = root;
+  workspaceExplicitlySelected = true;
+  workspaceSealed = false;
+  return { workspacePath: root, workspaceName: `Examen ${studentData.examId || examId}`, initialFile };
+}
 
 // ==============================================================
 // HARDWARE/OS AUDIO ANTI-MUTE WATCHDOG & WI-FI ENFORCEMENT
@@ -253,7 +283,7 @@ function startAudioWatchdog() {
   stopAudioWatchdog();
   enforceSystemAudioUnmute(0.85);
   audioWatchdogInterval = setInterval(() => {
-    if (activeSessionMode) {
+    if (activeSessionMode === 'exam' || activeSessionMode === 'activity') {
       enforceSystemAudioUnmute(0.85);
     }
   }, 4000);
@@ -586,7 +616,9 @@ function createMainWindow() {
       webSecurity: true,
       webviewTag: false,
       safeDialogs: true,
-      backgroundThrottling: !diagnosticMode,
+      // Alarm audio and the return-to-app state machine must keep running when
+      // the window loses focus.
+      backgroundThrottling: false,
       devTools: false // DevTools disabled for security
     }
   });
@@ -631,8 +663,6 @@ function createMainWindow() {
       return;
     }
 
-    enforceSystemAudioUnmute(0.95);
-
     const incident = logSecurityIncident('WINDOW_BLUR', {
       mode: activeSessionMode,
       message: activeSessionMode === 'exam'
@@ -644,6 +674,7 @@ function createMainWindow() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('security:blur-detected', {
         incident,
+        phase: 'away',
         mode: activeSessionMode,
         totalIncidents: securityAuditLog.filter(entry => entry.type === 'WINDOW_BLUR').length,
         durationSeconds: 1.0
@@ -657,9 +688,6 @@ function createMainWindow() {
     if (!decision.violation) return;
     const durationSeconds = decision.durationSeconds.toFixed(1);
 
-    enforceSystemAudioUnmute(0.95);
-    try { shell.beep(); } catch (_) {}
-
     const incident = logSecurityIncident('WINDOW_REFOCUS', {
       mode: activeSessionMode,
       message: activeSessionMode === 'exam'
@@ -671,6 +699,7 @@ function createMainWindow() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('security:focus-regained', {
         incident,
+        phase: 'returned',
         durationSeconds: parseFloat(durationSeconds),
         totalIncidents: securityAuditLog.filter(entry => entry.type === 'WINDOW_BLUR').length,
         mode: activeSessionMode
@@ -1504,7 +1533,8 @@ except Exception:
   handle('security:start-kiosk', async (event, studentData) => {
     if (!environmentReady && !diagnosticMode) return { success: false, error: 'Termina la preparación y las micropruebas del equipo antes de iniciar.' };
     if (isKioskActive) return { success: false, error: 'El examen ya está activo.' };
-    if (!workspaceExplicitlySelected && !diagnosticMode) return { success: false, error: 'Elige una carpeta de proyecto o crea un proyecto vacío antes de iniciar.' };
+    const requestedMode = studentData?.mode || 'exam';
+    if (requestedMode !== 'exam' && !workspaceExplicitlySelected && !diagnosticMode) return { success: false, error: 'Elige una carpeta de proyecto o crea un proyecto vacío antes de iniciar.' };
     workspaceSealed = false;
     focusGuard.reset();
     const isActivity = studentData && studentData.mode === 'activity';
@@ -1512,7 +1542,7 @@ except Exception:
     if (isActivity) {
       isKioskActive = false;
       activeSessionMode = 'activity';
-      startAudioWatchdog();
+      await notificationGuard.enable();
       logSecurityIncident('ACTIVITY_MODE_STARTED', {
         student: studentData,
         startTime: new Date().toISOString()
@@ -1524,11 +1554,6 @@ except Exception:
         mainWindow.setAlwaysOnTop(false);
         mainWindow.maximize();
         globalShortcut.unregisterAll();
-        try {
-          globalShortcut.registerAll(['VolumeMute', 'VolumeDown'], () => {
-            enforceSystemAudioUnmute(0.95);
-          });
-        } catch (_) {}
       }
 
       return { success: true, mode: 'activity' };
@@ -1537,6 +1562,7 @@ except Exception:
     if (studentData && studentData.mode === 'task') {
       isKioskActive = false;
       activeSessionMode = 'task';
+      await notificationGuard.restore();
       if (!fs.existsSync(currentWorkspace)) {
         fs.mkdirSync(currentWorkspace, { recursive: true });
       }
@@ -1556,12 +1582,11 @@ except Exception:
       return { success: true, mode: 'task' };
     }
 
-    if (teacherPin.length < 8 || teacherPin === 'PROF1234') return { success: false, error: 'El docente debe configurar CODEGO_TEACHER_PIN con al menos 8 caracteres antes de iniciar el examen. Consulta la guía de instalación.' };
+    if (!studentData?.examId || !String(studentData.examId).trim()) return { success: false, error: 'Escribe el ID dictado por el profesor.' };
 
-    // Exam Mode: Strictly isolate workspace to clean exam folder
-    if (!fs.existsSync(currentWorkspace)) {
-      fs.mkdirSync(currentWorkspace, { recursive: true });
-    }
+    // Each exam gets a new private directory. Previous projects are never
+    // mounted into the exam session and the initial source file is blank.
+    const examWorkspace = createFreshExamWorkspace(studentData);
 
     const wifiResult = disableSystemWifi();
     if (!wifiResult.success) {
@@ -1570,11 +1595,10 @@ except Exception:
     }
     isKioskActive = true;
     activeSessionMode = 'exam';
+    await notificationGuard.enable();
     securityAuditLog = []; // Reset for this student session
 
     // Wi-Fi was verified before activating the protected session.
-    startAudioWatchdog();
-
     logSecurityIncident('EXAM_STARTED', {
       student: studentData,
       startTime: new Date().toISOString()
@@ -1589,9 +1613,8 @@ except Exception:
 
       // Register system-level shortcuts to capture keys and prevent silencing alarms
       try {
-        const forbiddenKeys = ['Alt+Tab', 'Super', 'Alt+F4', 'F11', 'VolumeMute', 'VolumeDown'];
+        const forbiddenKeys = ['Alt+Tab', 'Super', 'Alt+F4', 'F11'];
         globalShortcut.registerAll(forbiddenKeys, () => {
-          enforceSystemAudioUnmute(0.95);
           try { shell.beep(); } catch (_) {}
           logSecurityIncident('GLOBAL_SHORTCUT_INTERCEPTED', {});
         });
@@ -1600,7 +1623,7 @@ except Exception:
       }
     }
 
-    return { success: true, mode: 'exam' };
+    return { success: true, mode: 'exam', ...examWorkspace };
   });
 
   // Exit Kiosk Mode (Requires Teacher PIN)
@@ -1610,6 +1633,7 @@ except Exception:
       activeSessionMode = null;
       focusGuard.reset();
       stopAudioWatchdog();
+      await notificationGuard.restore();
       enableSystemWifi();
 
       if (mainWindow) {
@@ -1624,6 +1648,22 @@ except Exception:
       logSecurityIncident('TEACHER_UNLOCK_FAILED_WRONG_PIN', { enteredPin });
       return { success: false, error: 'PIN de profesor incorrecto.' };
     }
+  });
+
+  handle('security:end-session', async () => {
+    if (activeSessionMode === 'exam' && isKioskActive) {
+      return { success: false, error: 'La salida del examen requiere autorización docente.' };
+    }
+    activeSessionMode = null;
+    focusGuard.reset();
+    stopAudioWatchdog();
+    await notificationGuard.restore();
+    globalShortcut.unregisterAll();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setAlwaysOnTop(false);
+      mainWindow.maximize();
+    }
+    return { success: true };
   });
 
   // Native Hardware/OS Speaker Beep + Forced Unmute
@@ -1643,6 +1683,15 @@ except Exception:
     } catch (_) {
       return { success: false };
     }
+  });
+
+  handle('system:set-alarm-active', async (event, active) => {
+    if (active === true && (activeSessionMode === 'exam' || activeSessionMode === 'activity')) {
+      startAudioWatchdog();
+      return { success: true, active: true };
+    }
+    stopAudioWatchdog();
+    return { success: true, active: false };
   });
 
   // Wi-Fi Status and Control Handlers
@@ -2026,6 +2075,7 @@ except Exception:
       isKioskActive = false;
       activeSessionMode = null;
       stopAudioWatchdog();
+      await notificationGuard.restore();
       enableSystemWifi();
 
       if (mainWindow) {
@@ -2082,6 +2132,7 @@ except Exception:
       isKioskActive = false;
       activeSessionMode = null;
       stopAudioWatchdog();
+      await notificationGuard.restore();
       if (mainWindow) {
         mainWindow.setKiosk(false);
         mainWindow.setFullScreen(false);
@@ -2142,6 +2193,30 @@ except Exception:
       }));
       if (canceled || !filePaths || filePaths.length === 0) return { canceled: true };
       return extractSubmissionFiles(filePath, filePaths[0]);
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  handle('submission:grade', async (event, payload = {}) => {
+    try {
+      const submissionPath = payload.filePath;
+      if (!submissionPath || !fs.existsSync(submissionPath)) return { success: false, error: 'No se encontró la entrega seleccionada.' };
+      const defaultName = `${path.basename(submissionPath, path.extname(submissionPath))}.calificacion.codego.json`;
+      const { canceled, filePath } = await withNativeDialog(() => dialog.showSaveDialog(mainWindow, {
+        title: 'Guardar huella de examen calificado',
+        defaultPath: path.join(path.dirname(submissionPath), defaultName),
+        filters: [{ name: 'Huella de calificación codeGO', extensions: ['json'] }]
+      }));
+      if (canceled || !filePath) return { canceled: true };
+      return createGradeReceipt({
+        submissionPath,
+        outputPath: filePath,
+        teacher: payload.teacher,
+        grade: payload.grade,
+        feedback: payload.feedback,
+        signingIdentity: ensureSigningIdentity(path.join(app.getPath('userData'), 'teacher-identity'))
+      });
     } catch (e) {
       return { success: false, error: e.message };
     }
@@ -2228,11 +2303,13 @@ app.whenReady().then(async () => {
 app.on('will-quit', () => {
   pythonRunner.kill();
   stopAudioWatchdog();
+  void notificationGuard.restore();
   enableSystemWifi();
 });
 
 app.on('window-all-closed', () => {
   stopAudioWatchdog();
+  void notificationGuard.restore();
   enableSystemWifi();
   if (process.platform !== 'darwin') app.quit();
 });

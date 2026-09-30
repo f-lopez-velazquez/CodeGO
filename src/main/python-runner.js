@@ -1,4 +1,4 @@
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
 const path = require('node:path');
 
 class PythonRunner {
@@ -16,7 +16,9 @@ class PythonRunner {
       delete environment.CODEGO_TEACHER_PIN;
       const child = spawn(command, ['-u', filePath], {
         cwd: path.dirname(filePath),
-        env: environment
+        env: environment,
+        detached: process.platform !== 'win32',
+        windowsHide: true
       });
       this.child = child;
       this.onProcess(child);
@@ -60,7 +62,19 @@ class PythonRunner {
   kill() {
     if (!this.child) return { success: false, error: 'No hay proceso que detener.' };
     try {
-      const success = this.child.kill('SIGKILL');
+      const pid = this.child.pid;
+      let success = false;
+      if (process.platform === 'win32') {
+        execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+        success = true;
+      } else {
+        try {
+          process.kill(-pid, 'SIGKILL');
+          success = true;
+        } catch (_) {
+          success = this.child.kill('SIGKILL');
+        }
+      }
       // Keep the process owned until close; a new run must not race the old close event.
       return success ? { success: true } : { success: false, error: 'No se pudo detener el proceso.' };
     } catch (error) {

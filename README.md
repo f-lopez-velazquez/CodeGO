@@ -12,7 +12,7 @@
 
 Editor educativo de Python para escritorio, desarrollado con Electron y JavaScript nativo. Incluye ejecución interactiva, proyectos locales, actividades, tareas certificadas y evaluación supervisada.
 
-Cada sesión comienza eligiendo una carpeta existente o creando un proyecto vacío. codeGO no impone `main.py`: el estudiante decide la estructura y puede mover archivos o carpetas mediante arrastre dentro del explorador. El gestor de librerías permite buscar e instalar paquetes por nombre en el entorno privado de la aplicación.
+Actividad y Tarea comienzan eligiendo una carpeta existente o creando un proyecto vacío. codeGO no impone `main.py`: el estudiante decide la estructura y puede mover archivos o carpetas mediante arrastre dentro del explorador. Examen crea un espacio nuevo y aislado, sin archivos previos, y abre un archivo vacío con el nombre del alumno y el ID dictado por el docente. El gestor de librerías permite buscar e instalar paquetes por nombre en el entorno privado de la aplicación.
 
 La respuesta a `input()` se escribe directamente junto al prompt de Python dentro de la terminal, sin barra ni cuadro separado. La ventana se adapta al área de pantalla disponible y al escalado del sistema; conserva visibles el pie del editor y los créditos. La consola conserva texto UTF-8, permite respuestas vacías y ejecuciones consecutivas. El guardado conserva los cambios pendientes cuando ocurre un error y se completa antes de ejecutar, entregar o cerrar normalmente.
 
@@ -20,18 +20,24 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Descarga directa 1.5.2 autónoma | Alternativa |
+| Sistema | Descarga directa 1.6.0 autónoma | Alternativa |
 | --- | --- | --- |
-| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.2/CodeGO-1.5.2-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.2/CodeGO-1.5.2-portable-x64.exe) |
-| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.2/CodeGO-1.5.2-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.2/CodeGO-1.5.2-linux-x64.tar.gz) |
-| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.2/CodeGO-1.5.2-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.2/CodeGO-1.5.2-mac-arm64.zip) |
-| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.2/CodeGO-1.5.2-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.5.2/CodeGO-1.5.2-mac-x64.zip) |
+| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.0/CodeGO-1.6.0-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.0/CodeGO-1.6.0-portable-x64.exe) |
+| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.0/CodeGO-1.6.0-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.0/CodeGO-1.6.0-linux-x64.tar.gz) |
+| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.0/CodeGO-1.6.0-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.0/CodeGO-1.6.0-mac-arm64.zip) |
+| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.0/CodeGO-1.6.0-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.0/CodeGO-1.6.0-mac-x64.zip) |
 
-Cada instalador 1.5.2 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura prepara y comprueba el entorno sin internet antes de habilitar el editor. Si una operación se interrumpe, codeGO reintenta y conserva el avance; también permite reconstruir sus componentes sin borrar proyectos ni entregas. En Linux, el lanzador protege el arranque frente a variables globales de Electron y, en Hyprland, mantiene las ventanas de Pygame y otras interfaces en el espacio de trabajo activo. Windows y macOS todavía no tienen certificado de desarrollador; macOS no está notarizado, por lo que el sistema puede advertir o bloquear su apertura. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones.
+Cada instalador 1.6.0 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura prepara y comprueba el entorno sin internet antes de habilitar el editor. Si una operación se interrumpe, codeGO reintenta y conserva el avance; también permite reconstruir sus componentes sin borrar proyectos ni entregas. En Linux, el lanzador protege el arranque frente a variables globales de Electron y, en Hyprland, mantiene las ventanas de Pygame y otras interfaces en el espacio de trabajo activo. Windows y macOS todavía no tienen certificado comercial; macOS no está notarizado. Tras mover la aplicación a `/Applications`, si Gatekeeper bloquea la primera apertura, usa:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/codeGO.app" && open "/Applications/codeGO.app"
+```
+
+La ayuda y el diagnóstico `CG-SETUP-108` muestran el mismo comando para copiarlo. Consulta [distribución y aceptación](docs/PRODUCCION.md) antes de usarlo en evaluaciones.
 
 ## Modalidades de Trabajo
 
-1. **🛡️ Modo Examen Blindado**: Kiosk absoluto a pantalla completa, Wi-Fi deshabilitado automáticamente, watchdog de audio anti-silenciamiento y alerta estroboscópica de 12 segundos ante cualquier intento de cambio de ventana. Entrega sellada en ZIP auditado con sello SHA-256.
+1. **🛡️ Modo Examen Blindado**: espacio nuevo sin archivos previos, ID dictado en el aula, kiosk a pantalla completa, Wi-Fi deshabilitado y alerta visible y sonora al cambiar de ventana. El sonido continúa hasta regresar; después comienza la espera de 12 segundos. La entrega queda sellada en un ZIP auditado con SHA-256.
 2. **📦 Modo Tarea Certificada**:
    - **Edición sin interrupciones**: permite copiar, cortar y pegar, consultar materiales y cambiar de aplicación sin alarmas ni modo kiosk.
    - **Registro de trabajo**: conserva pulsaciones, caracteres redactados, tiempo activo y ejecuciones de prueba como contexto para la revisión docente.
@@ -59,6 +65,7 @@ Disponible en el lobby y dentro del IDE:
 - Verifica el sello Ed25519, la identidad local firmante y los hashes SHA-256 de cada archivo.
 - Detecta el mismo contenedor, código equivalente y similitud estructural aun cuando cambien identificadores; estos indicadores ayudan al docente a revisar, no sustituyen su criterio académico.
 - Despliega la ficha del estudiante, registro de sesión, visor de código y acciones para **ejecutar** o **extraer** la entrega.
+- Registra una calificación en una huella Ed25519 separada, vinculada al SHA-256 exacto de la entrega original.
 
 ## Desarrollo y comprobación
 

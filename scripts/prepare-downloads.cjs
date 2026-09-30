@@ -23,6 +23,6 @@ fs.writeFileSync(`downloads/SHA256SUMS-${platform}-${arch}.txt`, checksums.join(
 fs.writeFileSync(`downloads/provenance-${platform}-${arch}.json`, JSON.stringify({
   version, platform, arch, commit: process.env.GITHUB_SHA || null,
   workflow: process.env.GITHUB_RUN_ID || null,
-  distribution: 'public-preview', developerSigned: false, notarized: false,
+  distribution: 'public-preview', developerSigned: false, adHocSigned: platform === 'darwin', notarized: false,
   packagedChecks: evidence.checks,
 }, null, 2) + '\n');

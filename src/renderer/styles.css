@@ -2222,6 +2222,25 @@ body.screen-compact .incidents-pill {
   display: block;
 }
 
+.tab-close {
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #7f91a5;
+  font: 500 18px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.tab-close:hover,
+.tab-close:focus-visible {
+  color: #f7fafc;
+  background: rgba(148, 163, 184, 0.16);
+  outline: none;
+}
+
 /* Editor Workspace Container */
 .editor-workspace {
   flex: 1;
@@ -5802,4 +5821,86 @@ body.mode-task-active #modal-focus-warning { display: none !important; }
   .recent-projects { grid-template-columns: minmax(0, 1fr); }
   .recent-project-list { grid-template-columns: minmax(0, 1fr); }
   .recent-project-btn:nth-child(n + 2) { display: none; }
+}
+.exam-only-field { display: none; }
+body.mode-exam-active #view-lobby .exam-only-field { display: flex; }
+body.mode-exam-active #view-lobby .project-picker,
+body.mode-exam-active #view-lobby .continue-session-card { display: none !important; }
+
+.exam-only-field small {
+  color: #8192a6;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.nav-brand {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.nav-brand:focus-visible {
+  outline: 2px solid #5eb8e8;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.update-ide-btn:not(.hidden) {
+  display: inline-flex;
+  width: auto;
+  gap: 6px;
+  padding-inline: 9px;
+  color: #d9f1ff;
+  border-color: rgba(94, 184, 232, 0.38);
+  background: rgba(38, 104, 139, 0.22);
+}
+.setup-command {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(94, 184, 232, 0.28);
+  border-radius: 10px;
+  background: #0b111b;
+}
+
+.setup-command code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #d9e9f6;
+}
+.grade-receipt-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(94, 184, 232, 0.22);
+  border-radius: 12px;
+  background: rgba(12, 19, 30, 0.72);
+}
+
+.grade-receipt-panel p { margin: 3px 0 0; color: #8fa1b5; font-size: 0.78rem; }
+.grade-receipt-fields { display: grid; grid-template-columns: 1.15fr .7fr 1.5fr auto; gap: 8px; align-items: end; }
+.grade-receipt-fields label { display: grid; gap: 5px; color: #9bacc0; font-size: 0.68rem; }
+.grade-receipt-fields input { min-width: 0; height: 36px; border: 1px solid #2a3748; border-radius: 8px; background: #0b111b; color: #eef4f9; padding: 0 10px; }
+#grade-receipt-status { color: #a9c5d8; font-size: 0.72rem; overflow-wrap: anywhere; }
+@media (max-width: 900px) { .grade-receipt-fields { grid-template-columns: 1fr 1fr; } .grade-feedback { grid-column: 1 / -1; } }
+
+/* Fixed grid tracks prevent the language tools and credits from crossing the
+   primary action when OS scaling produces a short logical viewport. */
+.lobby-card { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.lang-selector-section { grid-column: 1; grid-row: 3; align-self: end; min-width: 0; }
+.lobby-form { grid-row: 1 / 4; }
+.app-credits { grid-row: 4; }
+
+@media (max-width: 900px) {
+  .lobby-card { grid-template-rows: auto auto auto auto auto; }
+  .lobby-header { grid-row: 1; }
+  .mode-segment-container { grid-row: 2; }
+  .lang-selector-section { grid-column: 1; grid-row: 3; }
+  .lobby-form { grid-column: 1; grid-row: 4; }
+  .app-credits { grid-column: 1; grid-row: 5; }
 }

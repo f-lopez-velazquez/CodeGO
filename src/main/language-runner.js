@@ -1,4 +1,4 @@
-const { spawn, execSync, spawnSync } = require('node:child_process');
+const { spawn, execSync, spawnSync, execFileSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -257,7 +257,9 @@ class MultiLanguageRunner {
       try {
         const child = spawn(binaryPath, [], {
           cwd: workingDir,
-          stdio: ['pipe', 'pipe', 'pipe']
+          stdio: ['pipe', 'pipe', 'pipe'],
+          detached: process.platform !== 'win32',
+          windowsHide: true
         });
         return this.attachChild(child, started);
       } catch (err) {
@@ -293,7 +295,9 @@ class MultiLanguageRunner {
       try {
         const child = spawn(java, ['-Dfile.encoding=UTF-8', className], {
           cwd: workingDir,
-          stdio: ['pipe', 'pipe', 'pipe']
+          stdio: ['pipe', 'pipe', 'pipe'],
+          detached: process.platform !== 'win32',
+          windowsHide: true
         });
         return this.attachChild(child, started);
       } catch (err) {
@@ -308,7 +312,9 @@ class MultiLanguageRunner {
       try {
         const child = spawn(nodeCmd, [filePath], {
           cwd: workingDir,
-          stdio: ['pipe', 'pipe', 'pipe']
+          stdio: ['pipe', 'pipe', 'pipe'],
+          detached: process.platform !== 'win32',
+          windowsHide: true
         });
         return this.attachChild(child, started);
       } catch (err) {
@@ -323,7 +329,9 @@ class MultiLanguageRunner {
       try {
         const child = spawn(rCmd, ['--vanilla', filePath], {
           cwd: workingDir,
-          stdio: ['pipe', 'pipe', 'pipe']
+          stdio: ['pipe', 'pipe', 'pipe'],
+          detached: process.platform !== 'win32',
+          windowsHide: true
         });
         return this.attachChild(child, started);
       } catch (err) {
@@ -341,7 +349,9 @@ class MultiLanguageRunner {
       const child = spawn(pyCmd, ['-u', filePath], {
         cwd: workingDir,
         env: environment,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        detached: process.platform !== 'win32',
+        windowsHide: true
       });
       return this.attachChild(child, started);
     } catch (err) {
@@ -416,13 +426,18 @@ class MultiLanguageRunner {
       let success = false;
       if (process.platform === 'win32') {
         try {
-          execSync(`taskkill /pid ${this.child.pid} /T /F`, { stdio: 'ignore' });
+          execFileSync('taskkill', ['/PID', String(this.child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
           success = true;
         } catch (_) {
           success = this.child.kill('SIGKILL');
         }
       } else {
-        success = this.child.kill('SIGKILL');
+        try {
+          process.kill(-this.child.pid, 'SIGKILL');
+          success = true;
+        } catch (_) {
+          success = this.child.kill('SIGKILL');
+        }
       }
       return success ? { success: true } : { success: false, error: 'No se pudo detener el proceso.' };
     } catch (error) {

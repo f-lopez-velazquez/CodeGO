@@ -38,6 +38,10 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       {
         studentName: 'Ana Torres', studentId: '2020', examSubject: 'Programación en Python', appMode: 'activity',
         workspacePath: '/proyectos/Computacion3A', workspaceName: 'Computacion3A', lastOpenedAt: Date.now() - 1000
+      },
+      {
+        studentName: 'Ana Torres', studentId: '2020', examSubject: 'Examen anterior', appMode: 'exam',
+        workspacePath: '/sesiones/exam-privado', workspaceName: 'exam-privado', lastOpenedAt: Date.now() - 2000
       }
     ]));
     checkAndDisplayLastSession();
@@ -140,7 +144,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.locator('.auto-installer-card').evaluate(element => { element.scrollTop = element.scrollHeight; });
   const setupGeometry = await page.locator('.auto-installer-card').boundingBox();
   assert(setupGeometry && setupGeometry.y >= 0 && setupGeometry.y + setupGeometry.height <= 480, `Setup dialog clipped: ${JSON.stringify(setupGeometry)}`);
-  const setupCredits = await page.locator('.setup-credits').boundingBox();
+  const setupCredits = await page.locator('#modal-auto-installer .setup-credits').boundingBox();
   assert(setupCredits && setupCredits.y >= 0 && setupCredits.y + setupCredits.height <= 480, `Setup actions or credits unreachable: ${JSON.stringify(setupCredits)}`);
   await page.evaluate(() => showSetupDiagnostic({ code: 'CG-SETUP-105', title: 'Librería incompleta', summary: 'Prueba', actions: ['Reintentar'], detail: 'pip test' }));
   assert(await page.locator('#setup-error-panel').isVisible(), 'Structured setup error is not visible');
@@ -313,7 +317,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     state.examSessionActive = true;
     sounds.startAlarmSiren = () => {};
     sounds.stopAlarmSiren = () => {};
-    handleSecurityViolation({type:'TEST',durationSeconds:2});
+    handleSecurityViolation({type:'TEST',phase:'away',durationSeconds:2});
   });
   const beacon = await page.locator('#modal-focus-warning').evaluate(element => {
     const overlay = getComputedStyle(element);
@@ -328,6 +332,9 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   assert(beacon.animation.includes('hazard-teacher-beacon'), `Strong warning beacon missing: ${JSON.stringify(beacon)}`);
   assert(beacon.duration === '0.7s' && beacon.backdrop === 'none' && beacon.cardAnimation === 'none', `Warning beacon is not lightweight: ${JSON.stringify(beacon)}`);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm can be dismissed immediately');
+  await page.clock.runFor(15000);
+  assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Countdown started while the student was still outside codeGO');
+  await page.evaluate(() => handleSecurityViolation({type:'TEST_RETURN',phase:'returned',durationSeconds:15}));
   await page.clock.runFor(11999);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm unlocks before 12 seconds');
   await page.clock.runFor(1);

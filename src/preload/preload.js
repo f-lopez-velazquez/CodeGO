@@ -18,9 +18,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Kiosk & Security
   startKiosk: (studentData) => ipcRenderer.invoke('security:start-kiosk', studentData),
   exitKiosk: (pin) => ipcRenderer.invoke('security:exit-kiosk', pin),
+  endSession: () => ipcRenderer.invoke('security:end-session'),
   setInternalInteraction: (active) => ipcRenderer.invoke('security:internal-interaction', active === true),
   beep: () => ipcRenderer.invoke('system:beep'),
   enforceAudio: () => ipcRenderer.invoke('system:enforce-audio'),
+  setAlarmActive: (active) => ipcRenderer.invoke('system:set-alarm-active', active === true),
 
   // Wi-Fi Management
   getWifiStatus: () => ipcRenderer.invoke('wifi:get-status'),
@@ -69,6 +71,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   verifySubmissionBatch: (filePaths) => ipcRenderer.invoke('submission:verify-batch', filePaths),
   openSubmissionFileDialog: () => ipcRenderer.invoke('submission:open-file-dialog'),
   extractSubmissionCode: (filePath) => ipcRenderer.invoke('submission:extract-code', filePath),
+  gradeSubmission: (payload) => ipcRenderer.invoke('submission:grade', payload),
 
   // In-App Auto-Updater
   getCurrentVersion: () => ipcRenderer.invoke('updater:get-current-version'),

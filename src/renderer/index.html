@@ -155,7 +155,13 @@
           <input type="text" id="exam-subject" placeholder="Nombre de la materia" value="Examen de Programación en Python" required>
         </div>
 
-        <section class="project-picker" aria-labelledby="project-picker-title">
+        <div class="input-group exam-only-field">
+          <label for="exam-id">ID del examen <span class="required">*</span></label>
+          <input type="text" id="exam-id" placeholder="El ID dictado por tu profesor" autocomplete="off" maxlength="60">
+          <small>Todos los alumnos deben escribir exactamente el mismo ID.</small>
+        </div>
+
+        <section class="project-picker" id="project-picker" aria-labelledby="project-picker-title">
           <div class="project-picker-copy">
             <span class="project-picker-kicker">CARPETA DE TRABAJO</span>
             <strong id="project-picker-title">Elige dónde vas a trabajar</strong>
@@ -298,10 +304,10 @@
     <!-- Barra Superior / Header del IDE -->
     <header class="ide-navbar">
       <div class="nav-left">
-        <div class="nav-brand">
+        <button type="button" class="nav-brand" id="btn-go-home" title="Volver al inicio" aria-label="Volver al inicio de codeGO">
           <img src="assets/codego-mark.svg" alt="codeGO" class="nav-app-logo">
           <span class="nav-brand-title">code<span class="highlight">GO</span></span>
-        </div>
+        </button>
 
         <button id="btn-toggle-sidebar" class="btn-nav-toggle" title="Mostrar/Ocultar Explorador (Ctrl+B)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
@@ -423,6 +429,12 @@
             </div>
           </div>
         </div>
+
+        <!-- Botón Atajos / Ayuda -->
+        <button id="btn-update-ide" class="btn-icon-ghost update-ide-btn hidden" title="Instalar actualización disponible" aria-label="Instalar actualización disponible">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          <span id="update-ide-label">Actualizar</span>
+        </button>
 
         <!-- Botón Atajos / Ayuda -->
         <button id="btn-help-shortcuts" class="btn-icon-ghost" title="Atajos de Teclado (F1)">
@@ -719,6 +731,10 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
         </div>
         <p id="setup-error-summary"></p>
         <ol id="setup-error-actions"></ol>
+        <div id="setup-error-command-wrap" class="setup-command hidden">
+          <code id="setup-error-command"></code>
+          <button type="button" id="btn-copy-setup-command" class="btn-xs-ghost">Copiar comando</button>
+        </div>
         <details>
           <summary>Ver diagnóstico técnico</summary>
           <pre id="setup-error-detail"></pre>
@@ -776,6 +792,8 @@ Ejecuta con F5. Escribe en esta terminal y pulsa Enter cuando Python pida datos.
           <button type="button" id="btn-copy-offline-cmd" class="btn-xs-ghost">Copiar</button>
         </div>
       </div>
+
+
 
       <div class="dialog-buttons">
         <button type="button" id="btn-test-compilers" class="btn-secondary">🧪 Probar Compiladores</button>
@@ -904,6 +922,7 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
     print(placa.readline().decode(errors="replace"))</pre><p>Para PyFirmata2, carga primero StandardFirmata desde Arduino IDE. Para ESP32 puedes instalar <code>esptool</code> desde el gestor cuando necesites flashear firmware.</p></div></details>
         <details class="help-topic"><summary>Errores frecuentes y cómo leerlos</summary><div><p><code>SyntaxError</code> marca una instrucción mal escrita; por ejemplo, <code>pimport pygame</code> debe ser <code>import pygame</code>. <code>ModuleNotFoundError</code> indica el nombre de una librería ausente. <code>FileNotFoundError</code> suele indicar una ruta incorrecta: usa <code>Path(__file__)</code> como en la guía de archivos.</p><p>Lee la última línea roja y después revisa el archivo y número de línea mostrados arriba.</p></div></details>
         <details class="help-topic"><summary>Modos para clase, tarea y examen</summary><div><p>Actividad permite explorar libremente proyectos. Tarea permite editar con copiar y pegar y genera una entrega firmada para comprobar su integridad. Examen activa el entorno supervisado y la entrega sellada. El profesor debe elegir el modo adecuado antes de iniciar.</p></div></details>
+        <details class="help-topic"><summary>macOS bloquea codeGO o Python</summary><div><p>Mueve <strong>codeGO.app</strong> a Aplicaciones. Después abre Terminal, pega el siguiente comando y pulsa Enter:</p><pre>xattr -dr com.apple.quarantine "/Applications/codeGO.app" &amp;&amp; open "/Applications/codeGO.app"</pre><p>El comando elimina la cuarentena de la aplicación completa, incluido el Python privado. En equipos administrados por una escuela puede ser necesaria la autorización del área de sistemas.</p></div></details>
         <details class="help-topic"><summary>Atajos del editor</summary><div class="shortcuts-grid"><div class="shortcut-row"><kbd>F5</kbd><span>Ejecutar</span></div><div class="shortcut-row"><kbd>Ctrl/Cmd + S</kbd><span>Guardar</span></div><div class="shortcut-row"><kbd>Ctrl/Cmd + B</kbd><span>Explorador</span></div><div class="shortcut-row"><kbd>Ctrl/Cmd + 0</kbd><span>Zoom 100 %</span></div><div class="shortcut-row"><kbd>Tab</kbd><span>Indentar</span></div></div></details>
       </div>
       <p id="help-empty" class="help-empty hidden">No encontramos ese tema. Prueba con una palabra más corta.</p>
@@ -1230,6 +1249,20 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
           </div>
         </div>
       </div>
+
+      <section id="grade-receipt-panel" class="grade-receipt-panel hidden" aria-labelledby="grade-receipt-title">
+        <div>
+          <strong id="grade-receipt-title">Registrar examen calificado</strong>
+          <p>Genera una huella firmada que vincula la calificación con el SHA-256 exacto de esta entrega.</p>
+        </div>
+        <div class="grade-receipt-fields">
+          <label>Docente<input id="grade-teacher" type="text" maxlength="120" placeholder="Nombre del docente"></label>
+          <label>Calificación<input id="grade-value" type="text" maxlength="40" placeholder="Ej. 9.5 / 10"></label>
+          <label class="grade-feedback">Retroalimentación<input id="grade-feedback" type="text" maxlength="4000" placeholder="Comentario breve (opcional)"></label>
+          <button type="button" id="btn-save-grade-receipt" class="btn-primary">Guardar huella</button>
+        </div>
+        <output id="grade-receipt-status" role="status" aria-live="polite"></output>
+      </section>
 
       <div class="dialog-buttons">
         <div class="dialog-buttons-left">

@@ -521,12 +521,39 @@ function extractSubmissionFiles(zipPath, targetDirectory) {
   return { success: true, extractedCount, targetDirectory };
 }
 
+function createGradeReceipt({ submissionPath, outputPath, teacher, grade, feedback = '', signingIdentity }) {
+  if (!submissionPath || !fs.statSync(submissionPath).isFile()) throw new Error('Selecciona una entrega válida.');
+  const verified = verifySubmission(submissionPath);
+  if (!verified.authentic) throw new Error('La entrega no es auténtica y no puede marcarse como calificada.');
+  const cleanTeacher = String(teacher || '').trim().slice(0, 120);
+  const cleanGrade = String(grade || '').trim().slice(0, 40);
+  if (!cleanTeacher || !cleanGrade) throw new Error('Escribe el nombre del docente y la calificación.');
+  const payload = {
+    schemaVersion: 1,
+    type: 'codego-grade-receipt',
+    submissionFile: path.basename(submissionPath),
+    submissionSha256: sha256(fs.readFileSync(submissionPath)),
+    submissionMode: verified.mode,
+    student: verified.student || {},
+    examId: verified.student?.examId || null,
+    teacher: cleanTeacher,
+    grade: cleanGrade,
+    feedback: String(feedback || '').trim().slice(0, 4000),
+    gradedAt: new Date().toISOString()
+  };
+  const receipt = { ...payload, seal: signWithIdentity(JSON.stringify(payload), signingIdentity) };
+  const destination = outputPath || `${submissionPath}.calificacion.json`;
+  fs.writeFileSync(destination, JSON.stringify(receipt, null, 2), { mode: 0o600 });
+  return { success: true, receiptPath: destination, receipt };
+}
+
 module.exports = {
   createSubmission,
   createCertifiedTaskSubmission,
   verifySubmission,
   analyzeSubmissionBatch,
   extractSubmissionFiles,
+  createGradeReceipt,
   ensureSigningIdentity,
   normalizePythonForSimilarity,
   similarityScore,

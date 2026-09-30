@@ -64,6 +64,28 @@ test('Stop keeps ownership until close and allows a clean restart', { timeout: 1
   assert.equal((await done).exitCode, 0);
 });
 
+test('Stop terminates an infinite program and its child process', { timeout: 10000 }, async t => {
+  let childPid = null;
+  let requestedStop = false;
+  const source = 'import subprocess,sys\nchild=subprocess.Popen([sys.executable,"-c","while True: pass"])\nprint(child.pid,flush=True)\nwhile True: pass';
+  const r = runtime(t, source, (channel, chunk, runner) => {
+    if (channel !== 'python:stdout' || requestedStop) return;
+    const match = String(chunk).match(/\d+/);
+    if (!match) return;
+    childPid = Number(match[0]);
+    requestedStop = true;
+    assert.equal(runner.kill().success, true);
+  });
+  assert.equal(r.runner.run(python, r.file).success, true);
+  const result = await r.finished;
+  assert.equal(requestedStop, true);
+  assert(result.signal === 'SIGKILL' || result.exitCode !== 0);
+  await new Promise(resolve => setTimeout(resolve, 150));
+  if (childPid && process.platform !== 'win32') {
+    assert.throws(() => process.kill(childPid, 0), error => error.code === 'ESRCH');
+  }
+});
+
 test('Python errors and missing executables complete without leaving a stuck process', { timeout: 10000 }, async t => {
   const r = runtime(t, 'raise ValueError("prueba")');
   r.runner.run(python, r.file);

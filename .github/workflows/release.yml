@@ -137,6 +137,11 @@ jobs:
           - **Librerías simples**: instala por nombre desde la aplicación y observa el progreso sin salir del proyecto.
           - **Tarea sin interrupciones**: portapapeles disponible, registro de sesión y sello de integridad Ed25519 sin alarmas ni kiosk.
           - **Proyectos recientes**: abre directamente hasta tres carpetas usadas recientemente sin volver a mostrar el selector del sistema.
+          - **Examen limpio por ID**: crea un espacio aislado y un archivo vacío con el nombre del alumno y el ID dictado en el aula.
+          - **Detención resistente**: termina el árbol completo de procesos ante ciclos infinitos y procesos hijos.
+          - **Supervisión precisa**: el audio solo se protege durante una alarma; continúa hasta regresar y entonces comienza la espera de 12 segundos.
+          - **Calificación trazable**: genera una huella Ed25519 vinculada al SHA-256 exacto del examen entregado.
+          - **macOS guiado**: firma de forma ad hoc los componentes internos y muestra una solución copiable si Gatekeeper conserva la cuarentena.
           - **Revisión de grupos**: compara sellos, duplicados y similitud estructural entre todas las entregas seleccionadas.
           - **Tres modos**: Examen, Tarea certificada y Actividad libre con controles independientes.
 
@@ -150,6 +155,12 @@ jobs:
           | Linux | \`CodeGO-${VERSION}-linux-x64.AppImage\` | Linux x64 compatible |
 
           El primer inicio extrae y valida el entorno incluido; puede tardar varios minutos y no requiere internet. Ver \`SHA256SUMS.txt\` para verificar integridad.
+
+          macOS todavía no está notarizado. Si Gatekeeper bloquea la primera apertura después de mover codeGO a Aplicaciones, ejecuta:
+
+          \`\`\`bash
+          xattr -dr com.apple.quarantine "/Applications/codeGO.app" && open "/Applications/codeGO.app"
+          \`\`\`
 
           ---
           © 2026 Francisco López Velázquez · [zolvek.com.mx](https://zolvek.com.mx)
