@@ -25,7 +25,7 @@ function explainSyntaxMessage(message = '') {
   return match ? { title: match[1][0], hint: match[1][1] } : { title: 'Revisa la sintaxis', hint: message || 'Python no pudo interpretar esta parte del código.' };
 }
 
-function diagnosePython(command, source, filename = 'archivo.py', { timeoutMs = 2500 } = {}) {
+function diagnosePython(command, source, filename = 'archivo.py', { timeoutMs = 5000 } = {}) {
   if (typeof source !== 'string' || source.length > 2_000_000) return Promise.resolve({ success: false, unavailable: true, message: 'El archivo es demasiado grande para el diagnóstico inmediato.' });
   return new Promise(resolve => {
     let output = '';
