@@ -215,6 +215,7 @@ const DOM = {
   // Lobby & Validation
   lobbyValidationBanner: document.getElementById('lobby-validation-banner'),
   lobbyValidationText: document.getElementById('lobby-validation-text'),
+  lobbyAppVersion: document.getElementById('lobby-app-version'),
   lobbyUpdateBanner: document.getElementById('lobby-update-banner'),
   updateBannerTitle: document.getElementById('update-banner-title'),
   updateBannerDesc: document.getElementById('update-banner-desc'),
@@ -1294,13 +1295,8 @@ async function initApp() {
   });
   setSessionMode(state.appMode);
   checkAndDisplayLastSession();
-
-  // Asegurar siempre pantalla completa al iniciar
-  if (window.electronAPI && window.electronAPI.setFullScreen) {
-    try {
-      await window.electronAPI.setFullScreen(true);
-    } catch (_) {}
-  }
+  await loadVisibleAppVersion();
+  await checkUpdatesSilently();
 
   if (window.electronAPI?.getEnvironmentStatus) {
     const status = await window.electronAPI.getEnvironmentStatus();
@@ -1315,9 +1311,7 @@ async function initApp() {
 
   await loadEnvironmentDiagnostics();
   startWifiMonitoring();
-  checkUpdatesSilently();
-  window.addEventListener('online', checkUpdatesSilently);
-  setInterval(checkUpdatesSilently, 6 * 60 * 60 * 1000);
+  window.addEventListener('online', () => window.electronAPI?.checkAndInstallUpdates?.());
 }
 
 const RECENT_PROJECTS_KEY = 'codego_recent_projects';
@@ -2155,6 +2149,10 @@ function setupElectronListeners() {
     await window.electronAPI.confirmClose(saved);
   });
   if (!window.electronAPI) return;
+
+  window.electronAPI.onUpdateState?.((payload) => {
+    renderAutomaticUpdateState(payload);
+  });
 
   // Pip Log Streaming
   window.electronAPI.onPipLog((chunk) => {
@@ -4585,19 +4583,64 @@ async function handleExitExamApp() {
 // -----------------------------------------------------------------------------
 // IN-APP AUTO-UPDATER
 // -----------------------------------------------------------------------------
-async function checkUpdatesSilently() {
-  if (!window.electronAPI || !window.electronAPI.checkForUpdates) return;
-  if (state.examSessionActive || state.workspaceSessionActive) return;
-
+async function loadVisibleAppVersion() {
+  if (!DOM.lobbyAppVersion || !window.electronAPI?.getCurrentVersion) return;
   try {
-    const res = await window.electronAPI.checkForUpdates();
-    if (res && res.success && res.hasUpdate) {
-      state.availableUpdate = res;
-      displayUpdateBanner(res);
+    const result = await window.electronAPI.getCurrentVersion();
+    if (result?.success && result.version) {
+      DOM.lobbyAppVersion.textContent = `v${result.version}`;
+      DOM.lobbyAppVersion.title = `Versión instalada ${result.version}`;
     }
-  } catch (_) {
-    // Falla silenciosa si no hay conexión
+  } catch (_) {}
+}
+
+function renderAutomaticUpdateState(payload = {}) {
+  const updateInfo = payload.update;
+  if (updateInfo?.latestVersion) {
+    state.availableUpdate = updateInfo;
+    displayUpdateBanner(updateInfo);
   }
+
+  if (!DOM.lobbyUpdateBanner) return;
+  const status = payload.status || 'idle';
+  if (['idle', 'current', 'offline'].includes(status) && !updateInfo) {
+    DOM.lobbyUpdateBanner.classList.add('hidden');
+    DOM.btnUpdateIde?.classList.add('hidden');
+    return;
+  }
+
+  if (['downloading', 'ready', 'deferred', 'installing', 'error'].includes(status)) {
+    DOM.lobbyUpdateBanner.classList.remove('hidden');
+    DOM.updateProgressContainer?.classList.remove('hidden');
+  }
+  const percent = Math.max(0, Math.min(100, Number(payload.percent || 0)));
+  if (DOM.updateProgressFill) DOM.updateProgressFill.style.width = `${percent}%`;
+
+  const statusCopy = {
+    downloading: [`Descargando v${payload.latestVersion || updateInfo?.latestVersion || ''} (${percent}%)...`, payload.totalBytes > 0 ? `${(payload.downloadedBytes / 1024 / 1024).toFixed(1)} MB de ${(payload.totalBytes / 1024 / 1024).toFixed(1)} MB` : 'La descarga continúa en segundo plano.'],
+    ready: ['Actualización preparada', 'CodeGO se reiniciará para completar la instalación.'],
+    deferred: ['Actualización preparada', payload.message || 'Se instalará al terminar la sesión actual.'],
+    installing: ['Instalando actualización...', 'CodeGO se reiniciará automáticamente.'],
+    error: ['No se completó la actualización', payload.error || 'CodeGO volverá a intentarlo automáticamente.']
+  };
+  const copy = statusCopy[status];
+  if (copy) {
+    if (DOM.updateProgressText) DOM.updateProgressText.textContent = copy[0];
+    if (DOM.updateProgressDetail) DOM.updateProgressDetail.textContent = copy[1];
+  }
+  const locked = ['downloading', 'installing'].includes(status);
+  if (DOM.btnUpdateNow) {
+    DOM.btnUpdateNow.disabled = locked;
+    DOM.btnUpdateNow.textContent = status === 'deferred' ? 'Se instalará al terminar' : status === 'ready' ? 'Reiniciar ahora' : 'Actualizar';
+  }
+}
+
+async function checkUpdatesSilently() {
+  if (!window.electronAPI?.getUpdateState) return;
+  try {
+    const status = await window.electronAPI.getUpdateState();
+    if (status?.success) renderAutomaticUpdateState(status);
+  } catch (_) {}
 }
 
 function displayUpdateBanner(updateInfo) {

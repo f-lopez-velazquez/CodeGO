@@ -1,5 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { ProcessOutputBuffer } = require('../src/main/process-output-buffer');
 const { BrowserGuard, DisplayGuard } = require('../src/main/session-guards');
 const { diagnosePython, explainSyntaxMessage } = require('../src/main/syntax-diagnostics');
@@ -66,4 +68,23 @@ test('Browser guard closes known browsers only through fixed executable argument
   assert(calls.some(([, args]) => args[0] === '-TERM' && args.includes('firefox')));
   assert(calls.some(([, args]) => args[0] === '-KILL' && args.includes('firefox')));
   assert(!calls.some(([, args]) => args.includes('codego-examguard')));
+});
+
+test('Desktop startup delegates fullscreen to one debounced main-process path', () => {
+  const root = path.resolve(__dirname, '..');
+  const main = fs.readFileSync(path.join(root, 'src/main/main.js'), 'utf8');
+  const renderer = fs.readFileSync(path.join(root, 'src/renderer/app.js'), 'utf8');
+  assert.match(main, /fullscreen:\s*!diagnosticMode/);
+  assert.equal((main.match(/mainWindow\.setFullScreen\(true\)/g) || []).length, 1);
+  assert.equal((main.match(/mainWindow\.maximize\(\)/g) || []).length, 0);
+  assert.doesNotMatch(renderer, /await window\.electronAPI\.setFullScreen\(true\)/);
+});
+
+test('Lobby always contains a runtime-backed version label', () => {
+  const root = path.resolve(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(root, 'src/renderer/app.js'), 'utf8');
+  assert.match(html, /id="lobby-app-version"/);
+  assert.match(renderer, /getCurrentVersion/);
+  assert.match(renderer, /lobbyAppVersion\.textContent/);
 });

@@ -2,9 +2,11 @@
 
 ## Descargas públicas
 
-La Release `v1.6.1` contiene instaladores autónomos para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados comerciales ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la primera apertura. En macOS mueve la aplicación a `/Applications` y usa `xattr -dr com.apple.quarantine "/Applications/codeGO.app" && open "/Applications/codeGO.app"` si Gatekeeper conserva la cuarentena. En equipos administrados consulta al responsable de TI.
+La Release `v1.6.2` contiene instaladores autónomos para Linux x64, Windows x64 y macOS Intel/Apple Silicon. No tiene certificados comerciales ni notarización de Apple. Windows puede mostrar SmartScreen y macOS puede impedir la primera apertura. En macOS mueve la aplicación a `/Applications` y usa `xattr -dr com.apple.quarantine "/Applications/codeGO.app" && open "/Applications/codeGO.app"` si Gatekeeper conserva la cuarentena. En equipos administrados consulta al responsable de TI.
 
 La primera apertura bloquea el acceso mientras extrae Python 3.13.15 y 28 librerías desde el propio instalador. Primero verifica tamaño y SHA-256 de cada archivo, después instala únicamente desde el almacén local y ejecuta micropruebas; solo habilita la aplicación tras llegar al 100 %. El proceso no modifica el Python del usuario y no necesita internet. Las operaciones transitorias se reintentan automáticamente; la preparación puede reanudarse conservando paquetes completos o reconstruirse en una ubicación alternativa dentro del perfil. Ambas rutas conservan proyectos y entregas. Si un componente falta, fue alterado o el sistema impide escribir, CodeGO muestra un diagnóstico y conserva el bloqueo.
+
+Con la aplicación abierta, el proceso principal comprueba GitHub al inicio y cada 30 minutos aunque la ventana esté en segundo plano. Descarga el instalador compatible, exige el tamaño y digest SHA-256 publicados y pospone cualquier reinicio hasta que no exista sesión, preparación ni programa en ejecución. Windows ejecuta la actualización NSIS silenciosa; Linux sustituye el AppImage de usuario de forma atómica; macOS sustituye la aplicación desde el ZIP y usa `~/Applications` cuando `/Applications` no es escribible. Linux y macOS conservan temporalmente una copia `.previous` para recuperación. La comprobación no es un servicio del sistema cuando codeGO está cerrado.
 
 ## Producción firmada
 

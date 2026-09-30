@@ -118,6 +118,25 @@ let activePythonGuiExpected = false;
 let activePythonWorkspace = null;
 let protectedWindowTemporarilyReleased = false;
 let pythonWindowTimers = [];
+let fullscreenRetryTimer = null;
+let lastFullscreenRequestAt = 0;
+
+function requestProtectedFullscreen({ force = false, focus = false } = {}) {
+  if (diagnosticMode || protectedWindowTemporarilyReleased || !mainWindow || mainWindow.isDestroyed()) return false;
+  if (mainWindow.isFullScreen()) {
+    if (focus) mainWindow.focus();
+    return true;
+  }
+  const now = Date.now();
+  // Wayland compositors emit intermediate leave events while negotiating a
+  // surface. Repeating setFullScreen during that transition causes visible
+  // resize loops, especially on Hyprland.
+  if (!force && now - lastFullscreenRequestAt < 1500) return false;
+  lastFullscreenRequestAt = now;
+  mainWindow.setFullScreen(true);
+  if (focus) mainWindow.focus();
+  return true;
+}
 
 function clearPythonWindowTimers() {
   pythonWindowTimers.forEach(clearTimeout);
@@ -129,11 +148,11 @@ function restoreMainWindowAfterPython() {
   if (!mainWindow || mainWindow.isDestroyed() || !protectedWindowTemporarilyReleased) return;
   protectedWindowTemporarilyReleased = false;
   try {
-    mainWindow.maximize();
-    mainWindow.setFullScreen(true);
     if (activeSessionMode === 'exam') {
       mainWindow.setKiosk(true);
       mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    } else {
+      requestProtectedFullscreen({ force: true });
     }
     mainWindow.focus();
   } catch (_) {}
@@ -149,7 +168,6 @@ function prepareMainWindowForPythonGui(child) {
     mainWindow.setAlwaysOnTop(false);
     if (mainWindow.isKiosk()) mainWindow.setKiosk(false);
     if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
-    mainWindow.maximize();
   } catch (_) {}
 
   mainWindow.webContents.send('security:python-gui-active', {
@@ -223,6 +241,166 @@ if (!fs.existsSync(currentWorkspace)) {
 const defaultWorkspace = currentWorkspace;
 let workspaceExplicitlySelected = diagnosticMode;
 let workspaceSealed = false;
+
+const AUTOMATIC_UPDATE_INTERVAL_MS = 30 * 60 * 1000;
+let automaticUpdateTimer = null;
+let automaticUpdateStartTimer = null;
+let updateDownloadBusy = false;
+let updateApplyBusy = false;
+let availableUpdateInfo = null;
+let stagedUpdatePath = null;
+let updateState = {
+  status: 'idle',
+  currentVersion: typeof app.getVersion === 'function' ? app.getVersion() : '0.0.0',
+  automatic: true
+};
+
+function currentAppVersion() {
+  return typeof app.getVersion === 'function' ? app.getVersion() : updateState.currentVersion || '0.0.0';
+}
+
+function publicUpdateState() {
+  return {
+    ...updateState,
+    currentVersion: currentAppVersion(),
+    update: availableUpdateInfo ? {
+      currentVersion: availableUpdateInfo.currentVersion,
+      latestVersion: availableUpdateInfo.latestVersion,
+      releaseName: availableUpdateInfo.releaseName,
+      releaseNotes: availableUpdateInfo.releaseNotes,
+      releaseUrl: availableUpdateInfo.releaseUrl,
+      publishedAt: availableUpdateInfo.publishedAt,
+      asset: availableUpdateInfo.asset
+    } : null
+  };
+}
+
+function setUpdateState(status, detail = {}) {
+  updateState = { status, automatic: true, ...detail };
+  const payload = publicUpdateState();
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('updater:state', payload);
+  return payload;
+}
+
+function updateCanRestartNow() {
+  return !diagnosticMode && app.isPackaged && !activeSessionMode && !isKioskActive && !installationBusy && !activeProcess;
+}
+
+async function applyStagedUpdate() {
+  if (!stagedUpdatePath || !availableUpdateInfo?.asset) return { success: false, error: 'No hay una actualización preparada.' };
+  if (updateApplyBusy) return { success: false, deferred: true, error: 'La actualización ya se está aplicando.' };
+  if (!updateCanRestartNow()) {
+    setUpdateState('deferred', { latestVersion: availableUpdateInfo.latestVersion, message: 'Se instalará al terminar la sesión actual.' });
+    return { success: true, deferred: true };
+  }
+
+  updateApplyBusy = true;
+  try {
+    setUpdateState('installing', { latestVersion: availableUpdateInfo.latestVersion, percent: 100 });
+    const userIcon = path.join(os.homedir(), '.local', 'share', 'icons', 'hicolor', '512x512', 'apps', 'codego.png');
+    const result = updater.launchInstaller(stagedUpdatePath, process.platform, {
+      currentExecutable: process.execPath,
+      appImagePath: process.env.APPIMAGE,
+      homeDirectory: os.homedir(),
+      iconPath: userIcon
+    });
+    if (result.action === 'restarting') {
+      allowWindowClose = true;
+      setTimeout(() => app.quit(), 120);
+    }
+    return { success: true, ...result };
+  } catch (error) {
+    setUpdateState('error', { latestVersion: availableUpdateInfo.latestVersion, error: error.message });
+    return { success: false, error: error.message };
+  } finally {
+    updateApplyBusy = false;
+  }
+}
+
+async function checkAndStageAutomaticUpdate({ installWhenReady = true, force = false } = {}) {
+  if (diagnosticMode) return { success: true, hasUpdate: false, currentVersion: app.getVersion() };
+  if (updateDownloadBusy) return { success: true, busy: true, ...publicUpdateState() };
+  if (!force && ['ready', 'deferred', 'installing'].includes(updateState.status) && stagedUpdatePath) {
+    if (installWhenReady) setTimeout(() => void applyStagedUpdate(), 250);
+    return { success: true, hasUpdate: true, ...publicUpdateState() };
+  }
+
+  updateDownloadBusy = true;
+  try {
+    setUpdateState('checking');
+    const info = await updater.checkForUpdates({ currentVersion: app.getVersion(), timeoutMs: 12000 });
+    if (!info.success) {
+      setUpdateState('offline', { error: info.error });
+      return info;
+    }
+    if (!info.hasUpdate) {
+      availableUpdateInfo = null;
+      stagedUpdatePath = null;
+      setUpdateState('current', { latestVersion: app.getVersion() });
+      return info;
+    }
+
+    availableUpdateInfo = info;
+    setUpdateState('available', { latestVersion: info.latestVersion, releaseName: info.releaseName });
+    if (!info.asset?.downloadUrl) {
+      const error = 'La versión publicada no incluye un instalador compatible con este equipo.';
+      setUpdateState('error', { latestVersion: info.latestVersion, error });
+      return { ...info, success: false, error };
+    }
+    if (!updater.normalizeDigest(info.asset.digest)) {
+      const error = 'El instalador publicado no incluye una firma SHA-256 verificable.';
+      setUpdateState('error', { latestVersion: info.latestVersion, error });
+      return { ...info, success: false, error };
+    }
+
+    if (!app.isPackaged) return info;
+    const updateDirectory = path.join(app.getPath('userData'), 'updates', `v${info.latestVersion}`);
+    fs.mkdirSync(updateDirectory, { recursive: true });
+    const cleanName = info.asset.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const destination = path.join(updateDirectory, cleanName);
+    let validExisting = false;
+    try {
+      updater.verifyDownloadedAsset(destination, info.asset);
+      validExisting = true;
+    } catch (_) {}
+
+    if (!validExisting) {
+      const partial = `${destination}.part`;
+      try { fs.unlinkSync(partial); } catch (_) {}
+      setUpdateState('downloading', { latestVersion: info.latestVersion, percent: 0 });
+      await updater.downloadAssetWithProgress(info.asset.downloadUrl, partial, progress => {
+        setUpdateState('downloading', { latestVersion: info.latestVersion, ...progress });
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('updater:progress', progress);
+      }, info.asset);
+      try { fs.unlinkSync(destination); } catch (_) {}
+      fs.renameSync(partial, destination);
+    }
+
+    updater.verifyDownloadedAsset(destination, info.asset);
+    stagedUpdatePath = destination;
+    setUpdateState(updateCanRestartNow() ? 'ready' : 'deferred', {
+      latestVersion: info.latestVersion,
+      percent: 100,
+      message: updateCanRestartNow() ? 'Actualización lista para instalar.' : 'Se instalará al terminar la sesión actual.'
+    });
+    if (installWhenReady) setTimeout(() => void applyStagedUpdate(), 1200);
+    return { ...info, status: updateState.status, prepared: true };
+  } catch (error) {
+    setUpdateState('error', { latestVersion: availableUpdateInfo?.latestVersion, error: error.message });
+    return { success: false, hasUpdate: Boolean(availableUpdateInfo), error: error.message };
+  } finally {
+    updateDownloadBusy = false;
+  }
+}
+
+function scheduleAutomaticUpdates() {
+  if (diagnosticMode) return;
+  clearTimeout(automaticUpdateStartTimer);
+  clearInterval(automaticUpdateTimer);
+  automaticUpdateStartTimer = setTimeout(() => void checkAndStageAutomaticUpdate({ installWhenReady: true }), 12000);
+  automaticUpdateTimer = setInterval(() => void checkAndStageAutomaticUpdate({ installWhenReady: true }), AUTOMATIC_UPDATE_INTERVAL_MS);
+  automaticUpdateTimer.unref?.();
+}
 
 function safeExamName(value, fallback) {
   const cleaned = String(value || '')
@@ -625,8 +803,11 @@ function createMainWindow() {
     height: Math.min(900, workAreaSize.height),
     minWidth: Math.min(640, workAreaSize.width),
     minHeight: Math.min(360, workAreaSize.height),
-    fullscreen: !diagnosticMode, // La sesión normal siempre inicia en pantalla completa
-    show: !diagnosticMode,
+    // Let Electron request the compositor mode once, before mapping the
+    // surface. Calling maximize + fullscreen after showing creates a resize
+    // feedback loop on Wayland/Hyprland.
+    fullscreen: !diagnosticMode,
+    show: false,
     frame: !diagnosticMode,
     autoHideMenuBar: true,
     backgroundColor: '#0a0d14',
@@ -646,26 +827,23 @@ function createMainWindow() {
   });
 
   if (!diagnosticMode) {
-    mainWindow.maximize();
-    mainWindow.setFullScreen(true);
+    mainWindow.once('ready-to-show', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      mainWindow.show();
+      mainWindow.focus();
+    });
   }
 
   // codeGO is designed as a focused, full-workspace application. If the
-  // operating system leaves fullscreen, keep the window maximized so native
-  // scaling never exposes an unsupported floating-window layout.
+  // operating system leaves fullscreen, request it again once the compositor
+  // has settled instead of creating a resize loop.
   mainWindow.on('leave-full-screen', () => {
     if (diagnosticMode || protectedWindowTemporarilyReleased || !mainWindow || mainWindow.isDestroyed()) return;
-    setTimeout(() => {
+    clearTimeout(fullscreenRetryTimer);
+    fullscreenRetryTimer = setTimeout(() => {
       if (!mainWindow || mainWindow.isDestroyed() || protectedWindowTemporarilyReleased) return;
-      mainWindow.maximize();
-      mainWindow.setFullScreen(true);
-    }, 120);
-  });
-  mainWindow.on('unmaximize', () => {
-    if (diagnosticMode || protectedWindowTemporarilyReleased || !mainWindow || mainWindow.isDestroyed()) return;
-    setTimeout(() => {
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.maximize();
-    }, 0);
+      requestProtectedFullscreen({ force: activeSessionMode === 'exam' });
+    }, activeSessionMode === 'exam' ? 250 : 1600);
   });
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
@@ -1573,10 +1751,9 @@ except Exception:
       });
 
       if (mainWindow) {
-        mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(true);
+        if (mainWindow.isKiosk()) mainWindow.setKiosk(false);
+        requestProtectedFullscreen();
         mainWindow.setAlwaysOnTop(false);
-        mainWindow.maximize();
         globalShortcut.unregisterAll();
       }
 
@@ -1596,10 +1773,9 @@ except Exception:
       });
 
       if (mainWindow) {
-        mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(true);
+        if (mainWindow.isKiosk()) mainWindow.setKiosk(false);
+        requestProtectedFullscreen();
         mainWindow.setAlwaysOnTop(false);
-        mainWindow.maximize();
         globalShortcut.unregisterAll();
       }
 
@@ -1633,7 +1809,6 @@ except Exception:
     if (mainWindow) {
       mainWindow.setMenu(null);
       mainWindow.setMenuBarVisibility(false);
-      mainWindow.setFullScreen(true);
       mainWindow.setKiosk(true);
       mainWindow.setAlwaysOnTop(true, 'screen-saver');
 
@@ -1664,11 +1839,12 @@ except Exception:
 
       if (mainWindow) {
         mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(true);
+        requestProtectedFullscreen({ force: true });
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
       }
       logSecurityIncident('TEACHER_UNLOCK_SUCCESSFUL', { pinEntered: true });
+      setTimeout(() => void applyStagedUpdate(), 1500);
       return { success: true };
     } else {
       logSecurityIncident('TEACHER_UNLOCK_FAILED_WRONG_PIN', { enteredPin });
@@ -1687,9 +1863,9 @@ except Exception:
     globalShortcut.unregisterAll();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setAlwaysOnTop(false);
-      mainWindow.maximize();
-      mainWindow.setFullScreen(true);
+      requestProtectedFullscreen({ force: true });
     }
+    setTimeout(() => void applyStagedUpdate(), 1500);
     return { success: true };
   });
 
@@ -1807,7 +1983,7 @@ except Exception:
     if (diagnosticMode) return { success: true };
     if (flag === false) return { success: false, error: 'codeGO trabaja siempre en pantalla completa.' };
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setFullScreen(flag !== false);
+      requestProtectedFullscreen();
       return { success: true, isFullScreen: mainWindow.isFullScreen() };
     }
     return { success: false };
@@ -1815,8 +1991,7 @@ except Exception:
 
   handle('window:maximize', async () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.maximize();
-      mainWindow.setFullScreen(true);
+      requestProtectedFullscreen();
       return { success: true };
     }
     return { success: false };
@@ -2129,10 +2304,12 @@ except Exception:
 
       if (mainWindow) {
         mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(true);
+        requestProtectedFullscreen({ force: true });
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
       }
+
+      setTimeout(() => void applyStagedUpdate(), 1500);
 
       return result;
     } catch (e) {
@@ -2184,10 +2361,12 @@ except Exception:
       await notificationGuard.restore();
       if (mainWindow) {
         mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(true);
+        requestProtectedFullscreen({ force: true });
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
       }
+
+      setTimeout(() => void applyStagedUpdate(), 1500);
 
       return result;
     } catch (e) {
@@ -2276,49 +2455,28 @@ except Exception:
     return { success: true, version: app.getVersion() };
   });
 
+  handle('updater:get-state', async () => ({ success: true, ...publicUpdateState() }));
+
+  handle('updater:check-and-install', async () => checkAndStageAutomaticUpdate({ installWhenReady: true, force: true }));
+
   handle('updater:check', async () => {
-    if (isKioskActive || activeSessionMode === 'exam' || activeSessionMode === 'task') {
-      return { success: false, error: 'Comprobación de actualizaciones deshabilitada durante exámenes y tareas.' };
+    const info = await updater.checkForUpdates({ currentVersion: app.getVersion(), timeoutMs: 12000 });
+    if (info.success && info.hasUpdate) {
+      availableUpdateInfo = info;
+      setUpdateState('available', { latestVersion: info.latestVersion, releaseName: info.releaseName });
+    } else if (info.success) {
+      setUpdateState('current', { latestVersion: app.getVersion() });
     }
-    return updater.checkForUpdates({ currentVersion: app.getVersion() });
+    return info;
   });
 
-  let updateDownloadBusy = false;
-  handle('updater:download-and-install', async (event, { downloadUrl, assetName } = {}) => {
-    if (isKioskActive || activeSessionMode === 'exam' || activeSessionMode === 'task') {
-      return { success: false, error: 'Actualizaciones deshabilitadas durante exámenes y tareas.' };
+  handle('updater:download-and-install', async () => {
+    if (activeSessionMode || isKioskActive) {
+      return { success: true, deferred: true, error: 'La actualización se instalará automáticamente al terminar esta sesión.' };
     }
-    if (updateDownloadBusy) {
-      return { success: false, error: 'Ya hay una descarga de actualización en curso.' };
-    }
-    if (!downloadUrl) {
-      return { success: false, error: 'No se proporcionó una URL de descarga válida.' };
-    }
-
-    updateDownloadBusy = true;
-    try {
-      const tempDir = app.getPath('temp');
-      const cleanName = (assetName || 'CodeGO-Update').replace(/[^a-zA-Z0-9._-]/g, '_');
-      const destPath = path.join(tempDir, cleanName);
-
-      await updater.downloadAssetWithProgress(downloadUrl, destPath, (progress) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('updater:progress', progress);
-        }
-      });
-
-      const result = updater.launchInstaller(destPath);
-      if (result.action === 'restarting') {
-        setTimeout(() => {
-          app.quit();
-        }, 800);
-      }
-      return { success: true, ...result };
-    } catch (err) {
-      return { success: false, error: err.message };
-    } finally {
-      updateDownloadBusy = false;
-    }
+    const prepared = await checkAndStageAutomaticUpdate({ installWhenReady: false, force: !stagedUpdatePath });
+    if (!prepared.success) return prepared;
+    return applyStagedUpdate();
   });
 }
 
@@ -2344,12 +2502,17 @@ app.whenReady().then(async () => {
     return;
   }
 
+  scheduleAutomaticUpdates();
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
 });
 
 app.on('will-quit', () => {
+  clearTimeout(automaticUpdateStartTimer);
+  clearInterval(automaticUpdateTimer);
+  clearTimeout(fullscreenRetryTimer);
   pythonRunner.kill();
   stopAudioWatchdog();
   void notificationGuard.restore();

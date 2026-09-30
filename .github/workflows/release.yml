@@ -144,6 +144,8 @@ jobs:
           - **macOS guiado**: firma de forma ad hoc los componentes internos y muestra una solución copiable si Gatekeeper conserva la cuarentena.
           - **Revisión de grupos**: compara sellos, duplicados y similitud estructural entre todas las entregas seleccionadas.
           - **Tres modos**: Examen, Tarea certificada y Actividad libre con controles independientes.
+          - **Actualización automática**: comprueba en segundo plano, valida SHA-256 y aplica el paquete nativo cuando no hay una sesión activa.
+          - **Pantalla estable**: evita la negociación repetida de pantalla completa en Wayland/Hyprland y muestra siempre la versión instalada en el inicio.
 
           ### Instalación
           | Plataforma | Archivo | Notas |

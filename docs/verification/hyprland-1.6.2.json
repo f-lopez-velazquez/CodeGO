@@ -1,0 +1,14 @@
+{
+  "version": "1.6.2",
+  "platform": "Linux x64",
+  "desktop": "Omarchy / Hyprland",
+  "artifact": "CodeGO-1.6.2-linux-x86_64.AppImage",
+  "samples": 40,
+  "intervalMs": 250,
+  "windowClass": "com.codego.examguard",
+  "position": [0, 0],
+  "size": [1280, 720],
+  "fullscreen": 2,
+  "uniqueWindowStates": 1,
+  "stable": true
+}

@@ -26,6 +26,8 @@ app.whenReady().then(async () => {
   try {
     const fixtureHandlers = {
       'window:set-fullscreen': () => ({success:true}),
+      'updater:get-current-version': () => ({success:true,version:require('../package.json').version}),
+      'updater:get-state': () => ({success:true,status:'current',currentVersion:require('../package.json').version,automatic:true}),
       'system:self-test': () => require('../src/main/self-test').runSelfTest({command:python,directory:dir}),
       'system:environment-status': () => ({success:true,ready:true,command:python}),
       'system:prepare-environment': () => ({success:true,command:python}),
@@ -50,6 +52,7 @@ app.whenReady().then(async () => {
     await waitFor("state.activeFilePath === 'main.py'");
     assert.equal(await evaluate('Boolean(window.electronAPI && !window.require)'), true);
     assert.equal(await evaluate("document.body.textContent.includes('Programado por Francisco López Velázquez.')"), true);
+    assert.equal(await evaluate("DOM.lobbyAppVersion.textContent === 'v' + " + JSON.stringify(require('../package.json').version)), true);
     assert.equal((await evaluate('window.electronAPI.runSelfTest()')).success, true);
     await evaluate("DOM.terminalStdinInput.disabled=false; appendTerminalOutput('línea\\n'.repeat(150));");
     const geometry = [];

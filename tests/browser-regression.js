@@ -62,6 +62,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
           return { left: value.left, right: value.right, top: value.top, bottom: value.bottom };
         }),
         start: rect('#btn-start-exam'),
+        version: document.querySelector('#lobby-app-version')?.textContent,
         viewport: { width: innerWidth, height: innerHeight }
       };
     });
@@ -69,6 +70,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     assert(lobbyGeometry.card.top >= 0 && lobbyGeometry.card.bottom <= size.height + 1, `Lobby vertical overflow: ${JSON.stringify({ size, lobbyGeometry })}`);
     assert(lobbyGeometry.recents.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.recents.right <= lobbyGeometry.form.right + 1, `Recent projects escaped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
     assert(lobbyGeometry.start.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.start.right <= lobbyGeometry.form.right + 1, `Primary action escaped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
+    assert(/^v\d+\.\d+\.\d+$/.test(lobbyGeometry.version || ''), `Lobby version is missing: ${JSON.stringify({ size, lobbyGeometry })}`);
     if (size.width > 900) {
       assert(lobbyGeometry.modes.every((mode, index, all) => index === 0 || mode.top >= all[index - 1].bottom - 1), `Desktop modes overlap: ${JSON.stringify({ size, lobbyGeometry })}`);
       assert(lobbyGeometry.modes.every(mode => mode.right < lobbyGeometry.form.left), `Desktop mode rail overlaps the form: ${JSON.stringify({ size, lobbyGeometry })}`);

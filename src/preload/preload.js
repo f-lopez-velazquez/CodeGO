@@ -77,8 +77,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // In-App Auto-Updater
   getCurrentVersion: () => ipcRenderer.invoke('updater:get-current-version'),
+  getUpdateState: () => ipcRenderer.invoke('updater:get-state'),
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  checkAndInstallUpdates: () => ipcRenderer.invoke('updater:check-and-install'),
   downloadAndInstallUpdate: (payload) => ipcRenderer.invoke('updater:download-and-install', payload),
+  onUpdateState: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('updater:state', handler);
+    return () => ipcRenderer.removeListener('updater:state', handler);
+  },
   onUpdateProgress: (callback) => {
     const handler = (event, data) => callback(data);
     ipcRenderer.on('updater:progress', handler);

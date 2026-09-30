@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.6.2 · Actualizaciones automáticas y pantalla estable
+
+- Muestra siempre la versión instalada en el inicio y comunica de forma discreta el estado de una actualización.
+- Comprueba versiones desde el proceso principal al abrir y cada 30 minutos, incluso cuando la ventana está en segundo plano.
+- Descarga la versión adecuada para Windows, macOS o Linux, verifica tamaño y SHA-256 y la instala automáticamente cuando no hay una sesión ni un programa en ejecución.
+- Conserva una copia de la versión anterior durante la sustitución en Linux y macOS y recupera esa copia si la operación falla.
+- Evita el temblor de la ventana en Wayland/Hyprland al solicitar pantalla completa una sola vez antes de mostrarla y limitar los reintentos del compositor.
+- Añade pruebas de reemplazo atómico en Linux, instalación silenciosa en Windows, sustitución del paquete en macOS y estabilidad de pantalla completa.
+
 ## 1.6.1 · Editor guiado y supervisión resistente
 
 - Añade guías de sangría reales por nivel, navegación con `F8` y comprobación de sintaxis Python en vivo con explicaciones concretas en español.
