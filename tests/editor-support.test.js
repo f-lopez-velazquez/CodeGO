@@ -13,7 +13,12 @@ test('Editor diagnostics parse Python and translate common syntax guidance', asy
   assert.equal(missingColon.success, false);
   assert.equal(missingColon.line, 1);
   assert.match(`${missingColon.title} ${missingColon.hint}`, /dos puntos|:/i);
+  assert.equal(missingColon.sourceLine, 'for i in range(3)');
+  assert(missingColon.actions.length >= 3);
+  assert.match(missingColon.example, /for|if/);
   assert.match(explainSyntaxMessage('expected an indented block').hint, /4 espacios/i);
+  assert.match(explainSyntaxMessage("invalid syntax. Perhaps you forgot a comma?").title, /coma/i);
+  assert.match(explainSyntaxMessage("cannot assign to expression here. Maybe you meant '==' instead of '='?").example, /==/);
 });
 
 test('Output buffer bounds a print flood and reports omitted output', () => {

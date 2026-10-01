@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.6.3 · Edición continua y ayuda precisa
+
+- Recupera automáticamente el foco y la edición del archivo activo al volver desde Inicio, sin exigir una ejecución previa.
+- Centraliza los estados editable y sellado para evitar que una entrega o proyecto anterior bloquee otro espacio de trabajo.
+- Limpia pestañas al cambiar de carpeta y conserva la pestaña activa al reabrir el mismo proyecto.
+- Refina la navegación del IDE con rutas, pestañas, selección y estados de foco más claros, sin animaciones de pantalla que provoquen destellos.
+- Mejora las guías de sangría por nivel, mantiene su continuidad en líneas vacías, destaca el bloque activo y señala tabuladores o niveles incompletos.
+- Muestra el nivel de sangría actual en la barra de estado y conserva Tab, Mayús+Tab, pares automáticos y navegación precisa por línea y columna.
+- Amplía los diagnósticos de sintaxis y ejecución con causas específicas, tres pasos de corrección y ejemplos válidos para los errores frecuentes de Python.
+- Añade una prueba de regresión del recorrido Inicio → mismo proyecto → edición inmediata, además de comprobaciones visuales de guías y ayuda contextual.
+
 ## 1.6.2 · Actualizaciones automáticas y pantalla estable
 
 - Muestra siempre la versión instalada en el inicio y comunica de forma discreta el estado de una actualización.

@@ -260,7 +260,7 @@
           </button>
         </div>
       </div>
-      <div class="app-credits"><span>codeGO <strong id="lobby-app-version" class="app-version">v1.6.2</strong> · Programado por <strong>Francisco López Velázquez</strong> · <strong>zolvek.com.mx</strong></span><span class="automatic-update-note">Actualizaciones automáticas verificadas</span><button type="button" class="support-link" data-support-link>Apoyar el desarrollo</button></div>
+      <div class="app-credits"><span>codeGO <strong id="lobby-app-version" class="app-version">v1.6.3</strong> · Programado por <strong>Francisco López Velázquez</strong> · <strong>zolvek.com.mx</strong></span><span class="automatic-update-note">Actualizaciones automáticas verificadas</span><button type="button" class="support-link" data-support-link>Apoyar el desarrollo</button></div>
     </div>
   </section>
 
@@ -598,6 +598,7 @@
               <strong id="editor-diagnostic-title">Sintaxis correcta</strong>
               <span id="editor-diagnostic-hint">Python puede interpretar el archivo.</span>
             </div>
+            <button type="button" id="btn-editor-diagnostic-help" class="editor-diagnostic-help hidden">Cómo corregirlo</button>
             <button type="button" id="btn-editor-diagnostic-line" class="editor-diagnostic-line hidden">Ir a la línea</button>
           </div>
 
@@ -615,7 +616,7 @@
               <span class="sb-sep">|</span>
               <span id="sb-pkg-status">Librerías: Verificadas</span>
               <span class="sb-sep">|</span>
-              <span>Espacios: 4</span>
+              <span id="sb-indent-status">Sangría: 0 · 4 espacios</span>
               <span class="sb-sep">|</span>
               <span>UTF-8</span>
               <span class="sb-sep">|</span>
@@ -1294,6 +1295,7 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
         <button type="button" id="btn-runtime-error-line" class="btn-ghost">Ir a la línea</button>
       </div>
       <div class="runtime-error-solution"><strong>Cómo resolverlo</strong><ol id="runtime-error-actions"></ol></div>
+      <div id="runtime-error-example-wrap" class="runtime-error-example hidden"><strong>Ejemplo de referencia</strong><pre id="runtime-error-example"></pre></div>
       <details><summary>Ver mensaje original de Python</summary><pre id="runtime-error-raw"></pre></details>
       <div class="dialog-buttons">
         <button type="button" id="btn-runtime-error-help" class="btn-ghost">Abrir ayuda</button>

@@ -100,7 +100,9 @@ const server = http.createServer((request, response) => {
         { name: 'recursos', path: 'recursos', type: 'directory', children: [] }
       ];
       renderFileTree(state.filesTree);
-      DOM.codeTextarea.value = 'nombre = input("¿Cómo te llamas? ")\nprint(f"Hola, {nombre}")\n';
+      DOM.codeTextarea.value = 'nombre = input("¿Cómo te llamas? ")\nfor intento in range(3):\n    if nombre:\n        print(f"Hola, {nombre}")\n';
+      const activeIndent = DOM.codeTextarea.value.indexOf('print(f');
+      DOM.codeTextarea.setSelectionRange(activeIndent, activeIndent);
       handleEditorInput();
       clearTerminal();
       appendTerminalOutput('Ejecutando main.py\n', 'system');
@@ -110,6 +112,9 @@ const server = http.createServer((request, response) => {
       resizeTerminalInput();
     });
     await page.screenshot({ path: path.join(output, 'ide-current.png') });
+    await page.evaluate(() => showRuntimeError('Traceback (most recent call last):\n  File "main.py", line 4, in <module>\n    print(usuario)\nNameError: name \'usuario\' is not defined'));
+    await page.screenshot({ path: path.join(output, 'error-guidance-current.png') });
+    await page.evaluate(() => DOM.modalRuntimeError.classList.add('hidden'));
     await page.evaluate(() => {
       setSessionMode('task');
       state.workspaceSessionActive = true;

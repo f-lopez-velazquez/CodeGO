@@ -115,13 +115,42 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       saveFile: async data => { window.testWrites.push(data); return { success: true }; },
       runPython: async () => ({ success: true }),
       diagnoseCode: async ({ source }) => source.startsWith('if True\n')
-        ? { success: false, title: 'Faltan dos puntos', hint: 'Agrega : al final de la línea.', line: 1 }
+        ? { success: false, title: 'Faltan dos puntos', hint: 'Agrega : al final de la línea.', actions: ['Agrega dos puntos.', 'Indenta el bloque.'], example: 'if True:\n    print("hola")', line: 1, column: 8, message: "expected ':'", sourceLine: 'if True' }
         : { success: true },
       sendPythonStdin: async value => { window.testInputs.push(value); return { success: true }; },
       killPython: async () => { setTimeout(() => handleExecutionFinished({ exitCode: null, signal: 'SIGKILL', duration: 1 }), 10); return { success: true }; },
-      setInternalInteraction: async active => { (window.testInternalInteractions ||= []).push(active); return { success: true }; }
+      setInternalInteraction: async active => { (window.testInternalInteractions ||= []).push(active); return { success: true }; },
+      startKiosk: async () => ({ success: true, mode: 'activity' }),
+      endSession: async () => ({ success: true }),
+      listWorkspace: async () => ({ success: true, tree: [{ type: 'file', name: 'main.py', path: 'main.py', editable: true }] }),
+      readFile: async () => ({ success: true, content: 'print("hola")' })
     };
   });
+  const homeReturn = await page.evaluate(async () => {
+    window.confirm = () => true;
+    state.appMode = 'activity';
+    state.workspaceSelected = true;
+    state.workspacePath = '/proyectos/Computacion3A';
+    state.workspaceName = 'Computacion3A';
+    state.openTabs = [{ path: 'main.py', name: 'main.py', content: 'print("hola")', isDirty: false }];
+    state.activeFilePath = 'main.py';
+    DOM.codeTextarea.value = 'print("hola")';
+    await handleGoHome();
+    DOM.btnStartExam.focus();
+    await handleStartExamClick();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const before = DOM.codeTextarea.value;
+    DOM.codeTextarea.setSelectionRange(before.length, before.length);
+    DOM.codeTextarea.setRangeText('\nprint("otra línea")', before.length, before.length, 'end');
+    DOM.codeTextarea.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: '\nprint("otra línea")' }));
+    return {
+      ideActive: DOM.viewIde.classList.contains('active'),
+      focused: document.activeElement === DOM.codeTextarea,
+      editable: !DOM.codeTextarea.readOnly,
+      changed: DOM.codeTextarea.value.includes('otra línea')
+    };
+  });
+  assert(homeReturn.ideActive && homeReturn.focused && homeReturn.editable && homeReturn.changed, `Editor did not recover after Home: ${JSON.stringify(homeReturn)}`);
   const dragSupervision = await page.evaluate(async () => {
     const item = document.createElement('div');
     document.body.appendChild(item);
@@ -240,9 +269,14 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   });
   await page.clock.runFor(500);
   assert(await page.locator('#editor-indent-guides .indent-guide-level').count() === 1, 'Indentation guide is not rendered for a four-space block');
+  assert(await page.locator('#editor-indent-guides .indent-guide-level.active-scope').count() === 1, 'Current indentation scope is not emphasized');
   assert(await page.locator('#editor-diagnostic').isVisible(), 'Live syntax diagnostic is not visible');
   assert(await page.locator('#editor-diagnostic').evaluate(element => element.classList.contains('error')), 'Invalid Python is not marked as an error');
   assert((await page.locator('#editor-diagnostic-title').innerText()).includes('dos puntos'), 'Live syntax guidance is not specific');
+  assert(await page.locator('#btn-editor-diagnostic-help').isVisible(), 'Detailed syntax help is not available');
+  await page.locator('#btn-editor-diagnostic-help').click();
+  assert(await page.locator('#runtime-error-example-wrap').isVisible(), 'Syntax help does not include a correction example');
+  await page.locator('#btn-close-runtime-error').click();
   await page.locator('#btn-editor-diagnostic-line').click();
   assert(await page.locator('.editor-line-numbers .has-error').count() === 1, 'Live syntax issue does not navigate to its line');
   await page.locator('#btn-toggle-term-view').click();

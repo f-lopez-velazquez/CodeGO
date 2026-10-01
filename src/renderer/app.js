@@ -179,7 +179,9 @@ const state = {
   returnHomeAfterUnlock: false,
   syntaxDiagnosticTimer: null,
   syntaxDiagnosticGeneration: 0,
-  syntaxDiagnosticLine: null
+  syntaxDiagnosticLine: null,
+  syntaxDiagnosticColumn: null,
+  syntaxDiagnosticResult: null
 };
 
 // DOM Elements
@@ -378,9 +380,11 @@ const DOM = {
   editorDiagnosticTitle: document.getElementById('editor-diagnostic-title'),
   editorDiagnosticHint: document.getElementById('editor-diagnostic-hint'),
   btnEditorDiagnosticLine: document.getElementById('btn-editor-diagnostic-line'),
+  btnEditorDiagnosticHelp: document.getElementById('btn-editor-diagnostic-help'),
   sbCursorPos: document.getElementById('sb-cursor-pos'),
   sbCharsCount: document.getElementById('sb-chars-count'),
   sbSaveStatus: document.getElementById('sb-save-status'),
+  sbIndentStatus: document.getElementById('sb-indent-status'),
 
   // Terminal
   terminalPanel: document.getElementById('terminal-panel'),
@@ -417,6 +421,8 @@ const DOM = {
   runtimeErrorTitle: document.getElementById('runtime-error-title'),
   runtimeErrorExplanation: document.getElementById('runtime-error-explanation'),
   runtimeErrorActions: document.getElementById('runtime-error-actions'),
+  runtimeErrorExampleWrap: document.getElementById('runtime-error-example-wrap'),
+  runtimeErrorExample: document.getElementById('runtime-error-example'),
   runtimeErrorRaw: document.getElementById('runtime-error-raw'),
   runtimeErrorLocation: document.getElementById('runtime-error-location'),
   runtimeErrorLocationLabel: document.getElementById('runtime-error-location-label'),
@@ -1619,18 +1625,19 @@ function setupEventListeners() {
     DOM.btnActivityNewProject.addEventListener('click', handleCreateNewProject);
   }
 
-  // Submitted exams remain read-only. Task mode keeps normal clipboard behavior.
+  // A finished delivery remains read-only. A task keeps normal clipboard
+  // behavior throughout editing and is restricted only after it is sealed.
   document.addEventListener('copy', (e) => {
-    if (state.isExamSubmitted) {
+    if (isWorkspaceLocked()) {
       e.preventDefault();
-      appendTerminalOutput('Código protegido contra copia tras la entrega.', 'system');
+      appendTerminalOutput('La entrega sellada está protegida contra cambios y copia.', 'system');
     }
   });
   document.addEventListener('cut', (e) => {
-    if (state.isExamSubmitted) e.preventDefault();
+    if (isWorkspaceLocked()) e.preventDefault();
   });
   document.addEventListener('paste', (e) => {
-    if (state.isExamSubmitted) e.preventDefault();
+    if (isWorkspaceLocked()) e.preventDefault();
   });
 
   // Test sound button in lobby
@@ -1698,9 +1705,12 @@ function setupEventListeners() {
     });
     DOM.helpEmpty.classList.toggle('hidden', visible > 0);
   });
-  DOM.btnCloseRuntimeError?.addEventListener('click', () => DOM.modalRuntimeError.classList.add('hidden'));
+  DOM.btnCloseRuntimeError?.addEventListener('click', () => {
+    DOM.modalRuntimeError.classList.add('hidden');
+    DOM.codeTextarea?.focus({ preventScroll: true });
+  });
   DOM.btnRuntimeErrorLine?.addEventListener('click', () => {
-    if (state.runtimeErrorLocation?.line) goToEditorLine(state.runtimeErrorLocation.line);
+    if (state.runtimeErrorLocation?.line) goToEditorLine(state.runtimeErrorLocation.line, state.runtimeErrorLocation.column);
   });
   DOM.btnRuntimeErrorHelp?.addEventListener('click', () => {
     DOM.modalRuntimeError.classList.add('hidden');
@@ -1909,17 +1919,17 @@ function setupEventListeners() {
   DOM.codeTextarea.addEventListener('click', updateCursorStats);
   DOM.codeTextarea.addEventListener('scroll', syncEditorScroll);
   DOM.codeTextarea.addEventListener('copy', (e) => {
-    if (state.isExamSubmitted) {
+    if (isWorkspaceLocked()) {
       e.preventDefault();
     }
   });
   DOM.codeTextarea.addEventListener('cut', (e) => {
-    if (state.isExamSubmitted) {
+    if (isWorkspaceLocked()) {
       e.preventDefault();
     }
   });
   DOM.codeTextarea.addEventListener('paste', (e) => {
-    if (state.isExamSubmitted) {
+    if (isWorkspaceLocked()) {
       e.preventDefault();
       return;
     }
@@ -1928,7 +1938,8 @@ function setupEventListeners() {
   // Python Execution Controls
   DOM.btnRunCode.addEventListener('click', runCurrentPythonCode);
   DOM.btnStopCode.addEventListener('click', stopRunningPythonCode);
-  DOM.btnEditorDiagnosticLine?.addEventListener('click', () => goToEditorLine(state.syntaxDiagnosticLine));
+  DOM.btnEditorDiagnosticLine?.addEventListener('click', () => goToEditorLine(state.syntaxDiagnosticLine, state.syntaxDiagnosticColumn));
+  DOM.btnEditorDiagnosticHelp?.addEventListener('click', showSyntaxDiagnosticHelp);
 
   // Terminal Actions
   DOM.btnClearTerm.addEventListener('click', clearTerminal);
@@ -2096,7 +2107,7 @@ function setupEventListeners() {
     }
     if (e.key === 'F8' && state.syntaxDiagnosticLine) {
       e.preventDefault();
-      goToEditorLine(state.syntaxDiagnosticLine);
+      goToEditorLine(state.syntaxDiagnosticLine, state.syntaxDiagnosticColumn);
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();
@@ -2262,8 +2273,17 @@ function setupElectronListeners() {
 // ==============================================================
 function setWorkspaceSelection(result) {
   if (!result?.success) return false;
+  const nextPath = result.workspacePath || '';
+  const changedWorkspace = Boolean(state.workspacePath && nextPath && state.workspacePath !== nextPath);
+  if (changedWorkspace) {
+    state.openTabs = [];
+    state.activeFilePath = '';
+    if (DOM.codeTextarea) DOM.codeTextarea.value = '';
+    renderTabs();
+    updateEditorEmptyState();
+  }
   state.workspaceSelected = true;
-  state.workspacePath = result.workspacePath || '';
+  state.workspacePath = nextPath;
   state.workspaceName = result.workspaceName || state.workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'Proyecto';
   state.collapsedFolders = new Set();
   state.workspaceTreeInitialized = false;
@@ -2275,6 +2295,32 @@ function setWorkspaceSelection(result) {
   if (DOM.lobbyValidationBanner) DOM.lobbyValidationBanner.classList.add('hidden');
   if (state.appMode !== 'exam') rememberRecentProject();
   return true;
+}
+
+function isWorkspaceLocked() {
+  return (state.appMode === 'exam' && state.isExamSubmitted)
+    || (state.appMode === 'task' && state.isTaskSubmitted);
+}
+
+function applyEditorLockState(locked = isWorkspaceLocked()) {
+  if (!DOM.codeTextarea) return;
+  DOM.codeTextarea.readOnly = locked;
+  DOM.codeTextarea.classList.toggle('code-locked', locked);
+  document.querySelector('.editor-wrapper')?.classList.toggle('locked', locked);
+  if (DOM.btnNewFile) DOM.btnNewFile.disabled = locked;
+  if (DOM.btnNewFolder) DOM.btnNewFolder.disabled = locked;
+}
+
+function prepareNewWorkspaceSession() {
+  state.isExamSubmitted = false;
+  state.isTaskSubmitted = false;
+  state.isSubmitting = false;
+  state.editorErrorLine = null;
+  state.runtimeErrorLocation = null;
+  applyEditorLockState(false);
+  DOM.examLockedBadge?.classList.add('hidden');
+  DOM.navWaitingReviewBadge?.classList.add('hidden');
+  DOM.postSubmissionToolbar?.classList.add('hidden');
 }
 
 async function chooseWorkspaceFolder() {
@@ -2370,6 +2416,7 @@ async function handleStartExamClick() {
   state.student.examId = examId;
   state.student.language = state.selectedLanguage;
   state.student.mode = state.appMode;
+  prepareNewWorkspaceSession();
 
   // Update IDE topbar info
   DOM.navStudentLabel.textContent = `Alumno: ${name} (${id})`;
@@ -2582,8 +2629,12 @@ function enterIdeWorkspace() {
     DOM.navWaitingReviewBadge.classList.add('hidden');
   }
 
-  loadWorkspaceFiles().then(() => {
-    if (state.appMode === 'exam' && state.examInitialFile) openFileInEditor(state.examInitialFile);
+  loadWorkspaceFiles().then(async () => {
+    if (state.appMode === 'exam' && state.examInitialFile) {
+      await openFileInEditor(state.examInitialFile);
+    } else if (state.activeFilePath && state.openTabs.some(tab => tab.path === state.activeFilePath)) {
+      await openFileInEditor(state.activeFilePath);
+    }
   });
   syncEditorScroll();
 }
@@ -2798,11 +2849,11 @@ function updateBreadcrumbs(relativePath) {
 }
 
 function wireTreeDragSource(element, itemPath, itemType) {
-  element.draggable = !state.isExamSubmitted;
+  element.draggable = !isWorkspaceLocked();
   element.dataset.path = itemPath;
   element.dataset.itemType = itemType;
   element.addEventListener('dragstart', event => {
-    if (state.isExamSubmitted) { event.preventDefault(); return; }
+    if (isWorkspaceLocked()) { event.preventDefault(); return; }
     window.electronAPI?.setInternalInteraction?.(true).catch(() => {});
     state.draggedTreeItem = { path: itemPath, type: itemType };
     event.dataTransfer.effectAllowed = 'move';
@@ -2820,7 +2871,7 @@ function wireTreeDragSource(element, itemPath, itemType) {
 
 function wireFolderDropTarget(element, targetDirectory) {
   element.addEventListener('dragover', event => {
-    if (!state.draggedTreeItem || state.isExamSubmitted) return;
+    if (!state.draggedTreeItem || isWorkspaceLocked()) return;
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = 'move';
@@ -2839,7 +2890,7 @@ function wireFolderDropTarget(element, targetDirectory) {
 }
 
 async function moveWorkspaceItem(sourcePath, targetDirectory = '') {
-  if (!window.electronAPI?.moveItem || state.isExamSubmitted) return;
+  if (!window.electronAPI?.moveItem || isWorkspaceLocked()) return;
   if (!await saveAllFiles()) return;
   const result = await window.electronAPI.moveItem({ sourcePath, targetDirectory });
   if (!result.success) {
@@ -2945,7 +2996,7 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
       if (newFileBtn) {
         newFileBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (state.isExamSubmitted) return;
+          if (isWorkspaceLocked()) return;
           const fileName = prompt(`Crear archivo dentro de ${item.name}/:\nEjemplo: helper.py`);
           if (fileName && fileName.trim()) {
             const cleanName = fileName.trim().replace(/^\/+/, '');
@@ -2965,7 +3016,7 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
       if (newFolderBtn) {
         newFolderBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (state.isExamSubmitted) return;
+          if (isWorkspaceLocked()) return;
           const folderName = prompt(`Crear subcarpeta dentro de ${item.name}/:\nEjemplo: componentes`);
           if (folderName && folderName.trim()) {
             const cleanName = folderName.trim().replace(/^\/+/, '');
@@ -2989,7 +3040,7 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
       if (deleteFolderBtn) {
         deleteFolderBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (state.isExamSubmitted) return;
+          if (isWorkspaceLocked()) return;
           if (confirm(`¿Eliminar la carpeta "${item.name}" y todos sus archivos?`)) {
             if (window.electronAPI) {
               if (!await saveAllFiles()) return;
@@ -3071,7 +3122,7 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
       if (deleteBtn) {
         deleteBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (state.isExamSubmitted) return;
+          if (isWorkspaceLocked()) return;
           if (confirm(`¿Eliminar ${item.name}?`)) {
             if (window.electronAPI) {
               if (!await saveAllFiles()) return;
@@ -3119,13 +3170,7 @@ async function openFileInEditor(relativePath) {
   renderTabs();
   updateEditorEmptyState();
   DOM.codeTextarea.value = tab.content;
-  if (state.isExamSubmitted) {
-    DOM.codeTextarea.readOnly = true;
-    DOM.codeTextarea.classList.add('code-locked');
-  } else {
-    DOM.codeTextarea.readOnly = false;
-    DOM.codeTextarea.classList.remove('code-locked');
-  }
+  applyEditorLockState();
   updateLineNumbers();
   updateCursorStats();
   updateSyntaxHighlighting();
@@ -3136,6 +3181,12 @@ async function openFileInEditor(relativePath) {
   document.querySelectorAll('.tree-item').forEach((el) => {
     el.classList.toggle('active', el.dataset.path === relativePath.replace(/\\/g, '/'));
   });
+
+  // Opening a file is also a navigation action. Returning focus here prevents
+  // the lobby/recent-project button from retaining the keyboard after re-entry.
+  requestAnimationFrame(() => {
+    if (DOM.viewIde?.classList.contains('active')) DOM.codeTextarea.focus({ preventScroll: true });
+  });
 }
 
 function renderTabs() {
@@ -3145,6 +3196,7 @@ function renderTabs() {
     tabEl.setAttribute('role', 'tab');
     tabEl.tabIndex = 0;
     tabEl.setAttribute('aria-selected', String(tab.path === state.activeFilePath));
+    tabEl.title = tab.path;
     tabEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFileInEditor(tab.path); } });
     tabEl.className = `editor-tab ${tab.path === state.activeFilePath ? 'active' : ''}`;
     
@@ -3208,8 +3260,8 @@ function requestName(title, placeholder) {
 }
 
 async function promptNewFile() {
-  if (state.isExamSubmitted) {
-    alert('El examen ya ha sido entregado. No se permite crear nuevos archivos.');
+  if (isWorkspaceLocked()) {
+    alert('Esta entrega está sellada. Inicia una nueva sesión para crear archivos.');
     return;
   }
   const currentLang = state.selectedLanguage || 'python';
@@ -3230,8 +3282,8 @@ async function promptNewFile() {
 }
 
 async function promptNewFolder() {
-  if (state.isExamSubmitted) {
-    alert('El examen ya ha sido entregado. No se permite crear carpetas.');
+  if (isWorkspaceLocked()) {
+    alert('Esta entrega está sellada. Inicia una nueva sesión para crear carpetas.');
     return;
   }
   const folderName = await requestName('Nueva carpeta', 'ejercicios');
@@ -3487,19 +3539,53 @@ function updateIndentGuides() {
   if (!DOM.editorIndentGuides || !DOM.codeTextarea) return;
   const cursorLine = DOM.codeTextarea.value.slice(0, DOM.codeTextarea.selectionStart).split('\n').length - 1;
   const lines = DOM.codeTextarea.value.split('\n');
-  DOM.editorIndentGuides.innerHTML = lines.map((line, index) => {
+  const indentation = lines.map(line => {
     const leading = (line.match(/^[ \t]*/) || [''])[0];
     const spaces = [...leading].reduce((total, character) => total + (character === '\t' ? 4 : 1), 0);
-    const levels = Math.floor(spaces / 4);
-    return `<div class="indent-guide-line${index === cursorLine ? ' current' : ''}">${'<span class="indent-guide-level"></span>'.repeat(Math.min(levels, 40))}</div>`;
+    return {
+      spaces,
+      levels: Math.ceil(spaces / 4),
+      mixed: leading.includes('\t'),
+      partial: spaces % 4 !== 0,
+      blank: line.trim() === ''
+    };
+  });
+  // Continue a guide through blank lines only when the surrounding code stays
+  // inside the same block. This makes the block structure readable at a glance.
+  indentation.forEach((info, index) => {
+    if (!info.blank || info.levels) return;
+    let previous = 0;
+    let next = 0;
+    for (let i = index - 1; i >= 0; i -= 1) {
+      if (!indentation[i].blank) { previous = indentation[i].levels; break; }
+    }
+    for (let i = index + 1; i < indentation.length; i += 1) {
+      if (!indentation[i].blank) { next = indentation[i].levels; break; }
+    }
+    info.levels = Math.min(previous, next);
+  });
+  const cursorLevel = indentation[cursorLine]?.levels || 0;
+  DOM.editorIndentGuides.innerHTML = indentation.map((info, index) => {
+    const guides = Array.from({ length: Math.min(info.levels, 40) }, (_, levelIndex) => {
+      const level = levelIndex + 1;
+      const classes = ['indent-guide-level'];
+      if (level <= cursorLevel) classes.push('active-scope');
+      if (level === info.levels && info.partial) classes.push('partial');
+      if (level === info.levels && info.mixed) classes.push('mixed');
+      return `<span class="${classes.join(' ')}" data-level="${level}"></span>`;
+    }).join('');
+    return `<div class="indent-guide-line${index === cursorLine ? ' current' : ''}">${guides}</div>`;
   }).join('');
 }
 
 function hideSyntaxDiagnostic() {
   state.syntaxDiagnosticLine = null;
+  state.syntaxDiagnosticColumn = null;
+  state.syntaxDiagnosticResult = null;
   DOM.editorDiagnostic?.classList.add('hidden');
   DOM.editorDiagnostic?.classList.remove('error');
   DOM.btnEditorDiagnosticLine?.classList.add('hidden');
+  DOM.btnEditorDiagnosticHelp?.classList.add('hidden');
 }
 
 function scheduleSyntaxDiagnostic() {
@@ -3520,30 +3606,36 @@ function scheduleSyntaxDiagnostic() {
     DOM.editorDiagnostic?.classList.remove('hidden');
     if (result.success) {
       state.syntaxDiagnosticLine = null;
+      state.syntaxDiagnosticColumn = null;
+      state.syntaxDiagnosticResult = null;
       if (state.editorErrorLine && !state.isRunning) state.editorErrorLine = null;
       DOM.editorDiagnostic?.classList.remove('error');
       if (DOM.editorDiagnosticIcon) DOM.editorDiagnosticIcon.textContent = '✓';
       if (DOM.editorDiagnosticTitle) DOM.editorDiagnosticTitle.textContent = 'Sintaxis correcta';
       if (DOM.editorDiagnosticHint) DOM.editorDiagnosticHint.textContent = 'Python puede interpretar la estructura del archivo.';
       DOM.btnEditorDiagnosticLine?.classList.add('hidden');
+      DOM.btnEditorDiagnosticHelp?.classList.add('hidden');
     } else {
       state.syntaxDiagnosticLine = Number(result.line) || 1;
+      state.syntaxDiagnosticColumn = Number(result.column) || 1;
+      state.syntaxDiagnosticResult = result;
       state.editorErrorLine = state.syntaxDiagnosticLine;
       DOM.editorDiagnostic?.classList.add('error');
       if (DOM.editorDiagnosticIcon) DOM.editorDiagnosticIcon.textContent = '!';
       if (DOM.editorDiagnosticTitle) DOM.editorDiagnosticTitle.textContent = result.title || 'Revisa la sintaxis';
       if (DOM.editorDiagnosticHint) DOM.editorDiagnosticHint.textContent = result.hint || result.message || 'Python encontró una estructura incompleta.';
       if (DOM.btnEditorDiagnosticLine) {
-        DOM.btnEditorDiagnosticLine.textContent = `Línea ${state.syntaxDiagnosticLine}`;
+        DOM.btnEditorDiagnosticLine.textContent = `Línea ${state.syntaxDiagnosticLine}:${state.syntaxDiagnosticColumn}`;
         DOM.btnEditorDiagnosticLine.classList.remove('hidden');
       }
+      DOM.btnEditorDiagnosticHelp?.classList.remove('hidden');
     }
     updateLineNumbers();
   }, 450);
 }
 
 function handleEditorInput() {
-  if (state.isExamSubmitted || state.isSubmitting) return;
+  if (isWorkspaceLocked() || state.isSubmitting) return;
   const currentTab = state.openTabs.find((t) => t.path === state.activeFilePath);
   if (currentTab) {
     currentTab.content = DOM.codeTextarea.value;
@@ -3566,7 +3658,7 @@ function handleEditorInput() {
 
 let saveQueue = Promise.resolve();
 function saveTab(tab) {
-  if (!tab || state.isExamSubmitted) return Promise.resolve(true);
+  if (!tab || isWorkspaceLocked()) return Promise.resolve(true);
   const content = tab.content;
   const write = async () => {
     try {
@@ -3620,7 +3712,7 @@ function saveLastSession() {
 }
 
 function handleEditorKeydown(e) {
-  if (state.isExamSubmitted) {
+  if (isWorkspaceLocked()) {
     const allowedNav = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];
     if (!allowedNav.includes(e.key)) {
       e.preventDefault();
@@ -3746,6 +3838,16 @@ function updateCursorStats() {
 
   DOM.sbCursorPos.textContent = `Lín ${lineNum}, Col ${colNum}`;
   DOM.sbCharsCount.textContent = `${value.length} caracteres`;
+  const currentLine = lines[lines.length - 1];
+  const leading = (currentLine.match(/^[ \t]*/) || [''])[0];
+  const spaces = [...leading].reduce((total, character) => total + (character === '\t' ? 4 : 1), 0);
+  if (DOM.sbIndentStatus) {
+    const needsAttention = leading.includes('\t') || spaces % 4 !== 0;
+    DOM.sbIndentStatus.classList.toggle('indent-warning', needsAttention);
+    if (leading.includes('\t')) DOM.sbIndentStatus.textContent = 'Sangría mixta · usa espacios';
+    else if (spaces % 4) DOM.sbIndentStatus.textContent = `Sangría incompleta · ${spaces} espacios`;
+    else DOM.sbIndentStatus.textContent = `Sangría: nivel ${spaces / 4} · 4 espacios`;
+  }
   updateIndentGuides();
 }
 
@@ -3780,7 +3882,7 @@ async function runCurrentPythonCode() {
   state.isStarting = true;
   DOM.btnRunCode.disabled = true;
   try {
-    if (!state.isExamSubmitted && !await saveAllFiles()) throw new Error('Guarda los cambios antes de ejecutar.');
+    if (!isWorkspaceLocked() && !await saveAllFiles()) throw new Error('Guarda los cambios antes de ejecutar.');
     state.isRunning = true;
     state.executionError = '';
     state.editorErrorLine = null;
@@ -3869,30 +3971,61 @@ function handleExecutionFinished(result) {
 }
 
 function explainPythonError(raw) {
+  const text = String(raw || '');
+  const quoted = pattern => text.match(pattern)?.[1] || '';
+  const missingName = quoted(/NameError:\s+name ['"]([^'"]+)['"] is not defined/i);
+  if (missingName) return {
+    title: `“${missingName}” no está definido`,
+    explanation: `Python llegó a ${missingName}, pero todavía no conoce una variable, función o importación con ese nombre. Los nombres distinguen mayúsculas y minúsculas.`,
+    actions: [`Busca dónde debería definirse ${missingName}.`, 'Comprueba que se ejecute esa definición antes de la línea marcada.', 'Compara cuidadosamente mayúsculas, minúsculas y ortografía.'],
+    example: `${missingName} = "Ana"\nprint(${missingName})`
+  };
+  const missingModule = quoted(/(?:ModuleNotFoundError|ImportError):.*?['"]([^'"]+)['"]/i);
+  if (missingModule) return {
+    title: `No se encontró “${missingModule}”`,
+    explanation: `El entorno activo no pudo importar ${missingModule}. Puede ser un nombre incorrecto, un archivo local ausente o una librería aún no instalada.`,
+    actions: [`Confirma que el import diga exactamente ${missingModule}.`, 'Si es un archivo tuyo, comprueba que esté dentro del proyecto.', 'Si es una librería, abre Librerías y búscala por su nombre de paquete fuera de un examen.'],
+    example: `import ${missingModule.split('.')[0]}`
+  };
+  const missingFile = quoted(/FileNotFoundError:.*?['"]([^'"]+)['"]/i);
+  if (missingFile) return {
+    title: `No se encontró el archivo “${missingFile}”`,
+    explanation: 'Python busca las rutas relativas desde la carpeta del proyecto. El nombre, la extensión o una carpeta intermedia no coincide.',
+    actions: ['Comprueba el recurso en el explorador de la izquierda.', 'Respeta exactamente mayúsculas, minúsculas y extensión.', 'Construye la ruta desde __file__ para que funcione igual en Windows, macOS y Linux.'],
+    example: 'from pathlib import Path\nbase = Path(__file__).resolve().parent\nruta = base / "recursos" / "imagen.png"'
+  };
+  const invalidNumber = quoted(/ValueError: invalid literal for int\(\).*?['"]([^'"]*)['"]/i);
+  if (invalidNumber) return {
+    title: `“${invalidNumber}” no se puede convertir a entero`,
+    explanation: 'int() recibió texto que no representa un número entero válido.',
+    actions: ['Revisa qué escribió el usuario antes de llamar int().', 'Valida la entrada con try/except ValueError.', 'Decide qué mensaje mostrar y si debes pedir el dato otra vez.'],
+    example: 'try:\n    edad = int(input("Edad: "))\nexcept ValueError:\n    print("Escribe un número entero")'
+  };
   const rules = [
-    [/IndentationError|TabError/, 'La sangría no es consistente', 'Python usa los espacios para saber qué instrucciones pertenecen a cada bloque.', ['Ve a la última línea indicada por Python.', 'Alinea el bloque con 4 espacios y evita mezclar tabuladores.']],
-    [/SyntaxError/, 'Hay una instrucción escrita de forma inválida', 'Suele faltar un paréntesis, dos puntos o comillas, o hay una palabra de Python mal escrita.', ['Revisa la línea marcada con ^ y también la anterior.', 'Comprueba palabras como import, if, for, while y que cada paréntesis tenga cierre.']],
-    [/ModuleNotFoundError|ImportError/, 'Python no pudo cargar una librería', 'El nombre del import puede estar mal escrito o el paquete no pertenece al entorno preparado.', ['Copia exactamente el nombre mostrado después de No module named.', 'Abre Paquetes para comprobar o instalar la librería fuera de una sesión de examen.']],
-    [/FileNotFoundError/, 'No se encontró un archivo', 'La ruta escrita no apunta a un recurso existente desde la carpeta del programa.', ['Confirma el nombre, extensión y mayúsculas del archivo.', 'Usa Path(__file__).resolve().parent para construir rutas portátiles.']],
-    [/PermissionError|Access is denied/, 'El sistema negó acceso', 'El archivo o puerto puede estar abierto en otro programa o protegido por el sistema.', ['Cierra aplicaciones que usen el archivo o el puerto serial.', 'Guarda dentro de la carpeta del proyecto y vuelve a ejecutar.']],
-    [/SerialException|could not open port|ClearCommError/, 'No se pudo abrir el puerto de la placa', 'Otro programa usa el puerto, la placa se desconectó o falta permiso o controlador.', ['Cierra Arduino IDE y otros monitores seriales.', 'Reconecta la placa, confirma el puerto y consulta Arduino en Ayuda.']],
-    [/NameError/, 'Se usó un nombre que no existe', 'La variable o función no fue definida antes de usarla, o cambia entre mayúsculas y minúsculas.', ['Compara el nombre con su definición.', 'Asegúrate de asignarlo antes de esta línea.']],
-    [/TypeError/, 'La operación recibió un tipo de dato incorrecto', 'Por ejemplo, se intentó sumar texto y números o llamar una función con argumentos incorrectos.', ['Lee la última línea para identificar los tipos.', 'Convierte el dato con int(), float() o str() cuando corresponda.']],
-    [/ValueError/, 'El dato tiene el formato equivocado', 'El tipo de dato es correcto, pero su contenido no puede convertirse o procesarse como se pidió.', ['Revisa el valor recibido en la línea indicada.', 'Valida la entrada antes de convertirla con int(), float() u otra función.']],
-    [/UnboundLocalError/, 'La variable local se usó antes de asignarle un valor', 'Python encontró una asignación dentro de la función y por eso trata ese nombre como local.', ['Asigna un valor en todos los caminos antes de usar la variable.', 'Si necesitas el valor exterior, pásalo como argumento o revisa el alcance.']],
-    [/AttributeError/, 'El objeto no tiene esa propiedad o método', 'El valor de la izquierda del punto no ofrece el nombre que intentaste usar.', ['Comprueba el tipo del objeto con type().', 'Revisa la escritura del método y la documentación de esa clase.']],
-    [/IndexError|KeyError/, 'El elemento solicitado no existe', 'El índice rebasa una lista o la clave no aparece en el diccionario.', ['Imprime len(lista) o diccionario.keys() antes de acceder.', 'Valida la existencia del elemento con una condición.']],
-    [/ZeroDivisionError/, 'Se intentó dividir entre cero', 'El divisor llegó a cero durante la ejecución.', ['Comprueba el divisor antes de operar.', 'Decide qué resultado debe producir tu programa cuando sea cero.']],
-    [/RecursionError/, 'La función se llamó demasiadas veces', 'La recursión no alcanzó un caso base y Python detuvo el programa para proteger el equipo.', ['Asegura que cada llamada se acerque al caso base.', 'Prueba primero con un valor pequeño y revisa cuándo debe terminar.']],
-    [/MemoryError/, 'El programa solicitó demasiada memoria', 'Una lista, imagen, archivo o ciclo está creciendo más de lo que el equipo puede mantener.', ['Detén el crecimiento de listas o datos dentro del ciclo.', 'Procesa archivos grandes por partes en lugar de cargarlos completos.']],
-    [/UnicodeDecodeError|UnicodeEncodeError/, 'El texto usa una codificación distinta', 'El archivo contiene caracteres que no coinciden con la codificación usada para abrirlo.', ['Abre archivos de texto con encoding="utf-8".', 'Si el archivo viene de otro programa, confirma su codificación antes de leerlo.']],
-    [/EOFError/, 'Python esperaba una entrada y no recibió datos', 'El programa llamó input(), pero la entrada se cerró antes de responder.', ['Ejecuta de nuevo y escribe la respuesta en la misma línea de la terminal.', 'No cierres ni detengas el programa mientras espera datos.']],
-    [/pygame\.error/, 'Pygame no pudo abrir un recurso o dispositivo', 'La imagen, sonido, formato o dispositivo gráfico no está disponible como se solicitó.', ['Revisa la ruta y el formato del recurso.', 'Inicializa pygame y el módulo correspondiente antes de usarlo.']]
+    [/IndentationError|TabError/, 'La sangría no es consistente', 'Python usa la sangría para saber qué instrucciones pertenecen a cada bloque.', ['Pulsa el botón para ir a la línea marcada.', 'Usa Mayús+Tab para sacar la línea y Tab para aplicar exactamente 4 espacios.', 'Alinea las líneas del mismo bloque con la misma guía vertical.'], 'if condicion:\n    print("Dentro del bloque")'],
+    [/SyntaxError/, 'Hay una instrucción escrita de forma inválida', 'La marca ^ señala dónde Python dejó de entender la estructura; la causa también puede estar en la línea anterior.', ['Revisa la palabra o símbolo sobre ^.', 'Comprueba cierres, comas y dos puntos en esta línea y la anterior.', 'Corrige una sola causa y vuelve a ejecutar.'], 'if condicion:\n    print("Estructura completa")'],
+    [/ModuleNotFoundError|ImportError/, 'Python no pudo cargar una librería', 'El nombre del import puede estar mal escrito o el paquete no pertenece al entorno preparado.', ['Copia exactamente el nombre mostrado después de No module named.', 'Abre Librerías para comprobar o instalar el paquete fuera de una sesión de examen.', 'Si es un módulo propio, confirma que su archivo esté en el proyecto.'], 'import nombre_del_paquete'],
+    [/FileNotFoundError/, 'No se encontró un archivo', 'La ruta escrita no apunta a un recurso existente desde la carpeta del proyecto.', ['Confirma nombre, extensión y mayúsculas.', 'Usa una carpeta recursos dentro del proyecto.', 'Construye rutas portátiles con pathlib.'], 'from pathlib import Path\nruta = Path(__file__).resolve().parent / "archivo.txt"'],
+    [/PermissionError|Access is denied/, 'El sistema negó acceso', 'El archivo o puerto puede estar abierto en otro programa o protegido por el sistema.', ['Cierra aplicaciones que usen el archivo o puerto.', 'Trabaja dentro de la carpeta del proyecto.', 'En Linux, confirma que tu usuario pertenezca al grupo que administra el puerto serial.'], 'with open("datos.txt", "w", encoding="utf-8") as archivo:\n    archivo.write("Listo")'],
+    [/SerialException|could not open port|ClearCommError/, 'No se pudo abrir el puerto de la placa', 'Otro programa usa el puerto, la placa se desconectó o falta permiso o controlador.', ['Cierra Arduino IDE y otros monitores seriales.', 'Reconecta la placa y vuelve a detectar el puerto.', 'Consulta Arduino en Ayuda si el sistema niega permisos.'], 'import serial\nplaca = serial.Serial("COM3", 9600, timeout=1)'],
+    [/NameError/, 'Se usó un nombre que no existe', 'La variable o función no fue definida antes de usarse.', ['Compara el nombre con su definición.', 'Asegúrate de asignarlo antes de esta línea.', 'Revisa mayúsculas y minúsculas.'], 'nombre = "Ana"\nprint(nombre)'],
+    [/TypeError/, 'La operación recibió un tipo de dato incorrecto', 'La operación combina valores incompatibles o la función recibió argumentos incorrectos.', ['Lee al final del error cuáles tipos participaron.', 'Comprueba cada valor con type() si no es evidente.', 'Convierte solo cuando el significado del dato lo permita.'], 'edad = int(input("Edad: "))\nprint("Tienes " + str(edad) + " años")'],
+    [/ValueError/, 'El dato tiene el formato equivocado', 'El tipo de operación es válido, pero el contenido recibido no puede procesarse así.', ['Revisa el valor de entrada.', 'Valídalo antes de convertir.', 'Usa try/except para ofrecer otra oportunidad al usuario.'], 'try:\n    numero = int(input("Número: "))\nexcept ValueError:\n    print("Entrada no válida")'],
+    [/UnboundLocalError/, 'La variable local se usó antes de recibir un valor', 'Dentro de la función existe una ruta que llega a la variable sin haberla asignado.', ['Busca todas las ramas if/else de la función.', 'Asigna un valor inicial antes de las ramas.', 'Prefiere pasar valores como argumentos y devolver el resultado.'], 'def calcular(condicion):\n    resultado = 0\n    if condicion:\n        resultado = 10\n    return resultado'],
+    [/AttributeError/, 'El objeto no ofrece ese método o atributo', 'El valor situado a la izquierda del punto no tiene el nombre solicitado.', ['Comprueba el objeto con type().', 'Revisa la ortografía del método.', 'Confirma que no sustituiste el objeto con otro valor.'], 'print(type(objeto))'],
+    [/IndexError/, 'La posición no existe en la lista', 'El índice está fuera del rango disponible.', ['Compara el índice con len(lista).', 'Recuerda que el primer elemento usa índice 0.', 'Recorre directamente los elementos con for cuando no necesites el índice.'], 'for elemento in lista:\n    print(elemento)'],
+    [/KeyError/, 'La clave no existe en el diccionario', 'El diccionario no contiene la clave solicitada.', ['Muestra diccionario.keys() para ver las claves.', 'Comprueba con if clave in diccionario.', 'Usa .get() cuando tenga sentido un valor por defecto.'], 'valor = datos.get("clave", "valor por defecto")'],
+    [/ZeroDivisionError/, 'Se intentó dividir entre cero', 'El divisor llegó a cero y la división no está definida.', ['Comprueba el divisor antes de operar.', 'Decide qué debe ocurrir cuando sea cero.', 'Muestra un mensaje claro o pide otro valor.'], 'if divisor != 0:\n    resultado = dividendo / divisor'],
+    [/RecursionError/, 'La función no alcanzó su caso base', 'La función siguió llamándose hasta que Python la detuvo para proteger el equipo.', ['Identifica el caso que debe terminar la recursión.', 'Comprueba que cada llamada se acerque a ese caso.', 'Prueba con valores pequeños.'], 'def cuenta(numero):\n    if numero <= 0:\n        return\n    cuenta(numero - 1)'],
+    [/MemoryError/, 'El programa solicitó demasiada memoria', 'Una colección, archivo o ciclo crece más de lo que el equipo puede mantener.', ['Detén el crecimiento de datos dentro del ciclo.', 'Procesa archivos grandes por partes.', 'Revisa si una condición de salida nunca se cumple.'], 'with open("datos.txt", encoding="utf-8") as archivo:\n    for linea in archivo:\n        procesar(linea)'],
+    [/UnicodeDecodeError|UnicodeEncodeError/, 'El texto usa otra codificación', 'Los bytes del archivo no coinciden con la codificación elegida.', ['Prueba primero UTF-8.', 'Confirma la codificación en el programa que creó el archivo.', 'Evita ignorar errores si los datos son importantes.'], 'with open("datos.txt", encoding="utf-8") as archivo:\n    texto = archivo.read()'],
+    [/EOFError/, 'Python esperaba una entrada y no la recibió', 'input() quedó sin respuesta porque terminó la entrada del programa.', ['Ejecuta de nuevo.', 'Escribe la respuesta en la misma línea de la terminal.', 'Pulsa Enter para enviarla.'], 'nombre = input("Nombre: ")'],
+    [/pygame\.error/, 'Pygame no pudo abrir un recurso o dispositivo', 'La imagen, sonido, formato o dispositivo no está disponible como se solicitó.', ['Revisa la ruta y formato del recurso.', 'Inicializa pygame antes de usar sus módulos.', 'Construye la ruta desde __file__ para que sea portátil.'], 'from pathlib import Path\nruta = Path(__file__).resolve().parent / "recursos" / "imagen.png"\nimagen = pygame.image.load(ruta)']
   ];
   const match = rules.find(([pattern]) => pattern.test(raw));
   return match
-    ? { title: match[1], explanation: match[2], actions: match[3] }
-    : { title: 'El programa terminó con un error', explanation: 'La última línea del mensaje indica el tipo de problema; las líneas anteriores muestran el camino hasta él.', actions: ['Busca la última referencia a tu archivo .py y abre esa línea.', 'Corrige una causa a la vez y vuelve a ejecutar con F5.'] };
+    ? { title: match[1], explanation: match[2], actions: match[3], example: match[4] || '' }
+    : { title: 'El programa terminó con un error', explanation: 'La última línea indica el tipo de problema y las líneas File muestran cómo llegó Python hasta él.', actions: ['Abre la última línea que pertenezca a tu archivo.', 'Lee el tipo y el mensaje de la última línea.', 'Corrige una causa a la vez y vuelve a ejecutar con F5.'], example: '' };
 }
 
 function parsePythonLocation(raw) {
@@ -3908,26 +4041,27 @@ function parsePythonLocation(raw) {
   };
 }
 
-function goToEditorLine(lineNumber) {
+function goToEditorLine(lineNumber, columnNumber = null) {
   const lines = DOM.codeTextarea.value.split('\n');
   const line = Math.max(1, Math.min(Number(lineNumber) || 1, lines.length));
   let start = 0;
   for (let index = 1; index < line; index += 1) start += lines[index - 1].length + 1;
-  const end = start + lines[line - 1].length;
+  const lineLength = lines[line - 1].length;
+  const column = columnNumber == null ? null : Math.max(1, Math.min(Number(columnNumber) || 1, lineLength + 1));
+  const selectionStart = column == null ? start : start + column - 1;
+  const end = column == null ? start + lineLength : Math.min(start + lineLength, selectionStart + 1);
   state.editorErrorLine = line;
   updateLineNumbers();
   DOM.modalRuntimeError.classList.add('hidden');
   DOM.codeTextarea.focus({ preventScroll: true });
-  DOM.codeTextarea.setSelectionRange(start, end);
+  DOM.codeTextarea.setSelectionRange(selectionStart, end);
   const lineHeight = parseFloat(getComputedStyle(DOM.codeTextarea).lineHeight) || 22;
   DOM.codeTextarea.scrollTop = Math.max(0, (line - 3) * lineHeight);
   syncEditorScroll();
   updateCursorStats();
 }
 
-function showRuntimeError(raw) {
-  const guide = explainPythonError(raw);
-  const location = parsePythonLocation(raw);
+function renderRuntimeErrorGuide(guide, location, raw) {
   state.runtimeErrorLocation = location;
   state.editorErrorLine = location?.line || null;
   updateLineNumbers();
@@ -3936,7 +4070,8 @@ function showRuntimeError(raw) {
   DOM.runtimeErrorRaw.textContent = raw;
   DOM.runtimeErrorLocation.classList.toggle('hidden', !location?.line);
   if (location?.line) {
-    DOM.runtimeErrorLocationLabel.textContent = `${location.file} · Línea ${location.line} · ${location.type}`;
+    const columnLabel = location.column ? `:${location.column}` : '';
+    DOM.runtimeErrorLocationLabel.textContent = `${location.file} · Línea ${location.line}${columnLabel} · ${location.type}`;
     DOM.btnRuntimeErrorLine.textContent = `Ir a la línea ${location.line}`;
   }
   DOM.runtimeErrorActions.replaceChildren(...guide.actions.map(action => {
@@ -3944,8 +4079,36 @@ function showRuntimeError(raw) {
     item.textContent = action;
     return item;
   }));
+  if (DOM.runtimeErrorExampleWrap && DOM.runtimeErrorExample) {
+    DOM.runtimeErrorExampleWrap.classList.toggle('hidden', !guide.example);
+    DOM.runtimeErrorExample.textContent = guide.example || '';
+  }
   DOM.modalRuntimeError.classList.remove('hidden');
   DOM.btnCloseRuntimeError.focus();
+}
+
+function showSyntaxDiagnosticHelp() {
+  const result = state.syntaxDiagnosticResult;
+  if (!result) return;
+  const location = {
+    file: state.activeFilePath || 'archivo.py',
+    line: Number(result.line) || 1,
+    column: Number(result.column) || 1,
+    type: 'SyntaxError',
+    message: result.message || ''
+  };
+  renderRuntimeErrorGuide({
+    title: result.title || 'Revisa la sintaxis',
+    explanation: result.hint || result.message || 'Python no pudo interpretar esta instrucción.',
+    actions: result.actions || ['Revisa la línea marcada y la anterior.', 'Corrige una causa y vuelve a comprobar.'],
+    example: result.example || ''
+  }, location, `${location.type}: ${location.message}\n${result.sourceLine || ''}`.trim());
+}
+
+function showRuntimeError(raw) {
+  const guide = explainPythonError(raw);
+  const location = parsePythonLocation(raw);
+  renderRuntimeErrorGuide(guide, location, raw);
 }
 
 // Keep chunk boundaries invisible and cap the transcript so a print loop cannot grow the DOM forever.
@@ -4509,15 +4672,7 @@ async function handleOpenWorkspaceFolder() {
     const res = await window.electronAPI.openFolderDialog();
     if (res && res.success) {
       setWorkspaceSelection(res);
-      state.isExamSubmitted = false;
-      DOM.codeTextarea.readOnly = false;
-      DOM.codeTextarea.classList.remove('code-locked');
-      const editorWrapper = document.querySelector('.editor-wrapper');
-      if (editorWrapper) editorWrapper.classList.remove('locked');
-      DOM.examLockedBadge.classList.add('hidden');
-      if (DOM.navWaitingReviewBadge) DOM.navWaitingReviewBadge.classList.add('hidden');
-      DOM.btnNewFile.disabled = false;
-      DOM.btnNewFolder.disabled = false;
+      prepareNewWorkspaceSession();
 
       state.openTabs = [];
       state.activeFilePath = '';
@@ -4540,15 +4695,7 @@ async function handleCreateNewProject() {
   if (window.electronAPI && window.electronAPI.createProjectDialog) {
     const res = await createBlankWorkspace();
     if (res && res.success) {
-      state.isExamSubmitted = false;
-      DOM.codeTextarea.readOnly = false;
-      DOM.codeTextarea.classList.remove('code-locked');
-      const editorWrapper = document.querySelector('.editor-wrapper');
-      if (editorWrapper) editorWrapper.classList.remove('locked');
-      DOM.examLockedBadge.classList.add('hidden');
-      if (DOM.navWaitingReviewBadge) DOM.navWaitingReviewBadge.classList.add('hidden');
-      DOM.btnNewFile.disabled = false;
-      DOM.btnNewFolder.disabled = false;
+      prepareNewWorkspaceSession();
 
       state.openTabs = [];
       state.activeFilePath = '';

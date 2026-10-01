@@ -3715,6 +3715,10 @@ body.theme-paper .academic-title {
 .runtime-error-solution ol { margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.82rem; line-height: 1.6; }
 .runtime-error-card details summary { cursor: pointer; color: var(--accent-cyan); font-size: 0.78rem; }
 .runtime-error-card pre { max-height: 180px; margin: 8px 0 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 6px; background: var(--bg-primary); color: #fca5a5; font: 0.72rem/1.5 var(--font-mono); user-select: text; }
+.runtime-error-example { display: grid; gap: 8px; padding: 13px; border: 1px solid color-mix(in srgb, var(--accent-cyan) 30%, var(--border-subtle)); border-radius: 8px; background: color-mix(in srgb, var(--accent-cyan) 5%, var(--bg-tertiary)); }
+.runtime-error-example.hidden { display: none; }
+.runtime-error-example strong { color: var(--text-primary); font-size: 0.78rem; }
+.runtime-error-example pre { margin: 0; color: color-mix(in srgb, var(--accent-cyan) 56%, var(--text-primary)); }
 .editor-line-numbers > .has-error { color: #fecaca; background: rgba(190, 24, 93, 0.14); box-shadow: inset -2px 0 #f87171; }
 
 .shortcuts-grid {
@@ -5983,4 +5987,161 @@ body.mode-exam-active #view-lobby .continue-session-card { display: none !import
   .lang-selector-section { grid-column: 1; grid-row: 3; }
   .lobby-form { grid-column: 1; grid-row: 4; }
   .app-credits { grid-column: 1; grid-row: 5; }
+}
+
+/* Workspace navigation refinement: restrained depth, clear state and short
+   transitions keep the IDE calm while making every navigation action visible. */
+.ide-navbar {
+  background: color-mix(in srgb, var(--bg-secondary) 96%, #18273a);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.025), 0 8px 24px rgba(2, 7, 15, 0.11);
+}
+
+.nav-brand {
+  min-height: 34px;
+  padding: 5px 8px 5px 5px;
+  border-radius: 9px;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.nav-brand:hover { background: color-mix(in srgb, var(--bg-surface) 72%, transparent); }
+.nav-brand:active { background: var(--bg-surface); }
+
+.nav-breadcrumbs {
+  min-height: 30px;
+  max-width: min(32vw, 440px);
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 82%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-primary) 62%, transparent);
+}
+
+.nav-breadcrumbs .crumb-root { font-weight: 650; }
+.nav-breadcrumbs .crumb-file { color: var(--text-primary); }
+
+.editor-header-bar {
+  background: color-mix(in srgb, var(--bg-secondary) 94%, var(--bg-primary));
+  box-shadow: inset 0 -1px color-mix(in srgb, var(--border-subtle) 90%, transparent);
+}
+
+.editor-tabs-bar { gap: 3px; padding: 4px 6px 0; }
+
+.editor-tab {
+  position: relative;
+  height: calc(100% - 3px);
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.editor-tab:hover {
+  border-color: color-mix(in srgb, var(--border-subtle) 84%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 60%, transparent);
+}
+
+.editor-tab.active {
+  border-color: var(--border-subtle);
+  border-bottom-color: var(--bg-primary);
+  background: var(--bg-primary);
+  box-shadow: 0 -1px 0 color-mix(in srgb, var(--accent-cyan) 48%, transparent);
+}
+
+.editor-tab.active::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: 9px;
+  left: 9px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: color-mix(in srgb, var(--accent-cyan) 74%, white 8%);
+}
+
+.editor-tab:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-cyan) 70%, white 8%);
+  outline-offset: -2px;
+}
+
+.editor-canvas {
+  transition: box-shadow 140ms ease;
+}
+
+.editor-canvas:focus-within {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-cyan) 16%, transparent);
+}
+
+.indent-guide-level {
+  position: relative;
+  border-right-color: color-mix(in srgb, var(--text-muted) 38%, transparent);
+}
+
+.indent-guide-level::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 1px;
+  height: 100%;
+  background: transparent;
+}
+
+.indent-guide-level.active-scope::after {
+  background: color-mix(in srgb, var(--accent-cyan) 48%, transparent);
+}
+
+.indent-guide-line.current {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-cyan) 4%, transparent), transparent 58%);
+}
+
+.indent-guide-line.current .indent-guide-level:last-child::after {
+  width: 2px;
+  background: color-mix(in srgb, var(--accent-cyan) 80%, white 8%);
+}
+
+.indent-guide-level.partial::after,
+.indent-guide-level.mixed::after {
+  width: 2px;
+  background: #f59e62;
+}
+
+.editor-diagnostic {
+  min-height: 48px;
+  padding-block: 8px;
+  box-shadow: 0 -8px 20px rgba(2, 7, 15, 0.08);
+}
+
+.editor-diagnostic-copy span {
+  overflow: visible;
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.editor-diagnostic-help,
+.editor-diagnostic-line {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font: 650 0.66rem var(--font-sans);
+  cursor: pointer;
+}
+
+.editor-diagnostic-help {
+  border: 1px solid var(--border-medium);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.editor-diagnostic-help:hover,
+.editor-diagnostic-help:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-cyan) 55%, var(--border-medium));
+  outline: none;
+}
+
+.editor-diagnostic-help.hidden { display: none; }
+#sb-indent-status.indent-warning { color: #f5a36c; font-weight: 650; }
+
+@media (max-width: 980px) {
+  .nav-breadcrumbs { max-width: 28vw; }
+  .editor-diagnostic-help { display: none; }
 }

@@ -130,7 +130,9 @@ jobs:
           - **Comprobación previa**: importaciones, gráficos, archivos, entrada interactiva y comunicación serial antes de abrir el editor.
           - **Ventanas gráficas visibles**: mejor integración con Pygame y otros entornos gráficos, incluida la ubicación automática en Hyprland.
           - **Errores para aprender**: explicación clara, detección de línea y acceso directo al código.
-          - **Edición asistida**: guías de sangría, comprobación de sintaxis en vivo, salto con F8, pares automáticos y sangría o desangría de bloques.
+          - **Correcciones guiadas**: causas específicas, pasos concretos y un ejemplo válido para los errores frecuentes de Python.
+          - **Edición asistida**: guías de sangría por bloque, nivel actual, comprobación de sintaxis en vivo, salto exacto con F8, pares automáticos y sangría o desangría de bloques.
+          - **Continuidad de trabajo**: al volver desde Inicio, el archivo activo recupera el foco y queda editable de inmediato.
           - **Interfaz académica**: preparación adaptable, consejos útiles y lenguaje dirigido al usuario final.
           - **Proyectos desde el inicio**: abre una carpeta existente o crea un proyecto vacío; no se impone un archivo inicial.
           - **Explorador organizado**: mueve archivos y carpetas mediante arrastre, incluso entre subcarpetas.
