@@ -13,7 +13,7 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   const filename = path.resolve(__dirname, '../src/main/main.js');
   const realRequire = createRequire(filename);
   const electron = {
-    app: {getPath:()=>dir,whenReady:()=>({then:()=>{}}),on:()=>{}},
+    app: {getPath:()=>dir,whenReady:()=>({then:()=>{}}),on:()=>{},requestSingleInstanceLock:()=>true,quit:()=>{}},
     ipcMain: {handle:(name,fn)=>handlers.set(name,fn)}
   };
   const context = vm.createContext({

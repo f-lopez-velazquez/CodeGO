@@ -133,19 +133,24 @@ jobs:
           - **Correcciones guiadas**: causas específicas, pasos concretos y un ejemplo válido para los errores frecuentes de Python.
           - **Edición asistida**: guías de sangría por bloque, nivel actual, comprobación de sintaxis en vivo, salto exacto con F8, pares automáticos y sangría o desangría de bloques.
           - **Continuidad de trabajo**: al volver desde Inicio, el archivo activo recupera el foco y queda editable de inmediato.
+          - **Foco de escritorio**: Electron recupera el teclado también en Wayland/Hyprland, sin obligar a ejecutar y detener un programa.
+          - **Feedback claro**: diálogos propios, confirmaciones sonoras discretas y hora exacta de la última versión guardada.
+          - **Carpeta del proyecto**: abre el trabajo actual directamente en Explorer, Finder o el gestor de archivos de Linux.
           - **Interfaz académica**: preparación adaptable, consejos útiles y lenguaje dirigido al usuario final.
           - **Proyectos desde el inicio**: abre una carpeta existente o crea un proyecto vacío; no se impone un archivo inicial.
           - **Explorador organizado**: mueve archivos y carpetas mediante arrastre, incluso entre subcarpetas.
           - **Librerías simples**: instala por nombre desde la aplicación y observa el progreso sin salir del proyecto.
-          - **Tarea sin interrupciones**: portapapeles disponible, registro de sesión y sello de integridad Ed25519 sin alarmas ni kiosk.
+          - **Tarea / actividad supervisada**: portapapeles disponible, recursos PDF e imagen, avisos repetibles al cambiar de aplicación y entrega con sello Ed25519.
           - **Proyectos recientes**: abre directamente hasta tres carpetas usadas recientemente sin volver a mostrar el selector del sistema.
           - **Examen limpio por ID**: crea un espacio aislado y un archivo vacío con el nombre del alumno y el ID dictado en el aula.
           - **Detención resistente**: termina el árbol completo de procesos ante ciclos infinitos, procesos hijos e inundaciones de salida sin bloquear la interfaz.
-          - **Supervisión precisa**: cierra navegadores al iniciar el examen; durante una alarma maximiza brillo y volumen, bloquea su reducción y alterna rojo/blanco cada 0.36 s hasta regresar, cuando comienza la espera de 12 segundos.
+          - **Supervisión precisa**: cierra navegadores y asistentes conocidos al iniciar el examen; cada salida reactiva sonido y una señal roja, blanca y verde. Al regresar comienza de nuevo la espera completa de 12 segundos.
           - **Calificación trazable**: genera una huella Ed25519 vinculada al SHA-256 exacto del examen entregado.
           - **macOS guiado**: firma de forma ad hoc los componentes internos y muestra una solución copiable si Gatekeeper conserva la cuarentena.
           - **Revisión de grupos**: compara sellos, duplicados y similitud estructural entre todas las entregas seleccionadas.
-          - **Tres modos**: Examen, Tarea certificada y Actividad libre con controles independientes.
+          - **Tres modos**: Examen, Tarea / Actividad supervisada y Modo libre con controles independientes.
+          - **PIN del docente**: cada examen usa un PIN definido al comenzar o una política administrada; no existe una clave universal incluida.
+          - **Inicio estable**: una pantalla de preparación mantiene la aplicación sensible mientras revisa el equipo y una sola instancia evita el parpadeo de ventanas duplicadas.
           - **Actualización automática**: comprueba en segundo plano, valida SHA-256 y aplica el paquete nativo cuando no hay una sesión activa.
           - **Pantalla estable**: evita la negociación repetida de pantalla completa en Wayland/Hyprland y muestra siempre la versión instalada en el inicio.
 

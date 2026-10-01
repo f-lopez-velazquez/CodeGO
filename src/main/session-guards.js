@@ -78,7 +78,7 @@ class BrowserGuard {
   async closeAll() {
     const closed = [];
     if (this.platform === 'win32') {
-      const names = ['chrome.exe', 'msedge.exe', 'firefox.exe', 'brave.exe', 'opera.exe', 'vivaldi.exe', 'chromium.exe', 'iexplore.exe', 'arc.exe', 'tor.exe'];
+      const names = ['chrome.exe', 'msedge.exe', 'firefox.exe', 'brave.exe', 'opera.exe', 'vivaldi.exe', 'chromium.exe', 'iexplore.exe', 'arc.exe', 'tor.exe', 'Code.exe', 'Cursor.exe', 'Windsurf.exe', 'chatgpt.exe', 'claude.exe'];
       await Promise.all(names.map(async name => {
         try {
           await this.run('taskkill', ['/IM', name, '/T', '/F']);
@@ -86,7 +86,7 @@ class BrowserGuard {
         } catch (_) {}
       }));
     } else if (this.platform === 'darwin') {
-      const apps = ['Safari', 'Google Chrome', 'Firefox', 'Microsoft Edge', 'Brave Browser', 'Opera', 'Vivaldi', 'Arc', 'Tor Browser'];
+      const apps = ['Safari', 'Google Chrome', 'Firefox', 'Microsoft Edge', 'Brave Browser', 'Opera', 'Vivaldi', 'Arc', 'Tor Browser', 'Visual Studio Code', 'Cursor', 'Windsurf', 'ChatGPT', 'Claude'];
       await Promise.all(apps.map(async name => {
         try {
           await this.run('osascript', ['-e', `tell application "${name}" to quit`]);
@@ -98,7 +98,7 @@ class BrowserGuard {
         try { await this.run('killall', ['-KILL', name]); } catch (_) {}
       }));
     } else {
-      const names = ['google-chrome', 'google-chrome-stable', 'chrome', 'chromium', 'chromium-browser', 'firefox', 'firefox-bin', 'brave-browser', 'opera', 'vivaldi-bin', 'tor-browser'];
+      const names = ['google-chrome', 'google-chrome-stable', 'chrome', 'chromium', 'chromium-browser', 'firefox', 'firefox-bin', 'brave-browser', 'opera', 'vivaldi-bin', 'tor-browser', 'code', 'cursor', 'windsurf', 'chatgpt', 'claude'];
       await Promise.all(names.map(async name => {
         try {
           await this.run('pkill', ['-TERM', '-x', name]);

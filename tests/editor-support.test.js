@@ -72,6 +72,8 @@ test('Browser guard closes known browsers only through fixed executable argument
   assert(calls.every(([command, args]) => command === 'pkill' && ['-TERM', '-KILL'].includes(args[0]) && args[1] === '-x'));
   assert(calls.some(([, args]) => args[0] === '-TERM' && args.includes('firefox')));
   assert(calls.some(([, args]) => args[0] === '-KILL' && args.includes('firefox')));
+  assert(calls.some(([, args]) => args.includes('cursor')));
+  assert(calls.some(([, args]) => args.includes('chatgpt')));
   assert(!calls.some(([, args]) => args.includes('codego-examguard')));
 });
 
@@ -83,6 +85,8 @@ test('Desktop startup delegates fullscreen to one debounced main-process path', 
   assert.equal((main.match(/mainWindow\.setFullScreen\(true\)/g) || []).length, 1);
   assert.equal((main.match(/mainWindow\.maximize\(\)/g) || []).length, 0);
   assert.doesNotMatch(renderer, /await window\.electronAPI\.setFullScreen\(true\)/);
+  assert.match(main, /requestSingleInstanceLock\(\)/);
+  assert.match(main, /app\.on\('second-instance'/);
 });
 
 test('Lobby always contains a runtime-backed version label', () => {
@@ -92,4 +96,19 @@ test('Lobby always contains a runtime-backed version label', () => {
   assert.match(html, /id="lobby-app-version"/);
   assert.match(renderer, /getCurrentVersion/);
   assert.match(renderer, /lobbyAppVersion\.textContent/);
+});
+
+test('Startup, adaptive lobby and editor guide preferences are explicit', () => {
+  const root = path.resolve(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(root, 'src/renderer/app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'src/renderer/styles.css'), 'utf8');
+  assert.match(html, /id="view-startup"[^>]*class="view-container active"/);
+  assert.match(html, /id="exam-teacher-pin"/);
+  assert.match(html, /id="exam-teacher-pin-confirm"/);
+  assert.match(html, /class="language-inline"/);
+  assert.match(renderer, /screen-dense/);
+  assert.match(renderer, /indentGuideStyle/);
+  assert.match(css, /indent-guides-off/);
+  assert.match(css, /66%, 100% \{ background-color: #00c853; \}/);
 });

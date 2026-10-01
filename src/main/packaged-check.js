@@ -41,12 +41,21 @@ async function runPackagedCheck({ window, command, directory, version, reportPat
   try {
     await waitFor("typeof state !== 'undefined' && Boolean(window.electronAPI)");
     console.info('CodeGO: puente disponible.');
+    const diagnostics = await evaluate('window.electronAPI.checkFullEnvironment()');
+    report.checks.push({
+      name: 'Diagnóstico asíncrono del entorno empaquetado',
+      success: Boolean(diagnostics && diagnostics.python && diagnostics.packages && !diagnostics.error),
+      detail: diagnostics?.error || undefined
+    });
     await evaluate("window.electronAPI.createFile('main.py')");
     await evaluate("window.electronAPI.saveFile({relativePath:'main.py',content:'nombre = input(\"Ingresa tu nombre: \")\\nprint(f\"Hola {nombre}\")\\n'})");
     await evaluate("setSessionMode('activity'); state.workspaceSelected=true; state.workspaceName='Comprobación'; enterIdeWorkspace();");
     console.info('CodeGO: espacio de trabajo abierto.');
     await evaluate("openFileInEditor('main.py')");
     await waitFor("state.activeFilePath === 'main.py'");
+    await evaluate("switchView('lobby'); DOM.btnStartExam.focus(); prepareNewWorkspaceSession(); enterIdeWorkspace();");
+    await waitFor("DOM.viewIde.classList.contains('active') && document.activeElement === DOM.codeTextarea && DOM.codeTextarea.readOnly === false");
+    report.checks.push({ name: 'El editor recupera teclado y edición al volver a un proyecto', success: true });
     const checks = await evaluate(`({credits: document.body.textContent.includes('by zolvek.com.mx') && document.body.textContent.includes('Programado por Francisco López Velázquez.'), isolated: !window.require, activity: getComputedStyle(DOM.btnFinishExam).display === 'none' && DOM.btnFinishExam.disabled})`);
     report.checks.push({ name: 'Créditos y aislamiento del renderer', success: checks.credits && checks.isolated && checks.activity });
     const bounds = window.getBounds();

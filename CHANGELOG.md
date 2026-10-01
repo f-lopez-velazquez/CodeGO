@@ -1,5 +1,28 @@
 # Cambios
 
+## 1.6.5 · Inicio inmediato y supervisión repetible
+
+- Muestra una pantalla de arranque desde el primer cuadro y mueve las comprobaciones largas a procesos asíncronos para que Windows, macOS y Linux no interpreten la preparación como un bloqueo.
+- Impide abrir dos instancias de codeGO a la vez; esto elimina la competencia de pantalla completa que provocaba temblor en Hyprland y otros gestores de ventanas.
+- Integra el selector de lenguaje dentro del formulario y adapta la barra superior a la resolución, altura, escala y densidad reales de la pantalla.
+- Permite elegir guías de sangría sutiles, visibles u ocultas; elimina el rectángulo vertical del bloque activo.
+- Redefine las modalidades: Examen blindado, Tarea/Actividad supervisada con portapapeles y entrega, y Libre sin supervisión ni entrega.
+- Reproduce y registra cada salida supervisada, incluso con un diálogo de codeGO abierto; una nueva salida durante la espera reinicia los 12 segundos completos.
+- Alterna la señal del aula entre rojo, blanco y verde, mantiene el control de audio durante la espera y trata un monitor adicional como una incidencia recuperable.
+- El profesor define y confirma el PIN de salida al iniciar cada examen. Ya no existe un PIN predeterminado visible o implícito.
+- Registra una sesión de examen interrumpida para mostrarla al siguiente arranque si el proceso fue terminado sin entrega ni salida autorizada.
+- Oculta en examen los gestores y acciones que abren otros flujos, cierra navegadores, editores y asistentes conocidos al iniciar, e incorpora PDF a los recursos educativos importables.
+
+## 1.6.4 · Foco estable y feedback de escritorio
+
+- Recupera el teclado a nivel de la ventana Electron y del editor al volver a un proyecto, incluida la negociación de foco de Wayland/Hyprland.
+- Sustituye los avisos de Chromium por diálogos propios de codeGO, sin casillas para ocultar futuros mensajes ni estilos ajenos a la aplicación.
+- Muestra el guardado en curso, la hora exacta de la última versión guardada, avisos breves y sonidos discretos de confirmación o error.
+- Simplifica la selección de lenguaje en el inicio con un control compacto y una explicación breve del entorno activo.
+- Abre el proyecto actual en el explorador de archivos propio de Windows, macOS o Linux desde el inicio y el editor.
+- Mantiene las carpetas colapsadas al abrir un proyecto y usa un selector visual de destino para mover archivos sin escribir rutas manualmente.
+- Amplía la comprobación del paquete para exigir que el editor vuelva editable y con foco después del recorrido Inicio → proyecto.
+
 ## 1.6.3 · Edición continua y ayuda precisa
 
 - Recupera automáticamente el foco y la edición del archivo activo al volver desde Inicio, sin exigir una ejecución previa.

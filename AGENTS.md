@@ -23,17 +23,17 @@ La aplicación opera bajo **tres modalidades especializadas**:
 2. **📦 MODO TAREA CERTIFICADA**:
    - **Objetivo**: Garantizar fehacientemente al docente que las tareas para casa o entregables fueron escritas a mano por el alumno dentro de CodeGO, sin copia/pega externo y sin alternar con ChatGPT u otras apps.
    - **Edición Flexible**: Copiar, cortar y pegar permanecen disponibles durante la tarea para permitir un flujo de trabajo normal.
-   - **Trabajo sin interrupciones**: No usa kiosk, vigilancia de foco, watchdog de audio ni alertas; el alumno puede consultar materiales durante la tarea.
+   - **Supervisión**: No usa kiosk ni desconecta la red, pero vigila la pérdida de foco y aplica el aviso y la espera de 12 segundos en cada salida.
    - **Conectividad**: Wi-Fi habilitado para consultas o recursos permitidos según la actividad.
    - **Registro de Actividad**: Mide pulsaciones de teclas, caracteres digitados, tiempo activo y ejecuciones nativas de prueba como contexto informativo para el docente.
    - **Entrega Criptográfica (`.codego`)**: Empaqueta el workspace jerárquico completo en un contenedor `.codego` con sello **Ed25519**, acompañado de un `CERTIFICADO_DOCENTE.html` auto-contenido y un archivo de sello `.sha256`. El sello acredita integridad del contenido entregado, no autoría exclusiva.
 
-3. **📘 MODO ACTIVIDAD / TAREA LIBRE**:
+3. **📘 MODO LIBRE**:
    - **Objetivo**: Práctica educativa en clase o casa con gestión libre de proyectos locales.
    - **Regla Inviolable**: **LOS BOTONES DE ENTREGAR (`#btn-finish-exam` y `#btn-submit-task`) NUNCA DEBEN APARECER** (ni visibles ni habilitados). Solo debe mostrarse el botón `▶ Ejecutar`.
    - **Gestión de Archivos**: Permite abrir carpetas del equipo (`Abrir Carpeta`) y crear nuevos proyectos (`Nuevo Proyecto`) con navegación jerárquica por subcarpetas.
    - **Conectividad Libre**: El Wi-Fi permanece habilitado.
-   - **Supervisión y Anti-Mute**: Se mantiene activa la supervisión de cambio de ventana (aviso de 12 segundos) y el watchdog de audio para impedir silenciar el equipo.
+   - **Sin supervisión**: No vigila cambios de ventana ni modifica el audio; está destinado a la práctica libre.
 
 4. **✨ DIRECTRICES DE DISEÑO MINIMALISTA**:
    - **Cero saturación visual**: Prohibidos los muros de texto, explicaciones redundantes y componentes sobrecargados.
@@ -71,7 +71,7 @@ Todos los canales IPC se comunican de forma segura a través de `window.electron
 | Canal IPC | Dirección | Descripción |
 | :--- | :--- | :--- |
 | `security:start-kiosk` | Renderer ➔ Main | Inicia la sesión. Configura modo examen (kiosk + wifi off) o actividad (modo libre). |
-| `security:exit-kiosk` | Renderer ➔ Main | Desbloquea el kiosk con PIN maestro del docente (`1234` por defecto). |
+| `security:exit-kiosk` | Renderer ➔ Main | Desbloquea el kiosk con el PIN definido y confirmado por el docente al iniciar la evaluación. |
 | `python:run` | Renderer ➔ Main | Ejecuta el archivo Python activo con unbuffered stdout (`python -u`). |
 | `python:stdin` | Renderer ➔ Main | Envía texto al `stdin` del proceso de Python cuando hay un `input()`. |
 | `python:kill` | Renderer ➔ Main | Envía `SIGKILL` al proceso Python en ejecución. |

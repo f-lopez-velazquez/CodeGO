@@ -7,6 +7,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.clock.install();
   await page.goto(baseUrl);
   await page.evaluate(() => {
+    switchView('lobby');
     window.resumeCalls = [];
     window.folderDialogCalls = 0;
     window.electronAPI = {
@@ -57,6 +58,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
         card: rect('.lobby-card'),
         form: rect('.lobby-form'),
         recents: rect('#recent-projects'),
+        language: rect('.language-inline'),
         modes: [...document.querySelectorAll('.mode-segment-btn')].map(element => {
           const value = element.getBoundingClientRect();
           return { left: value.left, right: value.right, top: value.top, bottom: value.bottom };
@@ -70,6 +72,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     assert(lobbyGeometry.card.top >= 0 && lobbyGeometry.card.bottom <= size.height + 1, `Lobby vertical overflow: ${JSON.stringify({ size, lobbyGeometry })}`);
     assert(lobbyGeometry.recents.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.recents.right <= lobbyGeometry.form.right + 1, `Recent projects escaped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
     assert(lobbyGeometry.start.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.start.right <= lobbyGeometry.form.right + 1, `Primary action escaped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
+    assert(lobbyGeometry.language.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.language.right <= lobbyGeometry.form.right + 1, `Language selector escaped or overlapped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
     assert(/^v\d+\.\d+\.\d+$/.test(lobbyGeometry.version || ''), `Lobby version is missing: ${JSON.stringify({ size, lobbyGeometry })}`);
     if (size.width > 900) {
       assert(lobbyGeometry.modes.every((mode, index, all) => index === 0 || mode.top >= all[index - 1].bottom - 1), `Desktop modes overlap: ${JSON.stringify({ size, lobbyGeometry })}`);
@@ -123,11 +126,12 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       startKiosk: async () => ({ success: true, mode: 'activity' }),
       endSession: async () => ({ success: true }),
       listWorkspace: async () => ({ success: true, tree: [{ type: 'file', name: 'main.py', path: 'main.py', editable: true }] }),
-      readFile: async () => ({ success: true, content: 'print("hola")' })
+      readFile: async () => ({ success: true, content: 'print("hola")' }),
+      focusEditorWindow: async () => ({ success: true }),
+      revealCurrentWorkspace: async () => ({ success: true, workspacePath: '/proyectos/Computacion3A' })
     };
   });
   const homeReturn = await page.evaluate(async () => {
-    window.confirm = () => true;
     state.appMode = 'activity';
     state.workspaceSelected = true;
     state.workspacePath = '/proyectos/Computacion3A';
@@ -135,7 +139,10 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     state.openTabs = [{ path: 'main.py', name: 'main.py', content: 'print("hola")', isDirty: false }];
     state.activeFilePath = 'main.py';
     DOM.codeTextarea.value = 'print("hola")';
-    await handleGoHome();
+    const goHome = handleGoHome();
+    await Promise.resolve();
+    DOM.appDialogConfirm.click();
+    await goHome;
     DOM.btnStartExam.focus();
     await handleStartExamClick();
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -151,6 +158,8 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     };
   });
   assert(homeReturn.ideActive && homeReturn.focused && homeReturn.editable && homeReturn.changed, `Editor did not recover after Home: ${JSON.stringify(homeReturn)}`);
+  await page.evaluate(() => revealWorkspaceInSystem());
+  assert(await page.locator('.app-toast').filter({ hasText: 'explorador de archivos' }).count() === 1, 'Workspace reveal has no visible feedback');
   const dragSupervision = await page.evaluate(async () => {
     const item = document.createElement('div');
     document.body.appendChild(item);
@@ -336,6 +345,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     return {allSaved,failure,retained,newerDirty};
   });
   assert(saves.allSaved && !saves.failure && saves.retained && saves.newerDirty, `Save regression: ${JSON.stringify(saves)}`);
+  assert(/^Guardado · \d{2}:\d{2}:\d{2}$/.test(await page.locator('#sb-save-status').innerText()), 'Last saved time is not visible');
   const bounded = await page.evaluate(() => {
     clearTerminal();
     for (let i=0;i<2000;i++) appendTerminalOutput('x'.repeat(1000) + '\n');
@@ -343,31 +353,39 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   });
   assert(bounded.chars <= 200000 && bounded.nodes <= 1000, 'Unbounded terminal output');
   await page.locator('#btn-new-file').click();
-  assert(await page.locator('#name-dialog').isVisible(), 'Native name dialog missing');
+  assert(await page.locator('#app-dialog').isVisible(), 'Branded application dialog missing');
+  assert((await page.locator('#app-dialog-title').innerText()).includes('Nuevo archivo'), 'Dialog does not explain the requested action');
   await page.keyboard.press('Escape');
-  assert(await page.locator('#name-dialog').isHidden(), 'Dialog Escape failed');
+  assert(await page.locator('#app-dialog').isHidden(), 'Dialog Escape failed');
   await page.evaluate(() => { setTheme('theme-paper'); clearTerminal(); appendTerminalOutput('Nombre: José\n'); });
   const colors = await page.evaluate(() => ({output:getComputedStyle(DOM.terminalOutput).backgroundColor,text:getComputedStyle(DOM.terminalOutput.querySelector('.stdout')).color}));
   assert(colors.output === 'rgb(248, 250, 252)' && colors.text === 'rgb(15, 23, 42)', 'Light terminal theme broken');
   // Freeze browser time so runner load cannot move the 11,999 ms assertion past 12 s.
   await page.clock.pauseAt(new Date(Date.now() + 1000));
-  const taskWarningSuppressed = await page.evaluate(() => {
+  const modeSupervision = await page.evaluate(() => {
     setSessionMode('task');
     state.workspaceSessionActive = true;
+    sounds.startAlarmSiren = () => { sounds.isSirenPlaying = true; };
+    sounds.stopAlarmSiren = () => { sounds.isSirenPlaying = false; };
     const paste = new Event('paste', { bubbles: true, cancelable: true });
     const beforeInput = new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertFromPaste', data: 'print("copiado")' });
     const clipboardAllowed = DOM.codeTextarea.dispatchEvent(paste) && DOM.codeTextarea.dispatchEvent(beforeInput);
-    handleSecurityViolation({type:'TEST_TASK',durationSeconds:2});
-    return { warningHidden: DOM.modalFocusWarning.classList.contains('hidden'), clipboardAllowed };
+    handleSecurityViolation({type:'TEST_TASK',phase:'away',durationSeconds:2});
+    const taskWarningVisible = !DOM.modalFocusWarning.classList.contains('hidden');
+    dismissHazardWarning();
+    setSessionMode('activity');
+    handleSecurityViolation({type:'TEST_FREE',phase:'away',durationSeconds:2});
+    return { taskWarningVisible, freeWarningHidden: DOM.modalFocusWarning.classList.contains('hidden'), clipboardAllowed };
   });
-  assert(taskWarningSuppressed.warningHidden, 'Task mode must never show the focus warning');
-  assert(taskWarningSuppressed.clipboardAllowed, 'Task mode must allow normal copy and paste');
+  assert(modeSupervision.taskWarningVisible, 'Task/activity mode must supervise application exits');
+  assert(modeSupervision.freeWarningHidden, 'Free mode must not show a focus warning');
+  assert(modeSupervision.clipboardAllowed, 'Task/activity mode must allow normal copy and paste');
   await page.evaluate(() => {
     setTheme('theme-obsidian');
     setSessionMode('exam');
     state.examSessionActive = true;
-    sounds.startAlarmSiren = () => {};
-    sounds.stopAlarmSiren = () => {};
+    sounds.startAlarmSiren = () => { sounds.isSirenPlaying = true; };
+    sounds.stopAlarmSiren = () => { sounds.isSirenPlaying = false; };
     handleSecurityViolation({type:'TEST',phase:'away',durationSeconds:2});
   });
   const beacon = await page.locator('#modal-focus-warning').evaluate(element => {
@@ -386,6 +404,11 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.clock.runFor(15000);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Countdown started while the student was still outside codeGO');
   await page.evaluate(() => handleSecurityViolation({type:'TEST_RETURN',phase:'returned',durationSeconds:15}));
+  await page.clock.runFor(6000);
+  await page.evaluate(() => handleSecurityViolation({type:'TEST_SECOND_EXIT',phase:'away',durationSeconds:1}));
+  assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Second exit did not relock the warning');
+  await page.clock.runFor(1000);
+  await page.evaluate(() => handleSecurityViolation({type:'TEST_SECOND_RETURN',phase:'returned',durationSeconds:1}));
   await page.clock.runFor(11999);
   assert(await page.locator('#btn-dismiss-hazard').isDisabled(), 'Alarm unlocks before 12 seconds');
   await page.clock.runFor(1);

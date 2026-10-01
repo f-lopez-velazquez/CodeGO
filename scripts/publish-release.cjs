@@ -20,8 +20,8 @@ const RELEASE_NOTES = `# codeGO v${VERSION} — Versión oficial
 Entorno educativo de Python multiplataforma con tres modos especializados:
 
 - **🛡️ Modo Examen Blindado**: Kiosk, desconexión Wi-Fi, alerta estroboscópica de 12 s, entrega ZIP con sello SHA-256.
-- **Modo Tarea Certificada**: Trabajo sin alarmas, portapapeles disponible, registro de actividad y entrega \`.codego\` con sello Ed25519.
-- **📘 Modo Actividad Libre**: Editor completo con árbol jerárquico de carpetas y consola interactiva.
+- **Tarea / Actividad Supervisada**: Portapapeles disponible, recursos PDF/imagen, alerta repetible al cambiar de aplicación y entrega \`.codego\` con sello Ed25519.
+- **📘 Modo Libre**: Editor completo sin supervisión, con árbol jerárquico de carpetas y consola interactiva.
 
 ## Novedades en v${VERSION}
 - ✅ Instaladores oficiales para Windows, macOS y Linux

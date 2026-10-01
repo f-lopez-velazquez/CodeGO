@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   beep: () => ipcRenderer.invoke('system:beep'),
   enforceAudio: () => ipcRenderer.invoke('system:enforce-audio'),
   setAlarmActive: (active) => ipcRenderer.invoke('system:set-alarm-active', active === true),
+  getRecoveryStatus: () => ipcRenderer.invoke('security:get-recovery-status'),
+  acknowledgeRecovery: () => ipcRenderer.invoke('security:acknowledge-recovery'),
+  getTeacherPinPolicy: () => ipcRenderer.invoke('security:get-pin-policy'),
 
   // Wi-Fi Management
   getWifiStatus: () => ipcRenderer.invoke('wifi:get-status'),
@@ -43,6 +46,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restoreWorkspace: (workspacePath) => ipcRenderer.invoke('workspace:restore', workspacePath),
   createProjectDialog: (projectName) => ipcRenderer.invoke('workspace:create-project-dialog', projectName),
   getCurrentWorkspace: () => ipcRenderer.invoke('workspace:get-current'),
+  revealCurrentWorkspace: () => ipcRenderer.invoke('workspace:reveal-current'),
   confirmClose: saved => ipcRenderer.invoke('app:confirm-close', saved),
   onBeforeClose: callback => {
     const handler = () => callback();
@@ -52,6 +56,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quitApp: () => ipcRenderer.invoke('app:quit-safe'),
   setFullScreen: (flag) => ipcRenderer.invoke('window:set-fullscreen', flag),
   maximizeWindow: () => ipcRenderer.invoke('window:maximize'),
+  focusEditorWindow: () => ipcRenderer.invoke('window:focus-editor'),
 
   // Multi-Language Code Execution
   runCode: (data) => ipcRenderer.invoke('code:run', data),

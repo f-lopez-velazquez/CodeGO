@@ -26,10 +26,14 @@ app.whenReady().then(async () => {
   try {
     const fixtureHandlers = {
       'window:set-fullscreen': () => ({success:true}),
+      'window:focus-editor': () => { window.focus(); window.webContents.focus(); return {success:true}; },
       'updater:get-current-version': () => ({success:true,version:require('../package.json').version}),
       'updater:get-state': () => ({success:true,status:'current',currentVersion:require('../package.json').version,automatic:true}),
       'system:self-test': () => require('../src/main/self-test').runSelfTest({command:python,directory:dir}),
       'system:environment-status': () => ({success:true,ready:true,command:python}),
+      'security:get-recovery-status': () => ({success:true,interruptedExam:null}),
+      'security:acknowledge-recovery': () => ({success:true}),
+      'security:get-pin-policy': () => ({success:true,managed:false}),
       'system:prepare-environment': () => ({success:true,command:python}),
       'wifi:get-status': () => ({disabled:false}),
       'system:check-full-environment': () => ({hasPython:true,python:{command:python,version:'Python 3',isVenv:false},platform:process.platform,displaysCount:1,missingCount:0,packages:{}}),
@@ -46,6 +50,7 @@ app.whenReady().then(async () => {
     window = new BrowserWindow({show:true,width:1280,height:800,frame:false,webPreferences:{preload:path.resolve(__dirname,'../src/preload/preload.js'),contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});
     runner = new PythonRunner({send:(channel,data)=>window.webContents.send(channel,data)});
     await window.loadFile(path.resolve(__dirname,'../src/renderer/index.html'));
+    await waitFor("DOM.viewLobby.classList.contains('active')");
     await evaluate("setSessionMode('activity'); state.workspaceSelected=true; state.workspaceName='Proyecto de prueba'; DOM.navSubjectLabel.textContent='Entrada y salida'; DOM.navStudentLabel.textContent='Práctica de Python'; enterIdeWorkspace();");
     await waitFor("state.filesTree.some(item => item.path === 'main.py')");
     await evaluate("openFileInEditor('main.py')");
@@ -81,6 +86,9 @@ app.whenReady().then(async () => {
     assert.match(await evaluate('DOM.terminalOutput.textContent'), /Hola, José Muñoz\./);
     assert.match(await evaluate('DOM.terminalOutput.textContent'), /Tienes 18 años/);
     assert.equal(await evaluate('DOM.terminalStdinInput.disabled'), true);
+    await evaluate("switchView('lobby'); prepareNewWorkspaceSession(); enterIdeWorkspace();");
+    await waitFor("document.activeElement === DOM.codeTextarea && DOM.codeTextarea.readOnly === false");
+    assert.equal(await evaluate("document.activeElement === DOM.codeTextarea && !DOM.codeTextarea.readOnly"), true);
     assert.equal(await evaluate("getComputedStyle(DOM.btnFinishExam).display === 'none' && DOM.btnFinishExam.disabled"), true);
     await sleep(100);
     fs.writeFileSync(path.join(screenshotDir,'electron-finished.png'),(await window.webContents.capturePage()).toPNG());

@@ -49,6 +49,34 @@ class SoundEngine {
     }
   }
 
+  playFeedback(kind = 'info') {
+    try {
+      this.init();
+      const tones = {
+        info: [520],
+        save: [620, 820],
+        success: [540, 760],
+        warning: [430, 360],
+        error: [260, 210]
+      };
+      const frequencies = tones[kind] || tones.info;
+      frequencies.forEach((frequency, index) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const start = this.ctx.currentTime + index * 0.065;
+        osc.type = kind === 'error' ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(kind === 'error' ? 0.045 : 0.025, start + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.13);
+      });
+    } catch (_) {}
+  }
+
   startAlarmSiren() {
     if (this.isSirenPlaying) return;
     try {
@@ -78,6 +106,7 @@ class SoundEngine {
       // Ganancia master moderada (audible para el profesor pero agradable y no invasiva)
       this.sirenGain = this.ctx.createGain();
       this.sirenGain.gain.setValueAtTime(0.09, this.ctx.currentTime);
+      lfoGain.connect(this.sirenGain.gain);
 
       this.sirenOsc1.connect(this.sirenGain);
       this.sirenOsc2.connect(this.sirenGain);
@@ -94,15 +123,20 @@ class SoundEngine {
   stopAlarmSiren() {
     if (!this.isSirenPlaying) return;
     try {
-      if (this.sirenGain && this.ctx) {
-        this.sirenGain.gain.setValueAtTime(this.sirenGain.gain.value, this.ctx.currentTime);
-        this.sirenGain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.08);
+      const osc1 = this.sirenOsc1;
+      const osc2 = this.sirenOsc2;
+      const lfo = this.sirenLfo;
+      const gain = this.sirenGain;
+      this.isSirenPlaying = false;
+      this.sirenOsc1 = this.sirenOsc2 = this.sirenLfo = this.sirenGain = null;
+      if (gain && this.ctx) {
+        gain.gain.setValueAtTime(gain.gain.value, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.08);
       }
       setTimeout(() => {
-        if (this.sirenOsc1) { try { this.sirenOsc1.stop(); } catch (_) {} }
-        if (this.sirenOsc2) { try { this.sirenOsc2.stop(); } catch (_) {} }
-        if (this.sirenLfo) { try { this.sirenLfo.stop(); } catch (_) {} }
-        this.isSirenPlaying = false;
+        if (osc1) { try { osc1.stop(); } catch (_) {} }
+        if (osc2) { try { osc2.stop(); } catch (_) {} }
+        if (lfo) { try { lfo.stop(); } catch (_) {} }
       }, 90);
     } catch (e) {
       this.isSirenPlaying = false;
@@ -168,7 +202,9 @@ const state = {
   isUpdating: false,
   executionError: '',
   hazardCountdownInterval: null,
+  hazardAudioInterval: null,
   hazardAwaitingReturn: false,
+  monitorViolationActive: false,
   editorErrorLine: null,
   runtimeErrorLocation: null,
   setupTipInterval: null,
@@ -181,12 +217,19 @@ const state = {
   syntaxDiagnosticGeneration: 0,
   syntaxDiagnosticLine: null,
   syntaxDiagnosticColumn: null,
-  syntaxDiagnosticResult: null
+  syntaxDiagnosticResult: null,
+  lastSavedAt: null,
+  lastSaveSoundAt: 0,
+  indentGuideStyle: localStorage.getItem('codego_indent_guides') || 'subtle',
+  pendingTeacherPin: '',
+  teacherPinManaged: false
 };
 
 // DOM Elements
 const DOM = {
   // Views
+  viewStartup: document.getElementById('view-startup'),
+  startupStatus: document.getElementById('startup-status'),
   viewLobby: document.getElementById('view-lobby'),
   viewCountdown: document.getElementById('view-countdown'),
   viewIde: document.getElementById('view-ide'),
@@ -195,7 +238,8 @@ const DOM = {
   modeCardExam: document.getElementById('mode-card-exam'),
   modeCardTask: document.getElementById('mode-card-task'),
   modeCardActivity: document.getElementById('mode-card-activity'),
-  langPillChoices: document.querySelectorAll('.lang-pill-choice'),
+  languageSelect: document.getElementById('language-select'),
+  languageSelectionHelp: document.getElementById('language-selection-help'),
   btnOpenOfflineManager: document.getElementById('btn-open-offline-manager'),
   btnOpenOfflineManagerMenu: document.getElementById('btn-open-offline-manager-menu'),
   modalOfflineLanguages: document.getElementById('modal-offline-languages'),
@@ -240,11 +284,16 @@ const DOM = {
   studentIdInput: document.getElementById('student-id'),
   examSubjectInput: document.getElementById('exam-subject'),
   examIdInput: document.getElementById('exam-id'),
+  examTeacherPinInput: document.getElementById('exam-teacher-pin'),
+  examTeacherPinConfirmInput: document.getElementById('exam-teacher-pin-confirm'),
+  examPinSetup: document.getElementById('exam-pin-setup'),
+  examPinHelp: document.getElementById('exam-pin-help'),
   projectPicker: document.getElementById('project-picker'),
   btnGoHome: document.getElementById('btn-go-home'),
   btnLobbyOpenFolder: document.getElementById('btn-lobby-open-folder'),
   btnLobbyNewProject: document.getElementById('btn-lobby-new-project'),
   workspaceSelectionStatus: document.getElementById('workspace-selection-status'),
+  btnRevealSelectedWorkspace: document.getElementById('btn-reveal-selected-workspace'),
   recentProjects: document.getElementById('recent-projects'),
   recentProjectList: document.getElementById('recent-project-list'),
   lobbyContinueCard: document.getElementById('lobby-continue-card'),
@@ -322,6 +371,8 @@ const DOM = {
   activityActionsToolbar: document.getElementById('activity-actions-toolbar'),
   btnActivityOpenFolder: document.getElementById('btn-activity-open-folder'),
   btnActivityNewProject: document.getElementById('btn-activity-new-project'),
+  btnRevealWorkspace: document.getElementById('btn-reveal-workspace'),
+  btnRevealWorkspaceSidebar: document.getElementById('btn-reveal-workspace-sidebar'),
   incidentsCounterPill: document.getElementById('incidents-counter-pill'),
   incidentsCounterText: document.getElementById('incidents-counter-text'),
   btnOpenPkgManagerIde: document.getElementById('btn-open-pkg-manager-ide'),
@@ -367,6 +418,7 @@ const DOM = {
   btnEmptyNewFile: document.getElementById('btn-empty-new-file'),
   btnEmptyOpenFolder: document.getElementById('btn-empty-open-folder'),
   btnToggleWrap: document.getElementById('btn-toggle-wrap'),
+  btnIndentGuides: document.getElementById('btn-indent-guides'),
   btnToggleTermLayout: document.getElementById('btn-toggle-term-layout'),
   btnToggleTermView: document.getElementById('btn-toggle-term-view'),
   termLayoutLabel: document.getElementById('term-layout-label'),
@@ -385,6 +437,23 @@ const DOM = {
   sbCharsCount: document.getElementById('sb-chars-count'),
   sbSaveStatus: document.getElementById('sb-save-status'),
   sbIndentStatus: document.getElementById('sb-indent-status'),
+  sessionPolicyBadge: document.getElementById('session-policy-badge'),
+
+  // Application feedback
+  appDialog: document.getElementById('app-dialog'),
+  appDialogIcon: document.getElementById('app-dialog-icon'),
+  appDialogKicker: document.getElementById('app-dialog-kicker'),
+  appDialogTitle: document.getElementById('app-dialog-title'),
+  appDialogMessage: document.getElementById('app-dialog-message'),
+  appDialogFieldWrap: document.getElementById('app-dialog-field-wrap'),
+  appDialogFieldLabel: document.getElementById('app-dialog-field-label'),
+  appDialogInput: document.getElementById('app-dialog-input'),
+  appDialogSelectWrap: document.getElementById('app-dialog-select-wrap'),
+  appDialogSelectLabel: document.getElementById('app-dialog-select-label'),
+  appDialogSelect: document.getElementById('app-dialog-select'),
+  appDialogCancel: document.getElementById('app-dialog-cancel'),
+  appDialogConfirm: document.getElementById('app-dialog-confirm'),
+  toastRegion: document.getElementById('toast-region'),
 
   // Terminal
   terminalPanel: document.getElementById('terminal-panel'),
@@ -529,12 +598,161 @@ const DOM = {
   btnExitExamApp: document.getElementById('btn-exit-exam-app')
 };
 
+let appDialogQueue = Promise.resolve();
+
+function showToast(message, kind = 'info', duration = 2600) {
+  if (!DOM.toastRegion || !message) return;
+  const toast = document.createElement('div');
+  toast.className = `app-toast ${kind}`;
+  toast.textContent = message;
+  DOM.toastRegion.appendChild(toast);
+  while (DOM.toastRegion.childElementCount > 3) DOM.toastRegion.firstElementChild?.remove();
+  setTimeout(() => {
+    toast.classList.add('leaving');
+    setTimeout(() => toast.remove(), 180);
+  }, duration);
+}
+
+function openAppDialog(options = {}) {
+  const run = () => new Promise(resolve => {
+    const {
+      title = 'Información',
+      message = '',
+      kind = 'info',
+      confirmLabel = 'Aceptar',
+      cancelLabel = '',
+      inputLabel = '',
+      inputValue = '',
+      inputPlaceholder = '',
+      selectLabel = '',
+      selectOptions = []
+    } = options;
+    const dialog = DOM.appDialog;
+    if (!dialog) return resolve({ confirmed: true, value: inputValue });
+    const previousFocus = document.activeElement;
+    state.isInternalModalOpen = true;
+    dialog.dataset.kind = kind;
+    DOM.appDialogIcon.textContent = kind === 'danger' ? '!' : kind === 'warning' ? '!' : kind === 'success' ? '✓' : 'i';
+    DOM.appDialogKicker.textContent = kind === 'danger' ? 'Atención' : kind === 'warning' ? 'Revisa esto' : 'codeGO';
+    DOM.appDialogTitle.textContent = title;
+    DOM.appDialogMessage.textContent = message;
+    DOM.appDialogConfirm.textContent = confirmLabel;
+    DOM.appDialogCancel.textContent = cancelLabel || 'Cancelar';
+    DOM.appDialogCancel.classList.toggle('hidden', !cancelLabel);
+    DOM.appDialogFieldWrap.classList.toggle('hidden', !inputLabel);
+    DOM.appDialogFieldLabel.textContent = inputLabel || '';
+    DOM.appDialogInput.value = inputValue;
+    DOM.appDialogInput.placeholder = inputPlaceholder;
+    DOM.appDialogSelectWrap.classList.toggle('hidden', !selectOptions.length);
+    DOM.appDialogSelectLabel.textContent = selectLabel || 'Selecciona una opción';
+    DOM.appDialogSelect.replaceChildren(...selectOptions.map(option => {
+      const element = document.createElement('option');
+      element.value = typeof option === 'string' ? option : option.value;
+      element.textContent = typeof option === 'string' ? option : option.label;
+      return element;
+    }));
+    dialog.returnValue = '';
+
+    let settled = false;
+    const finish = confirmed => {
+      if (settled) return;
+      settled = true;
+      state.isInternalModalOpen = false;
+      DOM.appDialogCancel.onclick = null;
+      dialog.querySelector('form').onsubmit = null;
+      const value = selectOptions.length ? DOM.appDialogSelect.value : DOM.appDialogInput.value.trim();
+      if (confirmed) sounds.playFeedback(kind === 'danger' ? 'warning' : kind);
+      requestAnimationFrame(() => {
+        if (previousFocus instanceof HTMLElement && document.contains(previousFocus)) previousFocus.focus({ preventScroll: true });
+      });
+      resolve({ confirmed, value });
+    };
+    const closeHandler = () => finish(dialog.returnValue === 'confirm');
+    const cancelHandler = () => {
+      dialog.returnValue = 'cancel';
+      dialog.close();
+    };
+    const submitHandler = event => {
+      if (inputLabel && !DOM.appDialogInput.value.trim()) {
+        event.preventDefault();
+        DOM.appDialogInput.focus();
+        DOM.appDialogInput.classList.add('input-field-error');
+        return;
+      }
+      dialog.returnValue = 'confirm';
+    };
+    dialog.addEventListener('close', closeHandler, { once: true });
+    DOM.appDialogCancel.onclick = cancelHandler;
+    dialog.querySelector('form').onsubmit = submitHandler;
+    dialog.showModal();
+    requestAnimationFrame(() => (inputLabel ? DOM.appDialogInput : selectOptions.length ? DOM.appDialogSelect : DOM.appDialogConfirm).focus());
+  });
+  const pending = appDialogQueue.then(run, run);
+  appDialogQueue = pending.catch(() => {});
+  return pending;
+}
+
+async function showNotice(message, options = {}) {
+  return openAppDialog({ title: options.title || 'codeGO', message, kind: options.kind || 'info', confirmLabel: options.confirmLabel || 'Entendido' });
+}
+
+async function askConfirmation(message, options = {}) {
+  const result = await openAppDialog({
+    title: options.title || 'Confirmar acción',
+    message,
+    kind: options.kind || 'warning',
+    confirmLabel: options.confirmLabel || 'Continuar',
+    cancelLabel: options.cancelLabel || 'Cancelar'
+  });
+  return result.confirmed;
+}
+
+async function requestText(title, placeholder, options = {}) {
+  const result = await openAppDialog({
+    title,
+    message: options.message || '',
+    kind: options.kind || 'info',
+    confirmLabel: options.confirmLabel || 'Crear',
+    cancelLabel: 'Cancelar',
+    inputLabel: options.label || 'Nombre',
+    inputValue: options.value || '',
+    inputPlaceholder: placeholder || ''
+  });
+  return result.confirmed ? result.value : null;
+}
+
+async function focusEditorReliably() {
+  if (!DOM.viewIde?.classList.contains('active') || isWorkspaceLocked() || state.isSubmitting) return false;
+  applyEditorLockState(false);
+  if (!isInternalModalOpen()) DOM.codeTextarea?.focus({ preventScroll: true });
+  try { await window.electronAPI?.focusEditorWindow?.(); } catch (_) {}
+  const token = (state.editorFocusRequest || 0) + 1;
+  state.editorFocusRequest = token;
+  [0, 40, 120].forEach(delay => setTimeout(() => {
+    if (state.editorFocusRequest !== token || !DOM.viewIde?.classList.contains('active') || isInternalModalOpen()) return;
+    if (DOM.terminalStdinInput && !DOM.terminalStdinInput.disabled && document.activeElement === DOM.terminalStdinInput) return;
+    DOM.codeTextarea?.focus({ preventScroll: true });
+  }, delay));
+  return true;
+}
+
+async function revealWorkspaceInSystem() {
+  const result = await window.electronAPI?.revealCurrentWorkspace?.();
+  if (!result?.success) {
+    await showNotice(result?.error || 'No se pudo abrir la carpeta del proyecto.', { title: 'No se pudo mostrar la carpeta', kind: 'warning' });
+    return false;
+  }
+  showToast('Proyecto abierto en el explorador de archivos del sistema.', 'success');
+  return true;
+}
+
 // ==============================================================
 // 2.1 SCREEN SIZE ANALYZER & ADAPTIVE AUTO-FIT
 // ==============================================================
 function autoFitScreenLayout() {
   const w = window.innerWidth;
   const h = window.innerHeight;
+  const density = window.devicePixelRatio || 1;
   if (!window.electronAPI?.setZoomFactor && state.zoomFactor !== 1) {
     document.body.style.width = `${w / state.zoomFactor}px`;
     document.body.style.height = `${h / state.zoomFactor}px`;
@@ -542,11 +760,13 @@ function autoFitScreenLayout() {
     document.body.style.removeProperty('width');
     document.body.style.removeProperty('height');
   }
-  if (w < 1366 || h < 768) {
-    document.body.classList.add('screen-compact');
-  } else {
-    document.body.classList.remove('screen-compact');
-  }
+  document.body.classList.toggle('screen-compact', w < 1366 || h < 768);
+  document.body.classList.toggle('screen-dense', w < 1500 || h < 820 || density >= 1.25);
+  document.body.classList.toggle('screen-narrow', w < 1180);
+  document.body.classList.toggle('screen-short', h < 680);
+  document.documentElement.style.setProperty('--viewport-width', `${w}px`);
+  document.documentElement.style.setProperty('--viewport-height', `${h}px`);
+  document.documentElement.style.setProperty('--device-scale', String(density));
 }
 
 // ==============================================================
@@ -665,6 +885,24 @@ function toggleWordWrap() {
   if (typeof syncEditorScroll === 'function') {
     syncEditorScroll();
   }
+}
+
+function applyIndentGuidePreference(style = 'subtle') {
+  const accepted = ['subtle', 'visible', 'off'];
+  state.indentGuideStyle = accepted.includes(style) ? style : 'subtle';
+  document.body.classList.remove('indent-guides-subtle', 'indent-guides-visible', 'indent-guides-off');
+  document.body.classList.add(`indent-guides-${state.indentGuideStyle}`);
+  const labels = { subtle: 'Guías: sutiles', visible: 'Guías: visibles', off: 'Guías: ocultas' };
+  if (DOM.btnIndentGuides) {
+    DOM.btnIndentGuides.textContent = labels[state.indentGuideStyle];
+    DOM.btnIndentGuides.setAttribute('aria-label', `Guías de sangría: ${labels[state.indentGuideStyle].split(': ')[1]}`);
+  }
+  localStorage.setItem('codego_indent_guides', state.indentGuideStyle);
+}
+
+function cycleIndentGuidePreference() {
+  const order = ['subtle', 'visible', 'off'];
+  applyIndentGuidePreference(order[(order.indexOf(state.indentGuideStyle) + 1) % order.length]);
 }
 
 function toggleSidebar() {
@@ -1300,22 +1538,46 @@ async function initApp() {
     });
   });
   setSessionMode(state.appMode);
+  applyIndentGuidePreference(state.indentGuideStyle);
   checkAndDisplayLastSession();
-  await loadVisibleAppVersion();
-  await checkUpdatesSilently();
-
-  if (window.electronAPI?.getEnvironmentStatus) {
-    const status = await window.electronAPI.getEnvironmentStatus();
-    state.environmentReady = status.ready === true;
-    if (!state.environmentReady) {
-      await startAutoRepairProcess();
-      return;
-    }
-  } else {
-    state.environmentReady = true;
+  if (DOM.startupStatus) DOM.startupStatus.textContent = 'Cargando la interfaz y leyendo la configuración local…';
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const timeoutValue = (promise, ms, fallback) => Promise.race([
+    Promise.resolve(promise).catch(() => fallback),
+    new Promise(resolve => setTimeout(() => resolve(fallback), ms))
+  ]);
+  const [environmentStatus, , recoveryStatus, pinPolicy] = await Promise.all([
+    window.electronAPI?.getEnvironmentStatus
+      ? timeoutValue(window.electronAPI.getEnvironmentStatus(), 8000, { ready: false, pending: true })
+      : { ready: true },
+    timeoutValue(loadVisibleAppVersion(), 2500, null),
+    window.electronAPI?.getRecoveryStatus
+      ? timeoutValue(window.electronAPI.getRecoveryStatus(), 2500, { success: false })
+      : { success: false },
+    window.electronAPI?.getTeacherPinPolicy
+      ? timeoutValue(window.electronAPI.getTeacherPinPolicy(), 2500, { managed: false })
+      : { managed: false }
+  ]);
+  state.teacherPinManaged = pinPolicy?.managed === true;
+  DOM.examPinSetup?.classList.toggle('managed-pin', state.teacherPinManaged);
+  if (state.teacherPinManaged && DOM.examPinHelp) DOM.examPinHelp.textContent = 'El PIN de salida está administrado por esta institución.';
+  state.environmentReady = environmentStatus?.ready === true;
+  switchView('lobby');
+  if (recoveryStatus?.interruptedExam) {
+    const interrupted = recoveryStatus.interruptedExam;
+    await showNotice(
+      `La sesión ${interrupted.examId ? `\u201c${interrupted.examId}\u201d ` : ''}terminó sin una entrega ni una salida autorizada. El profesor debe revisar esta incidencia antes de comenzar otra evaluación.`,
+      { title: 'Examen interrumpido', kind: 'danger', confirmLabel: 'Entendido' }
+    );
+    await window.electronAPI.acknowledgeRecovery?.();
   }
-
-  await loadEnvironmentDiagnostics();
+  if (!state.environmentReady) {
+    setTimeout(() => void startAutoRepairProcess(), 0);
+  } else {
+    setTimeout(() => void loadEnvironmentDiagnostics(), 0);
+  }
+  // Network work never blocks the first interactive screen.
+  setTimeout(() => void checkUpdatesSilently(), 900);
   startWifiMonitoring();
   window.addEventListener('online', () => window.electronAPI?.checkAndInstallUpdates?.());
 }
@@ -1519,13 +1781,13 @@ function setSessionMode(mode) {
     }
   } else if (mode === 'task') {
     document.body.classList.add('mode-task-active');
-    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'Iniciar tarea';
-    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Entrega firmada';
-    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante la tarea certificada';
+    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'Iniciar tarea / actividad';
+    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Trabajo supervisado';
+    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante la tarea o actividad';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
         <li><strong>Edición flexible:</strong> Puedes copiar, cortar y pegar mientras desarrollas tu tarea.</li>
-        <li><strong>Trabajo sin interrupciones:</strong> Puedes consultar materiales o cambiar de ventana sin alertas.</li>
+        <li><strong>Supervisión:</strong> Cada salida del programa queda registrada y requiere una espera de 12 segundos al regresar.</li>
         <li><strong>Registro de actividad:</strong> Se conservan el tiempo de edición y las pruebas ejecutadas como contexto para el docente.</li>
         <li><strong>Entrega verificable:</strong> Genera un contenedor .codego firmado con Ed25519 para comprobar su integridad.</li>
       `;
@@ -1541,19 +1803,19 @@ function setSessionMode(mode) {
       DOM.btnSubmitTask.disabled = false;
     }
     if (DOM.activityActionsToolbar) {
-      DOM.activityActionsToolbar.classList.add('hidden');
-      DOM.activityActionsToolbar.style.display = 'none';
+      DOM.activityActionsToolbar.classList.remove('hidden');
+      DOM.activityActionsToolbar.style.display = 'inline-flex';
     }
   } else {
     document.body.classList.add('mode-activity-active');
-    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'Iniciar actividad';
-    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo libre';
-    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante la actividad';
+    if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'Abrir modo libre';
+    if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Sin supervisión';
+    if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'En modo libre';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
         <li><strong>Gestión de Archivos:</strong> Puedes abrir cualquier carpeta en tu equipo o crear nuevos proyectos en Python.</li>
         <li><strong>Conectividad Libre:</strong> La conexión a red permanece habilitada durante la sesión.</li>
-        <li><strong>Supervisión Académica:</strong> Se mantiene supervisión activa; al cambiar de programa se mostrará el aviso correspondiente.</li>
+        <li><strong>Trabajo libre:</strong> Puedes cambiar de programa y consultar materiales sin generar incidencias.</li>
         <li><strong>Ejecución Directa:</strong> Ejecuta tu código las veces que sea necesario (F5 o botón ▶ Ejecutar).</li>
       `;
     }
@@ -1624,6 +1886,9 @@ function setupEventListeners() {
   if (DOM.btnActivityNewProject) {
     DOM.btnActivityNewProject.addEventListener('click', handleCreateNewProject);
   }
+  DOM.btnRevealWorkspace?.addEventListener('click', revealWorkspaceInSystem);
+  DOM.btnRevealWorkspaceSidebar?.addEventListener('click', revealWorkspaceInSystem);
+  DOM.btnRevealSelectedWorkspace?.addEventListener('click', revealWorkspaceInSystem);
 
   // A finished delivery remains read-only. A task keeps normal clipboard
   // behavior throughout editing and is restricted only after it is sealed.
@@ -1689,7 +1954,7 @@ function setupEventListeners() {
       button.disabled = true;
       try {
         const result = await window.electronAPI?.openSupportPage?.();
-        if (result && !result.success) alert(result.error);
+        if (result && !result.success) showNotice(result.error);
       } finally {
         button.disabled = false;
       }
@@ -1810,18 +2075,18 @@ function setupEventListeners() {
     }
   });
 
-  // Language Selector Pills (Lobby)
-  DOM.langPillChoices?.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const lang = btn.dataset.lang;
-      state.selectedLanguage = lang;
-      DOM.langPillChoices.forEach(b => {
-        const active = (b.dataset.lang === lang);
-        b.classList.toggle('active', active);
-        b.setAttribute('aria-checked', String(active));
-      });
-      updateActiveLanguageBadge();
-    });
+  DOM.languageSelect?.addEventListener('change', () => {
+    state.selectedLanguage = DOM.languageSelect.value;
+    const help = {
+      python: 'Python está listo para trabajar sin conexión.',
+      cpp: 'C y C++ usan el compilador disponible en este equipo.',
+      java: 'Java usa el JDK disponible en este equipo.',
+      javascript: 'JavaScript usa Node.js en este equipo.',
+      r: 'R usa el entorno instalado en este equipo.'
+    };
+    if (DOM.languageSelectionHelp) DOM.languageSelectionHelp.textContent = help[state.selectedLanguage] || '';
+    updateActiveLanguageBadge();
+    sounds.playFeedback('info');
   });
 
   // Offline Environments Manager Modal Handlers
@@ -1856,7 +2121,7 @@ function setupEventListeners() {
     DOM.btnTestCompilers.textContent = 'Probando...';
     try {
       await renderOfflineLanguagesGrid();
-      alert('✓ Comprobación de compiladores finalizada.');
+      showNotice('✓ Comprobación de compiladores finalizada.');
     } finally {
       DOM.btnTestCompilers.disabled = false;
       DOM.btnTestCompilers.textContent = '🧪 Probar Compiladores';
@@ -1899,6 +2164,7 @@ function setupEventListeners() {
   // Layout & Panel Toggles
   DOM.btnToggleSidebar.addEventListener('click', toggleSidebar);
   DOM.btnToggleWrap.addEventListener('click', toggleWordWrap);
+  DOM.btnIndentGuides?.addEventListener('click', cycleIndentGuidePreference);
   if (DOM.btnToggleTermLayout) {
     DOM.btnToggleTermLayout.addEventListener('click', toggleTerminalLayout);
   }
@@ -2075,7 +2341,7 @@ function setupEventListeners() {
   window.addEventListener('keydown', (e) => {
     // Media keys remain available during ordinary work. They are intercepted
     // only while the classroom alarm is actually sounding.
-    if (sounds.isSirenPlaying && (state.appMode === 'exam' || state.appMode === 'activity') && (['AudioVolumeMute', 'VolumeMute', 'AudioVolumeDown', 'VolumeDown'].includes(e.key) || e.code === 'AudioVolumeMute' || e.code === 'AudioVolumeDown')) {
+    if (sounds.isSirenPlaying && (state.appMode === 'exam' || state.appMode === 'task') && (['AudioVolumeMute', 'VolumeMute', 'AudioVolumeDown', 'VolumeDown'].includes(e.key) || e.code === 'AudioVolumeMute' || e.code === 'AudioVolumeDown')) {
       e.preventDefault();
       e.stopPropagation();
       return false;
@@ -2111,7 +2377,7 @@ function setupEventListeners() {
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();
-      saveCurrentFile();
+      saveCurrentFile({ manual: true });
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l' && state.workspaceSessionActive) {
       e.preventDefault();
@@ -2156,7 +2422,7 @@ function setupEventListeners() {
 function setupElectronListeners() {
   window.electronAPI?.onBeforeClose?.(async () => {
     const saved = await saveAllFiles();
-    if (!saved) alert('No se pudo guardar. La aplicación permanecerá abierta para conservar tus cambios.');
+    if (!saved) showNotice('No se pudo guardar. La aplicación permanecerá abierta para conservar tus cambios.');
     await window.electronAPI.confirmClose(saved);
   });
   if (!window.electronAPI) return;
@@ -2217,12 +2483,25 @@ function setupElectronListeners() {
   // Monitor count changes
   window.electronAPI.onMonitorStatus((data) => {
     state.monitorsCount = data.count;
-    // Only lock screen if in an active EXAM session!
+    const currentDisplay = data.displays?.find(display => display.isPrimary) || data.displays?.[0];
+    if (currentDisplay) {
+      document.documentElement.style.setProperty('--display-scale', String(currentDisplay.scaleFactor || 1));
+      document.body.dataset.displayProfile = `${currentDisplay.workArea?.width || currentDisplay.bounds?.width || 'unknown'}x${currentDisplay.workArea?.height || currentDisplay.bounds?.height || 'unknown'}`;
+    }
+    // Multiple displays become part of the same repeatable warning state.
     if (data.isMultiple && state.examSessionActive && state.appMode === 'exam' && !state.isExamSubmitted) {
       DOM.lockMonitorsCount.textContent = `${data.count} pantallas`;
-      DOM.modalMultimonitor.classList.remove('hidden');
+      DOM.modalMultimonitor.classList.add('hidden');
+      if (!state.monitorViolationActive) {
+        state.monitorViolationActive = true;
+        handleSecurityViolation({ type: 'MULTIPLE_DISPLAYS', phase: 'away', timestamp: new Date().toLocaleTimeString() });
+      }
     } else {
       DOM.modalMultimonitor.classList.add('hidden');
+      if (state.monitorViolationActive) {
+        state.monitorViolationActive = false;
+        handleSecurityViolation({ type: 'MULTIPLE_DISPLAYS_RESOLVED', phase: 'returned', durationSeconds: 0 });
+      }
     }
   });
 
@@ -2292,6 +2571,7 @@ function setWorkspaceSelection(result) {
     DOM.workspaceSelectionStatus.title = state.workspacePath;
     DOM.workspaceSelectionStatus.classList.add('selected');
   }
+  DOM.btnRevealSelectedWorkspace?.classList.remove('hidden');
   if (DOM.lobbyValidationBanner) DOM.lobbyValidationBanner.classList.add('hidden');
   if (state.appMode !== 'exam') rememberRecentProject();
   return true;
@@ -2325,7 +2605,7 @@ function prepareNewWorkspaceSession() {
 
 async function chooseWorkspaceFolder() {
   if (!window.electronAPI?.openFolderDialog) {
-    alert('La selección de carpetas está disponible en la aplicación de escritorio.');
+    showNotice('La selección de carpetas está disponible en la aplicación de escritorio.');
     return null;
   }
   const result = await window.electronAPI.openFolderDialog();
@@ -2336,7 +2616,7 @@ async function createBlankWorkspace() {
   const projectName = await requestName('Nombre del proyecto', 'Mi proyecto');
   if (!projectName) return null;
   if (!window.electronAPI?.createProjectDialog) {
-    alert('La creación de proyectos está disponible en la aplicación de escritorio.');
+    showNotice('La creación de proyectos está disponible en la aplicación de escritorio.');
     return null;
   }
   const result = await window.electronAPI.createProjectDialog(projectName);
@@ -2352,11 +2632,15 @@ async function handleStartExamClick() {
   const id = DOM.studentIdInput.value.trim();
   const subject = DOM.examSubjectInput.value.trim() || (state.appMode === 'exam' ? 'Examen de Programación' : 'Actividad Práctica');
   const examId = DOM.examIdInput?.value.trim() || '';
+  const teacherPin = DOM.examTeacherPinInput?.value.trim() || '';
+  const teacherPinConfirm = DOM.examTeacherPinConfirmInput?.value.trim() || '';
 
   // Clean previous visual error states
   DOM.studentNameInput.classList.remove('input-field-error');
   DOM.studentIdInput.classList.remove('input-field-error');
   DOM.examIdInput?.classList.remove('input-field-error');
+  DOM.examTeacherPinInput?.classList.remove('input-field-error');
+  DOM.examTeacherPinConfirmInput?.classList.remove('input-field-error');
   if (DOM.lobbyValidationBanner) DOM.lobbyValidationBanner.classList.add('hidden');
 
   if (!name) {
@@ -2391,6 +2675,16 @@ async function handleStartExamClick() {
     return;
   }
 
+  if (state.appMode === 'exam' && !state.teacherPinManaged && (!/^\d{4,12}$/.test(teacherPin) || teacherPin !== teacherPinConfirm)) {
+    DOM.examTeacherPinInput?.classList.add('input-field-error');
+    DOM.examTeacherPinConfirmInput?.classList.add('input-field-error');
+    showLobbyValidation(!/^\d{4,12}$/.test(teacherPin)
+      ? 'El profesor debe definir un PIN de 4 a 12 dígitos antes de iniciar.'
+      : 'La confirmación del PIN no coincide.');
+    DOM.examTeacherPinInput?.focus();
+    return;
+  }
+
   if (state.appMode !== 'exam' && !state.workspaceSelected) {
     if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
       DOM.lobbyValidationText.textContent = 'Elige una carpeta existente o crea un proyecto en blanco para continuar.';
@@ -2416,6 +2710,7 @@ async function handleStartExamClick() {
   state.student.examId = examId;
   state.student.language = state.selectedLanguage;
   state.student.mode = state.appMode;
+  state.pendingTeacherPin = state.appMode === 'exam' ? teacherPin : '';
   prepareNewWorkspaceSession();
 
   // Update IDE topbar info
@@ -2423,13 +2718,18 @@ async function handleStartExamClick() {
   DOM.navSubjectLabel.textContent = subject;
 
   if (state.appMode === 'exam') {
+    const confirmed = await askConfirmation(
+      'Guarda primero cualquier trabajo externo. Al iniciar, codeGO cerrará navegadores, asistentes de IA y editores conocidos, desconectará la red y activará la supervisión.',
+      { title: 'Iniciar examen supervisado', kind: 'danger', confirmLabel: 'Iniciar examen' }
+    );
+    if (!confirmed) return;
     // Launch countdown sequence for exam with kiosk lock
     await startCountdownSequence();
   } else if (state.appMode === 'task') {
     // Task Mode: regular desktop editing with a signed delivery and session metrics.
     if (window.electronAPI && window.electronAPI.startKiosk) {
       const result = await window.electronAPI.startKiosk({ ...state.student, mode: 'task' });
-      if (!result.success) { alert(result.error); return; }
+      if (!result.success) { showNotice(result.error); return; }
     }
     enterIdeWorkspace();
   } else {
@@ -2437,7 +2737,7 @@ async function handleStartExamClick() {
     state.examSessionActive = false;
     if (window.electronAPI && window.electronAPI.startKiosk) {
       const result = await window.electronAPI.startKiosk({ ...state.student, mode: 'activity' });
-      if (!result.success) { alert(result.error); return; }
+      if (!result.success) { showNotice(result.error); return; }
     }
     enterIdeWorkspace();
   }
@@ -2447,8 +2747,11 @@ async function startCountdownSequence() {
 
   // Trigger lockdown in main process immediately for exam
   if (window.electronAPI && window.electronAPI.startKiosk) {
-    const result = await window.electronAPI.startKiosk({ ...state.student, mode: 'exam' });
-    if (!result.success) { alert(result.error); return; }
+    const result = await window.electronAPI.startKiosk({ ...state.student, mode: 'exam', teacherPin: state.pendingTeacherPin });
+    state.pendingTeacherPin = '';
+    if (!result.success) { showNotice(result.error); return; }
+    if (DOM.examTeacherPinInput) DOM.examTeacherPinInput.value = '';
+    if (DOM.examTeacherPinConfirmInput) DOM.examTeacherPinConfirmInput.value = '';
     setWorkspaceSelection(result);
     state.examInitialFile = result.initialFile || '';
   }
@@ -2499,6 +2802,8 @@ async function startCountdownSequence() {
 function enterIdeWorkspace() {
   switchView('ide');
   state.workspaceSessionActive = true;
+  state.isSubmitting = false;
+  applyEditorLockState();
   if (DOM.lobbyUpdateBanner) DOM.lobbyUpdateBanner.classList.add('hidden');
   handleCloseReleaseNotes();
 
@@ -2506,6 +2811,7 @@ function enterIdeWorkspace() {
     document.body.classList.remove('mode-activity-active', 'mode-task-active');
     document.body.classList.add('mode-exam-active');
     state.examSessionActive = true; // Security watchdog & kiosk active only in exam mode
+    if (DOM.sessionPolicyBadge) DOM.sessionPolicyBadge.textContent = 'Examen supervisado';
     // Mode Exam: Clear & prominent crimson badge, timer visible, finish exam button visible
     if (DOM.navModeIndicator) {
       DOM.navModeIndicator.className = 'nav-mode-indicator mode-exam';
@@ -2544,13 +2850,14 @@ function enterIdeWorkspace() {
   } else if (state.appMode === 'task') {
     document.body.classList.remove('mode-activity-active', 'mode-exam-active');
     document.body.classList.add('mode-task-active');
-    state.examSessionActive = true; // Enables the task timer and authorship telemetry; no kiosk or focus alarm.
+    state.examSessionActive = true;
+    if (DOM.sessionPolicyBadge) DOM.sessionPolicyBadge.textContent = 'Supervisión activa';
     if (DOM.navModeIndicator) {
       DOM.navModeIndicator.className = 'nav-mode-indicator mode-task';
       DOM.navModeIndicator.title = 'Tarea con entrega firmada y registro de actividad';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = 'Tarea certificada';
+      DOM.navModeText.textContent = 'Tarea / actividad supervisada';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.remove('hidden');
@@ -2567,8 +2874,8 @@ function enterIdeWorkspace() {
       DOM.btnSubmitTask.disabled = false;
     }
     if (DOM.activityActionsToolbar) {
-      DOM.activityActionsToolbar.classList.add('hidden');
-      DOM.activityActionsToolbar.style.display = 'none';
+      DOM.activityActionsToolbar.classList.remove('hidden');
+      DOM.activityActionsToolbar.style.display = 'inline-flex';
     }
     if (DOM.sidebarTitleLabel) {
       DOM.sidebarTitleLabel.textContent = 'ESPACIO DE TAREA';
@@ -2584,6 +2891,7 @@ function enterIdeWorkspace() {
     document.body.classList.remove('mode-exam-active', 'mode-task-active');
     document.body.classList.add('mode-activity-active');
     state.examSessionActive = false; // Mode Activity has NO anti-cheat monitoring or timer
+    if (DOM.sessionPolicyBadge) DOM.sessionPolicyBadge.textContent = 'Modo libre';
     // Mode Activity: Blue badge, NO timer, NO finish button (only run button), project toolbar active
     if (DOM.navModeIndicator) {
       DOM.navModeIndicator.className = 'nav-mode-indicator mode-activity';
@@ -2635,6 +2943,7 @@ function enterIdeWorkspace() {
     } else if (state.activeFilePath && state.openTabs.some(tab => tab.path === state.activeFilePath)) {
       await openFileInEditor(state.activeFilePath);
     }
+    await focusEditorReliably();
   });
   syncEditorScroll();
 }
@@ -2652,6 +2961,7 @@ function startExamTimer() {
 }
 
 function switchView(viewName) {
+  DOM.viewStartup?.classList.remove('active');
   DOM.viewLobby.classList.remove('active');
   DOM.viewCountdown.classList.remove('active');
   DOM.viewIde.classList.remove('active');
@@ -2665,8 +2975,8 @@ function switchView(viewName) {
 }
 
 function isInternalModalOpen() {
-  if (state.isInternalModalOpen) return true;
   const internalModalIds = [
+    'modal-offline-languages',
     'modal-package-manager',
     'modal-auto-installer',
     'modal-shortcuts',
@@ -2675,10 +2985,13 @@ function isInternalModalOpen() {
     'modal-submit-exam',
     'modal-submission-success',
     'modal-task-submit',
-    'modal-verify-submission'
+    'modal-verify-submission',
+    'modal-release-notes',
+    'app-dialog'
   ];
   return internalModalIds.some(id => {
     const el = document.getElementById(id);
+    if (el instanceof HTMLDialogElement) return el.open;
     return el && !el.classList.contains('hidden');
   });
 }
@@ -2686,11 +2999,22 @@ function isInternalModalOpen() {
 // ==============================================================
 // 9. ANTI-CHEAT & SECURITY VIOLATION ENGINE
 // ==============================================================
-function beginHazardCountdown(isActivity) {
+function clearHazardTimers() {
+  if (state.hazardCountdownInterval) clearInterval(state.hazardCountdownInterval);
+  if (state.hazardAudioInterval) clearInterval(state.hazardAudioInterval);
+  state.hazardCountdownInterval = null;
+  state.hazardAudioInterval = null;
+}
+
+function beginHazardCountdown() {
   let remainingSeconds = 12;
   state.hazardAwaitingReturn = false;
   sounds.stopAlarmSiren();
-  window.electronAPI?.setAlarmActive?.(false);
+  // Keep the OS volume guard active during the complete mandatory wait.
+  window.electronAPI?.setAlarmActive?.(true);
+  clearHazardTimers();
+  sounds.playCountdownTick(false);
+  state.hazardAudioInterval = setInterval(() => sounds.playCountdownTick(false), 1000);
 
   if (DOM.btnDismissHazard) {
     DOM.btnDismissHazard.disabled = true;
@@ -2704,7 +3028,6 @@ function beginHazardCountdown(isActivity) {
   };
   renderRemaining();
 
-  if (state.hazardCountdownInterval) clearInterval(state.hazardCountdownInterval);
   state.hazardCountdownInterval = setInterval(() => {
     remainingSeconds -= 1;
     if (remainingSeconds > 0) {
@@ -2712,8 +3035,9 @@ function beginHazardCountdown(isActivity) {
       return;
     }
 
-    clearInterval(state.hazardCountdownInterval);
-    state.hazardCountdownInterval = null;
+    clearHazardTimers();
+    sounds.playCountdownTick(true);
+    window.electronAPI?.setAlarmActive?.(false);
     DOM.modalFocusWarning.classList.remove('hazard-luminescent');
     DOM.modalFocusWarning.querySelector('.modal-academic-warning-box')?.classList.remove('luminescent-box');
 
@@ -2723,12 +3047,12 @@ function beginHazardCountdown(isActivity) {
       DOM.btnDismissHazard.classList.add('ready-to-resume');
     }
     if (DOM.hazardCountdownText) DOM.hazardCountdownText.textContent = '0s';
-    if (DOM.hazardBtnLabel) DOM.hazardBtnLabel.textContent = isActivity ? 'Continuar actividad' : 'Reanudar examen';
+    if (DOM.hazardBtnLabel) DOM.hazardBtnLabel.textContent = state.appMode === 'task' ? 'Reanudar tarea / actividad' : 'Reanudar examen';
   }, 1000);
 }
 
 function handleSecurityViolation(incidentData = {}) {
-  if (state.appMode === 'task' || !state.workspaceSessionActive || state.isExamSubmitted) return;
+  if (state.appMode === 'activity' || !state.workspaceSessionActive || state.isExamSubmitted || state.isTaskSubmitted) return;
 
   const isReturned = incidentData.phase === 'returned';
   const warningVisible = !DOM.modalFocusWarning.classList.contains('hidden');
@@ -2736,13 +3060,14 @@ function handleSecurityViolation(incidentData = {}) {
   if (isReturned) {
     if (!warningVisible || !state.hazardAwaitingReturn) return;
     if (incidentData.durationSeconds) DOM.hazardDuration.textContent = `${incidentData.durationSeconds} segundos`;
-    beginHazardCountdown(state.appMode === 'activity');
+    beginHazardCountdown();
     return;
   }
 
-  if (isInternalModalOpen()) return;
-  if (state.pythonGuiActive) return;
-  if (warningVisible) return;
+  // Leaving again during the countdown always restarts the loud phase. Custom
+  // codeGO dialogs remain supervised because they are part of the same window.
+  clearHazardTimers();
+  sounds.stopAlarmSiren();
 
   const reportedIncidents = Number(incidentData.totalIncidents);
   if (Number.isFinite(reportedIncidents) && reportedIncidents >= 0) {
@@ -2752,14 +3077,14 @@ function handleSecurityViolation(incidentData = {}) {
   }
   updateIncidentsDisplay();
 
-  const isActivity = state.appMode === 'activity';
+  const isTask = state.appMode === 'task';
   const titleEl = DOM.modalFocusWarning.querySelector('.academic-title');
   const subtitleEl = DOM.modalFocusWarning.querySelector('.academic-subtitle');
   const descEl = DOM.modalFocusWarning.querySelector('.academic-desc');
-  if (titleEl) titleEl.textContent = isActivity ? 'Aviso de supervisión' : 'Aviso de integridad';
+  if (titleEl) titleEl.textContent = isTask ? 'Aviso de supervisión' : 'Aviso de integridad';
   if (subtitleEl) subtitleEl.textContent = 'REGRESA A CODEGO';
   if (descEl) descEl.textContent = 'La alarma permanecerá activa hasta regresar. Al volver comenzará la espera obligatoria de 12 segundos.';
-  if (DOM.hazardStrobeText) DOM.hazardStrobeText.textContent = isActivity ? 'AVISO DE SUPERVISIÓN' : 'ALERTA DE EVALUACIÓN';
+  if (DOM.hazardStrobeText) DOM.hazardStrobeText.textContent = isTask ? 'AVISO DE SUPERVISIÓN' : 'ALERTA DE EVALUACIÓN';
 
   DOM.hazardTime.textContent = incidentData.timestamp || new Date().toLocaleTimeString();
   DOM.hazardDuration.textContent = 'Fuera del entorno';
@@ -2781,10 +3106,7 @@ function handleSecurityViolation(incidentData = {}) {
 }
 
 function dismissHazardWarning() {
-  if (state.hazardCountdownInterval) {
-    clearInterval(state.hazardCountdownInterval);
-    state.hazardCountdownInterval = null;
-  }
+  clearHazardTimers();
   state.hazardAwaitingReturn = false;
   window.electronAPI?.setAlarmActive?.(false);
   sounds.stopAlarmSiren();
@@ -2924,13 +3246,16 @@ function workspaceFolderPaths(tree = state.filesTree, paths = []) {
 
 async function chooseAndMoveWorkspaceItem(sourcePath) {
   const available = workspaceFolderPaths().filter(folder => folder !== sourcePath && !folder.startsWith(`${sourcePath}/`));
-  const answer = prompt(`Mover “${sourcePath}” a otra carpeta.\n\nEscribe / para la raíz o una de estas rutas:\n${available.join('\n') || '(no hay otras carpetas)'}`, '/');
-  if (answer === null) return;
-  const targetDirectory = answer.trim().replace(/^\.\/?/, '').replace(/^\/+|\/+$/g, '');
-  if (targetDirectory && !available.includes(targetDirectory)) {
-    alert('Esa carpeta no existe dentro del proyecto. Revisa la ruta e inténtalo de nuevo.');
-    return;
-  }
+  const response = await openAppDialog({
+    title: 'Mover dentro del proyecto',
+    message: `Elige el destino de “${sourcePath}”.`,
+    confirmLabel: 'Mover aquí',
+    cancelLabel: 'Cancelar',
+    selectLabel: 'Carpeta de destino',
+    selectOptions: [{ value: '', label: 'Raíz del proyecto' }, ...available.map(folder => ({ value: folder, label: folder }))]
+  });
+  if (!response.confirmed) return;
+  const targetDirectory = response.value;
   await moveWorkspaceItem(sourcePath, targetDirectory);
 }
 
@@ -2997,13 +3322,13 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
         newFileBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           if (isWorkspaceLocked()) return;
-          const fileName = prompt(`Crear archivo dentro de ${item.name}/:\nEjemplo: helper.py`);
+          const fileName = await requestText('Nuevo archivo', 'helper.py', { message: `Se creará dentro de ${item.name}.`, label: 'Nombre del archivo' });
           if (fileName && fileName.trim()) {
             const cleanName = fileName.trim().replace(/^\/+/, '');
             const fullPath = `${itemPath}/${cleanName}`;
             if (window.electronAPI) {
               const res = await window.electronAPI.createFile(fullPath);
-              if (!res.success) { alert(res.error); return; }
+              if (!res.success) { showNotice(res.error); return; }
               state.collapsedFolders.delete(itemPath);
               await loadWorkspaceFiles();
               await openFileInEditor(fullPath);
@@ -3017,13 +3342,13 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
         newFolderBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           if (isWorkspaceLocked()) return;
-          const folderName = prompt(`Crear subcarpeta dentro de ${item.name}/:\nEjemplo: componentes`);
+          const folderName = await requestText('Nueva subcarpeta', 'componentes', { message: `Se creará dentro de ${item.name}.`, label: 'Nombre de la carpeta' });
           if (folderName && folderName.trim()) {
             const cleanName = folderName.trim().replace(/^\/+/, '');
             const fullPath = `${itemPath}/${cleanName}`;
             if (window.electronAPI) {
               const res = await window.electronAPI.createFolder(fullPath);
-              if (!res.success) { alert(res.error); return; }
+              if (!res.success) { showNotice(res.error); return; }
               state.collapsedFolders.delete(itemPath);
               await loadWorkspaceFiles();
             }
@@ -3041,11 +3366,11 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
         deleteFolderBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           if (isWorkspaceLocked()) return;
-          if (confirm(`¿Eliminar la carpeta "${item.name}" y todos sus archivos?`)) {
+          if (await askConfirmation(`Se eliminará la carpeta “${item.name}” y todo su contenido.`, { title: 'Eliminar carpeta', kind: 'danger', confirmLabel: 'Eliminar' })) {
             if (window.electronAPI) {
               if (!await saveAllFiles()) return;
               const res = await window.electronAPI.deleteItem(itemPath);
-              if (!res.success) { alert(res.error); return; }
+              if (!res.success) { showNotice(res.error); return; }
               state.openTabs.filter(t => t.path === itemPath || t.path.startsWith(itemPath + '/')).forEach(t => closeTab(t.path));
               loadWorkspaceFiles();
             }
@@ -3123,11 +3448,11 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
         deleteBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           if (isWorkspaceLocked()) return;
-          if (confirm(`¿Eliminar ${item.name}?`)) {
+          if (await askConfirmation(`Se eliminará “${item.name}” del proyecto.`, { title: 'Eliminar archivo', kind: 'danger', confirmLabel: 'Eliminar' })) {
             if (window.electronAPI) {
               if (!await saveAllFiles()) return;
               const result = await window.electronAPI.deleteItem(itemPath);
-              if (!result.success) { alert(result.error); return; }
+              if (!result.success) { showNotice(result.error); return; }
               closeTab(itemPath);
               loadWorkspaceFiles();
             }
@@ -3184,9 +3509,7 @@ async function openFileInEditor(relativePath) {
 
   // Opening a file is also a navigation action. Returning focus here prevents
   // the lobby/recent-project button from retaining the keyboard after re-entry.
-  requestAnimationFrame(() => {
-    if (DOM.viewIde?.classList.contains('active')) DOM.codeTextarea.focus({ preventScroll: true });
-  });
+  await focusEditorReliably();
 }
 
 function renderTabs() {
@@ -3220,7 +3543,7 @@ function renderTabs() {
     });
     tabEl.querySelector('.tab-close')?.addEventListener('click', async (event) => {
       event.stopPropagation();
-      if (tab.isDirty && !confirm(`¿Cerrar ${tab.name}? Los cambios pendientes se guardarán antes de cerrar.`)) return;
+      if (tab.isDirty && !await askConfirmation(`Los cambios de “${tab.name}” se guardarán antes de cerrar la pestaña.`, { title: 'Cerrar pestaña', confirmLabel: 'Guardar y cerrar' })) return;
       if (tab.isDirty && !await saveAllFiles()) return;
       closeTab(tab.path);
     });
@@ -3246,22 +3569,12 @@ function closeTab(relativePath) {
 }
 
 function requestName(title, placeholder) {
-  return new Promise(resolve => {
-    const dialog = document.getElementById('name-dialog');
-    const field = document.getElementById('name-dialog-input');
-    document.getElementById('name-dialog-title').textContent = title;
-    field.value = '';
-    field.placeholder = placeholder;
-    dialog.returnValue = '';
-    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm' ? field.value.trim() : null), { once: true });
-    dialog.showModal();
-    field.focus();
-  });
+  return requestText(title, placeholder, { label: 'Nombre' });
 }
 
 async function promptNewFile() {
   if (isWorkspaceLocked()) {
-    alert('Esta entrega está sellada. Inicia una nueva sesión para crear archivos.');
+    showNotice('Esta entrega está sellada. Inicia una nueva sesión para crear archivos.');
     return;
   }
   const currentLang = state.selectedLanguage || 'python';
@@ -3275,7 +3588,7 @@ async function promptNewFile() {
   const validName = fileName.includes('.') ? fileName : `${fileName}${ext}`;
   if (window.electronAPI) {
     const result = await window.electronAPI.createFile(validName);
-    if (!result.success) { alert(result.error); return; }
+    if (!result.success) { showNotice(result.error); return; }
     await loadWorkspaceFiles();
     await openFileInEditor(validName);
   }
@@ -3283,7 +3596,7 @@ async function promptNewFile() {
 
 async function promptNewFolder() {
   if (isWorkspaceLocked()) {
-    alert('Esta entrega está sellada. Inicia una nueva sesión para crear carpetas.');
+    showNotice('Esta entrega está sellada. Inicia una nueva sesión para crear carpetas.');
     return;
   }
   const folderName = await requestName('Nueva carpeta', 'ejercicios');
@@ -3291,7 +3604,7 @@ async function promptNewFolder() {
 
   if (window.electronAPI) {
     const result = await window.electronAPI.createFolder(folderName);
-    if (!result.success) { alert(result.error); return; }
+    if (!result.success) { showNotice(result.error); return; }
     await loadWorkspaceFiles();
   }
 }
@@ -3647,7 +3960,10 @@ function handleEditorInput() {
   updateCursorStats();
   updateSyntaxHighlighting();
 
-  DOM.sbSaveStatus.textContent = 'Guardando cambios...';
+  DOM.sbSaveStatus.classList.remove('is-saved', 'save-error');
+  DOM.sbSaveStatus.classList.add('is-saving');
+  DOM.sbSaveStatus.textContent = 'Guardando cambios…';
+  DOM.sbSaveStatus.title = 'codeGO guarda el proyecto automáticamente';
 
   // Debounced auto-save (400ms for safety)
   clearTimeout(state.autoSaveTimeout);
@@ -3657,7 +3973,7 @@ function handleEditorInput() {
 }
 
 let saveQueue = Promise.resolve();
-function saveTab(tab) {
+function saveTab(tab, options = {}) {
   if (!tab || isWorkspaceLocked()) return Promise.resolve(true);
   const content = tab.content;
   const write = async () => {
@@ -3667,14 +3983,32 @@ function saveTab(tab) {
       if (!result.success) throw new Error(result.error || 'No se pudo guardar el archivo.');
       if (tab.content === content) tab.isDirty = false;
       renderTabs();
-      DOM.sbSaveStatus.classList.remove('save-error');
-      DOM.sbSaveStatus.textContent = state.openTabs.some(t => t.isDirty) ? 'Cambios pendientes' : 'Todos los cambios guardados';
+      const hasPendingChanges = state.openTabs.some(t => t.isDirty);
+      DOM.sbSaveStatus.classList.remove('save-error', 'is-saving');
+      DOM.sbSaveStatus.classList.toggle('is-saved', !hasPendingChanges);
+      if (hasPendingChanges) {
+        DOM.sbSaveStatus.textContent = 'Cambios pendientes';
+      } else {
+        state.lastSavedAt = new Date();
+        const time = state.lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        DOM.sbSaveStatus.textContent = `Guardado · ${time}`;
+        DOM.sbSaveStatus.title = `Última versión guardada: ${state.lastSavedAt.toLocaleString()}`;
+        const now = Date.now();
+        if (options.manual || now - state.lastSaveSoundAt > 8000) {
+          sounds.playFeedback('save');
+          state.lastSaveSoundAt = now;
+        }
+        if (options.manual) showToast(`“${tab.name}” guardado a las ${time}.`, 'success');
+      }
       return true;
     } catch (error) {
       tab.isDirty = true;
+      DOM.sbSaveStatus.classList.remove('is-saving', 'is-saved');
       DOM.sbSaveStatus.classList.add('save-error');
       DOM.sbSaveStatus.textContent = 'No se pudo guardar · Ctrl+S para reintentar';
       DOM.sbSaveStatus.title = error.message;
+      sounds.playFeedback('error');
+      showToast(`No se pudo guardar “${tab.name}”. ${error.message}`, 'error', 4200);
       renderTabs();
       return false;
     }
@@ -3682,12 +4016,12 @@ function saveTab(tab) {
   saveQueue = saveQueue.then(write, write);
   return saveQueue;
 }
-function saveCurrentFile() {
-  return saveTab(state.openTabs.find(t => t.path === state.activeFilePath));
+function saveCurrentFile(options = {}) {
+  return saveTab(state.openTabs.find(t => t.path === state.activeFilePath), options);
 }
 async function saveAllFiles() {
   clearTimeout(state.autoSaveTimeout);
-  const results = await Promise.all(state.openTabs.filter(t => t.isDirty).map(saveTab));
+  const results = await Promise.all(state.openTabs.filter(t => t.isDirty).map(tab => saveTab(tab)));
   await saveQueue;
   saveLastSession();
   return results.every(Boolean);
@@ -4213,7 +4547,7 @@ async function handleTeacherUnlockConfirm() {
         switchView('lobby');
         renderRecentProjects();
       } else {
-        alert('Modo Kiosk desactivado por autorización docente.');
+        showNotice('Modo Kiosk desactivado por autorización docente.');
       }
     } else {
       DOM.teacherPinError.textContent = res.error || 'PIN incorrecto.';
@@ -4227,11 +4561,11 @@ async function handleTeacherUnlockConfirm() {
 
 async function handleGoHome() {
   if (state.isRunning) {
-    alert('Detén el programa en ejecución antes de volver al inicio.');
+    showNotice('Detén el programa en ejecución antes de volver al inicio.');
     return;
   }
   if (state.appMode === 'exam' && !state.isExamSubmitted) {
-    const proceed = confirm('Salir al inicio interrumpe el examen y queda registrado. Solicita al profesor que autorice la salida con su PIN.');
+    const proceed = await askConfirmation('Salir al inicio interrumpe el examen y queda registrado. Solicita al profesor que autorice la salida con su PIN.', { title: 'Examen en curso', kind: 'danger', confirmLabel: 'Solicitar salida' });
     if (!proceed) return;
     state.returnHomeAfterUnlock = true;
     openTeacherUnlockModal();
@@ -4240,7 +4574,7 @@ async function handleGoHome() {
   const message = state.appMode === 'task' && !state.isTaskSubmitted
     ? 'La tarea aún no se ha entregado. Los archivos se guardarán y podrás continuar después. ¿Volver al inicio?'
     : 'Se guardará el proyecto actual. ¿Volver al inicio?';
-  if (!confirm(message) || !await saveAllFiles()) return;
+  if (!await askConfirmation(message, { title: 'Volver al inicio', confirmLabel: 'Guardar y volver' }) || !await saveAllFiles()) return;
   await window.electronAPI?.endSession?.();
   rememberRecentProject();
   state.workspaceSessionActive = false;
@@ -4307,7 +4641,7 @@ function openSubmitExamModal() {
 
 async function handleExamFinalSubmit() {
   if (state.appMode !== 'exam' || state.isExamSubmitted || state.isSubmitting) return;
-  if (state.isRunning || state.isStarting) { alert('Detén el programa antes de entregar el examen.'); return; }
+  if (state.isRunning || state.isStarting) { showNotice('Detén el programa antes de entregar el examen.'); return; }
   state.isSubmitting = true;
   DOM.btnConfirmSubmit.disabled = true;
   DOM.codeTextarea.readOnly = true;
@@ -4326,7 +4660,7 @@ async function handleExamFinalSubmit() {
     updateWifiStatus();
   } catch (error) {
     DOM.codeTextarea.readOnly = state.isExamSubmitted;
-    alert(`No se completó la entrega: ${error.message}`);
+    showNotice(`No se completó la entrega: ${error.message}`);
   } finally {
     state.isSubmitting = false;
     DOM.btnConfirmSubmit.disabled = false;
@@ -4352,7 +4686,7 @@ function openSubmitTaskModal() {
 
 async function handleTaskFinalSubmit() {
   if (state.appMode !== 'task' || state.isTaskSubmitted || state.isSubmitting) return;
-  if (state.isRunning || state.isStarting) { alert('Detén el programa antes de entregar la tarea.'); return; }
+  if (state.isRunning || state.isStarting) { showNotice('Detén el programa antes de entregar la tarea.'); return; }
   state.isSubmitting = true;
   DOM.btnConfirmTaskSubmit.disabled = true;
   DOM.codeTextarea.readOnly = true;
@@ -4381,7 +4715,7 @@ async function handleTaskFinalSubmit() {
     appendTerminalOutput(`>>> Entrega este archivo .codego a tu profesor para comprobar su integridad.\n`, 'system');
   } catch (error) {
     DOM.codeTextarea.readOnly = state.isTaskSubmitted;
-    alert(`No se completó la entrega de la tarea: ${error.message}`);
+    showNotice(`No se completó la entrega de la tarea: ${error.message}`);
   } finally {
     state.isSubmitting = false;
     DOM.btnConfirmTaskSubmit.disabled = false;
@@ -4516,7 +4850,7 @@ async function verifyFileByPath(filePath) {
       DOM.verifierStatusBadge.className = 'badge-status-tampered';
       DOM.verifierStatusBadge.textContent = 'ERROR / ARCHIVO DAÑADO';
     }
-    alert('Error al verificar archivo: ' + res.error);
+    showNotice('Error al verificar archivo: ' + res.error);
     return;
   }
 
@@ -4623,9 +4957,9 @@ async function handleExtractSubmissionCode() {
   if (!state.currentVerifiedFile || !window.electronAPI?.extractSubmissionCode) return;
   const res = await window.electronAPI.extractSubmissionCode(state.currentVerifiedFile);
   if (res && res.success) {
-    alert(`Archivos extraídos con éxito en:\n${res.targetDir}`);
+    showNotice(`Archivos extraídos con éxito en:\n${res.targetDir}`);
   } else if (res && !res.canceled) {
-    alert(`Error al extraer archivos: ${res.error}`);
+    showNotice(`Error al extraer archivos: ${res.error}`);
   }
 }
 
@@ -4685,7 +5019,7 @@ async function handleOpenWorkspaceFolder() {
       appendTerminalOutput('Elige un archivo del panel izquierdo o crea uno nuevo.\n', 'system');
     }
   } else {
-    alert('Función disponible en la aplicación de escritorio.');
+    showNotice('Función disponible en la aplicación de escritorio.');
   }
 }
 
@@ -4708,7 +5042,7 @@ async function handleCreateNewProject() {
       appendTerminalOutput('El proyecto está vacío. Crea tu primer archivo cuando quieras.\n', 'system');
     }
   } else {
-    alert('Función disponible en la aplicación de escritorio.');
+    showNotice('Función disponible en la aplicación de escritorio.');
   }
 }
 
@@ -4718,7 +5052,7 @@ function handleViewReceipt() {
 
 async function handleExitExamApp() {
   if (!await saveAllFiles()) return;
-  if (confirm('¿Deseas cerrar y salir de codeGO?')) {
+  if (await askConfirmation('¿Deseas cerrar y salir de codeGO?', { title: 'Cerrar codeGO', confirmLabel: 'Cerrar aplicación' })) {
     if (window.electronAPI && window.electronAPI.quitApp) {
       await window.electronAPI.quitApp();
     } else {
@@ -4808,7 +5142,7 @@ function displayUpdateBanner(updateInfo) {
 
 async function handleManualCheckUpdates() {
   if (!window.electronAPI || !window.electronAPI.checkForUpdates) {
-    alert('Función de actualización disponible en la versión de escritorio instalada.');
+    showNotice('Función de actualización disponible en la versión de escritorio instalada.');
     return;
   }
   if (DOM.btnCheckUpdatesLobby) {
@@ -4823,13 +5157,13 @@ async function handleManualCheckUpdates() {
         state.availableUpdate = res;
         displayUpdateBanner(res);
       } else {
-        alert(`✓ codeGO está actualizado.\n\nLa versión instalada (v${res.currentVersion}) es la más reciente.`);
+        showNotice(`✓ codeGO está actualizado.\n\nLa versión instalada (v${res.currentVersion}) es la más reciente.`);
       }
     } else {
-      alert(`No se pudo verificar actualizaciones:\n${res?.error || 'Verifica tu conexión a internet.'}`);
+      showNotice(`No se pudo verificar actualizaciones:\n${res?.error || 'Verifica tu conexión a internet.'}`);
     }
   } catch (err) {
-    alert(`Error al buscar actualizaciones: ${err.message}`);
+    showNotice(`Error al buscar actualizaciones: ${err.message}`);
   } finally {
     if (DOM.btnCheckUpdatesLobby) {
       DOM.btnCheckUpdatesLobby.disabled = false;
@@ -4864,7 +5198,7 @@ async function handleStartUpdate() {
     if (state.availableUpdate && state.availableUpdate.releaseUrl) {
       window.open(state.availableUpdate.releaseUrl, '_blank');
     } else {
-      alert('No se encontró un instalador automático para este sistema operativo.');
+      showNotice('No se encontró un instalador automático para este sistema operativo.');
     }
     return;
   }
@@ -4914,13 +5248,13 @@ async function handleStartUpdate() {
         DOM.updateProgressDetail.textContent = 'Reiniciando codeGO...';
       }
       if (res.action === 'downloaded') {
-        alert(`La actualización se descargó exitosamente en:\n${res.path}`);
+        showNotice(`La actualización se descargó exitosamente en:\n${res.path}`);
       }
     } else {
       throw new Error(res?.error || 'Error al descargar o aplicar la actualización.');
     }
   } catch (err) {
-    alert(`No se pudo completar la actualización automática:\n${err.message}`);
+    showNotice(`No se pudo completar la actualización automática:\n${err.message}`);
     if (DOM.btnUpdateNow) DOM.btnUpdateNow.disabled = false;
     if (DOM.btnUpdateViewNotes) DOM.btnUpdateViewNotes.disabled = false;
     if (DOM.btnUpdateDismiss) DOM.btnUpdateDismiss.disabled = false;

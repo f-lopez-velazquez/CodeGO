@@ -20,14 +20,14 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Descarga directa 1.6.3 autónoma | Alternativa |
+| Sistema | Descarga directa 1.6.5 autónoma | Alternativa |
 | --- | --- | --- |
-| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.3/CodeGO-1.6.3-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.3/CodeGO-1.6.3-portable-x64.exe) |
-| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.3/CodeGO-1.6.3-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.3/CodeGO-1.6.3-linux-x64.tar.gz) |
-| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.3/CodeGO-1.6.3-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.3/CodeGO-1.6.3-mac-arm64.zip) |
-| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.3/CodeGO-1.6.3-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.3/CodeGO-1.6.3-mac-x64.zip) |
+| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.5/CodeGO-1.6.5-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.5/CodeGO-1.6.5-portable-x64.exe) |
+| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.5/CodeGO-1.6.5-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.5/CodeGO-1.6.5-linux-x64.tar.gz) |
+| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.5/CodeGO-1.6.5-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.5/CodeGO-1.6.5-mac-arm64.zip) |
+| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.5/CodeGO-1.6.5-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.5/CodeGO-1.6.5-mac-x64.zip) |
 
-Cada instalador 1.6.3 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura prepara y comprueba el entorno sin internet antes de habilitar el editor. Después, codeGO comprueba actualizaciones al iniciar y cada 30 minutos mientras permanece abierto, también en segundo plano. Descarga el paquete del sistema, valida su SHA-256 y lo aplica cuando no hay una sesión ni una ejecución activa. La versión instalada aparece siempre en el inicio. Si una operación se interrumpe, codeGO reintenta y conserva el avance; también permite reconstruir sus componentes sin borrar proyectos ni entregas. En Linux, el lanzador protege el arranque frente a variables globales de Electron y, en Hyprland, mantiene las ventanas de Pygame y otras interfaces en el espacio de trabajo activo. Windows y macOS todavía no tienen certificado comercial; macOS no está notarizado. Tras mover la aplicación a `/Applications`, si Gatekeeper bloquea la primera apertura, usa:
+Cada instalador 1.6.5 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura prepara y comprueba el entorno sin internet antes de habilitar el editor. Después, codeGO comprueba actualizaciones al iniciar y cada 30 minutos mientras permanece abierto, también en segundo plano. Descarga el paquete del sistema, valida su SHA-256 y lo aplica cuando no hay una sesión ni una ejecución activa. La versión instalada aparece siempre en el inicio. Si una operación se interrumpe, codeGO reintenta y conserva el avance; también permite reconstruir sus componentes sin borrar proyectos ni entregas. En Linux, el lanzador protege el arranque frente a variables globales de Electron y, en Hyprland, mantiene las ventanas de Pygame y otras interfaces en el espacio de trabajo activo. Windows y macOS todavía no tienen certificado comercial; macOS no está notarizado. Tras mover la aplicación a `/Applications`, si Gatekeeper bloquea la primera apertura, usa:
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/codeGO.app" && open "/Applications/codeGO.app"
@@ -38,11 +38,12 @@ La ayuda y el diagnóstico `CG-SETUP-108` muestran el mismo comando para copiarl
 ## Modalidades de Trabajo
 
 1. **🛡️ Modo Examen Blindado**: espacio nuevo sin archivos previos, ID dictado en el aula, kiosk a pantalla completa, Wi-Fi deshabilitado y alerta visible y sonora al cambiar de ventana. El sonido continúa hasta regresar; después comienza la espera de 12 segundos. La entrega queda sellada en un ZIP auditado con SHA-256.
-2. **📦 Modo Tarea Certificada**:
-   - **Edición sin interrupciones**: permite copiar, cortar y pegar, consultar materiales y cambiar de aplicación sin alarmas ni modo kiosk.
+2. **📦 Tarea / Actividad Supervisada**:
+   - **Edición flexible**: permite copiar, cortar y pegar, abrir proyectos anteriores e importar PDF, imágenes, audio y datos como recursos.
+   - **Supervisión repetible**: cada cambio de aplicación activa el aviso; al regresar comienza una espera de 12 segundos que se reinicia si el alumno vuelve a salir.
    - **Registro de trabajo**: conserva pulsaciones, caracteres redactados, tiempo activo y ejecuciones de prueba como contexto para la revisión docente.
    - **Contenedor `.codego` con sello Ed25519**: cada instalación mantiene una identidad criptográfica local; cualquier cambio posterior en el certificado o el código invalida la firma y los hashes.
-3. **📘 Modo Actividad / Tarea Libre**: Entorno de programación sin restricciones para prácticas en clase o casa. Los botones de entrega (`#btn-finish-exam` y `#btn-submit-task`) permanecen estrictamente ocultos.
+3. **📘 Modo Libre**: Entorno de programación sin supervisión para practicar y gestionar proyectos locales. Los botones de entrega (`#btn-finish-exam` y `#btn-submit-task`) permanecen estrictamente ocultos.
 
 ## Manejo de Carpetas y Subcarpetas
 

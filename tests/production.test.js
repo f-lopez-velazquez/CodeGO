@@ -20,6 +20,22 @@ const { ensurePythonEnvironment } = require('../src/main/python-environment');
 const { createFocusGuard } = require('../src/main/focus-guard');
 const environmentSetup = require('../src/main/environment-setup');
 
+test('Renderer owns feedback dialogs and restores editor focus through Electron', () => {
+  const renderer = fs.readFileSync(path.resolve(__dirname, '../src/renderer/app.js'), 'utf8');
+  const markup = fs.readFileSync(path.resolve(__dirname, '../src/renderer/index.html'), 'utf8');
+  const main = fs.readFileSync(path.resolve(__dirname, '../src/main/main.js'), 'utf8');
+  assert.doesNotMatch(renderer, /\b(?:alert|confirm|prompt)\s*\(/);
+  assert.match(markup, /id="app-dialog"/);
+  assert.match(markup, /id="toast-region"/);
+  assert.match(markup, /id="language-select"/);
+  assert.match(main, /window:focus-editor/);
+  assert.match(main, /workspace:reveal-current/);
+  assert.match(main, /active-exam-session\.json/);
+  assert.match(main, /security:get-recovery-status/);
+  assert.match(main, /const managedTeacherPin/);
+  assert.doesNotMatch(main, /CODEGO_TEACHER_PIN \|\| ['"]1234['"]/);
+});
+
 test('Focus guard ignores internal file moves and focus events without a recorded exit', () => {
   let clock = 1000;
   const guard = createFocusGuard({ now: () => clock, internalGraceMs: 500, maximumInternalMs: 5000 });

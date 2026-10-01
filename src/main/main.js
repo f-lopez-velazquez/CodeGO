@@ -49,6 +49,8 @@ if (app.commandLine && process.platform === 'linux' && (process.env.WAYLAND_DISP
 
 const packagedReportArgument = process.argv.find(argument => argument.startsWith('--self-test-report='));
 const diagnosticMode = Boolean(packagedReportArgument);
+const ownsSingleInstance = diagnosticMode || app.requestSingleInstanceLock();
+if (!ownsSingleInstance) app.quit();
 let diagnosticDirectory;
 if (diagnosticMode) {
   app.disableHardwareAcceleration();
@@ -118,6 +120,9 @@ let activePythonGuiExpected = false;
 let activePythonWorkspace = null;
 let protectedWindowTemporarilyReleased = false;
 let pythonWindowTimers = [];
+let pythonForegroundTimer = null;
+let pythonForeignFocusActive = false;
+let pythonForeignFocusSamples = 0;
 let fullscreenRetryTimer = null;
 let lastFullscreenRequestAt = 0;
 
@@ -138,9 +143,99 @@ function requestProtectedFullscreen({ force = false, focus = false } = {}) {
   return true;
 }
 
+function restoreRendererKeyboardFocus() {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  try {
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.focus();
+    // Wayland may acknowledge the surface first and assign keyboard focus on
+    // the following compositor frame. A short second pass is enough and does
+    // not renegotiate fullscreen, avoiding the Hyprland resize loop.
+    setTimeout(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      mainWindow.focus();
+      mainWindow.webContents.focus();
+    }, 90);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 function clearPythonWindowTimers() {
   pythonWindowTimers.forEach(clearTimeout);
   pythonWindowTimers = [];
+  clearInterval(pythonForegroundTimer);
+  pythonForegroundTimer = null;
+  pythonForeignFocusActive = false;
+  pythonForeignFocusSamples = 0;
+}
+
+async function foregroundProcessId() {
+  try {
+    if (process.platform === 'linux' && process.env.HYPRLAND_INSTANCE_SIGNATURE) {
+      const { stdout } = await executeFile('hyprctl', ['-j', 'activewindow'], { timeout: 1800, windowsHide: true });
+      return Number(JSON.parse(stdout)?.pid) || null;
+    }
+    if (process.platform === 'darwin') {
+      const { stdout } = await executeFile('osascript', ['-e', 'tell application "System Events" to get unix id of first application process whose frontmost is true'], { timeout: 1800 });
+      return Number(String(stdout).trim()) || null;
+    }
+    if (process.platform === 'win32') {
+      const script = 'Add-Type -TypeDefinition \"using System; using System.Runtime.InteropServices; public class FG { [DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\\\"user32.dll\\\")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid); }\"; $p=0; [FG]::GetWindowThreadProcessId([FG]::GetForegroundWindow(), [ref]$p) | Out-Null; $p';
+      const { stdout } = await executeFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { timeout: 2500, windowsHide: true });
+      return Number(String(stdout).trim()) || null;
+    }
+  } catch (_) {}
+  return null;
+}
+
+function sendPythonForegroundReturn() {
+  if (!pythonForeignFocusActive || !mainWindow || mainWindow.isDestroyed()) return;
+  pythonForeignFocusActive = false;
+  pythonForeignFocusSamples = 0;
+  mainWindow.webContents.send('security:focus-regained', {
+    phase: 'returned',
+    mode: activeSessionMode,
+    durationSeconds: 0,
+    totalIncidents: securityAuditLog.filter(entry => entry.type === 'UNAUTHORIZED_FOREGROUND_APP').length
+  });
+}
+
+function startPythonForegroundWatch(child) {
+  clearInterval(pythonForegroundTimer);
+  pythonForegroundTimer = setInterval(async () => {
+    if (!activePythonGuiExpected || activeProcess !== child || child.killed || !['exam', 'task'].includes(activeSessionMode)) return;
+    if (mainWindow?.isFocused()) {
+      sendPythonForegroundReturn();
+      return;
+    }
+    const foregroundPid = await foregroundProcessId();
+    if (!foregroundPid) return;
+    if (foregroundPid === child.pid) {
+      sendPythonForegroundReturn();
+      return;
+    }
+    pythonForeignFocusSamples += 1;
+    if (pythonForeignFocusSamples < 2 || pythonForeignFocusActive) return;
+    pythonForeignFocusActive = true;
+    const incident = logSecurityIncident('UNAUTHORIZED_FOREGROUND_APP', { foregroundPid, pythonPid: child.pid, mode: activeSessionMode });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('security:blur-detected', {
+        incident,
+        phase: 'away',
+        mode: activeSessionMode,
+        timestamp: new Date().toLocaleTimeString(),
+        totalIncidents: securityAuditLog.filter(entry => entry.type === 'UNAUTHORIZED_FOREGROUND_APP').length
+      });
+      if (activeSessionMode === 'exam') {
+        mainWindow.show();
+        mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      }
+    }
+  }, 900);
+  pythonForegroundTimer.unref?.();
 }
 
 function restoreMainWindowAfterPython() {
@@ -180,6 +275,7 @@ function prepareMainWindowForPythonGui(child) {
       }, delay));
     });
   }
+  startPythonForegroundWatch(child);
 }
 
 async function withNativeDialog(fn) {
@@ -231,7 +327,9 @@ let activeSessionMode = null; // 'exam', 'activity', or null
 const focusGuard = createFocusGuard();
 let securityAuditLog = [];
 let monitorWatchdogTimer = null;
-const teacherPin = process.env.CODEGO_TEACHER_PIN || '1234';
+let lastReportedMonitorCount = null;
+const managedTeacherPin = String(process.env.CODEGO_TEACHER_PIN || '').trim();
+let activeTeacherPin = managedTeacherPin || null;
 
 // Dynamic student workspace directory (supports opening & creating projects)
 let currentWorkspace = path.join(app.getPath('userData'), 'exam_workspace');
@@ -241,6 +339,28 @@ if (!fs.existsSync(currentWorkspace)) {
 const defaultWorkspace = currentWorkspace;
 let workspaceExplicitlySelected = diagnosticMode;
 let workspaceSealed = false;
+const activeExamMarkerPath = path.join(app.getPath('userData'), 'active-exam-session.json');
+
+function writeActiveExamMarker(student = {}) {
+  const record = {
+    examId: String(student.examId || ''),
+    studentName: String(student.name || ''),
+    studentId: String(student.id || ''),
+    startedAt: new Date().toISOString(),
+    version: app.getVersion()
+  };
+  fs.writeFileSync(`${activeExamMarkerPath}.tmp`, JSON.stringify(record, null, 2), { mode: 0o600 });
+  fs.renameSync(`${activeExamMarkerPath}.tmp`, activeExamMarkerPath);
+}
+
+function clearActiveExamMarker() {
+  try { fs.unlinkSync(activeExamMarkerPath); } catch (_) {}
+}
+
+function readActiveExamMarker() {
+  try { return JSON.parse(fs.readFileSync(activeExamMarkerPath, 'utf8')); }
+  catch (_) { return null; }
+}
 
 const AUTOMATIC_UPDATE_INTERVAL_MS = 30 * 60 * 1000;
 let automaticUpdateTimer = null;
@@ -479,7 +599,7 @@ function startAudioWatchdog() {
     } catch (_) {}
   }
   audioWatchdogInterval = setInterval(() => {
-    if (activeSessionMode === 'exam' || activeSessionMode === 'activity') {
+    if (activeSessionMode === 'exam' || activeSessionMode === 'task') {
       enforceSystemAudioUnmute(1);
     }
   }, 1000);
@@ -712,6 +832,7 @@ packages = {
     "sqlite3": "Base de datos SQL estándar",
     "tkinter": "Interfaces gráficas de usuario (GUI)"
 }
+
 result = {}
 for p, desc in packages.items():
     try:
@@ -781,6 +902,37 @@ print("___CODEGO_PACKAGES_END___")
   };
 }
 
+function inspectPythonPackagesAsync(pythonCmd) {
+  return new Promise(resolve => {
+    const child = spawn(pythonCmd, ['-I', '-'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+      env: { ...process.env, PYTHONNOUSERSITE: '1', PYGAME_HIDE_SUPPORT_PROMPT: '1' }
+    });
+    let stdout = '';
+    let settled = false;
+    let timer = null;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    child.stdout.on('data', chunk => { stdout = (stdout + chunk.toString()).slice(-2_000_000); });
+    child.on('error', () => finish({}));
+    child.on('close', code => {
+      if (code !== 0) return finish({});
+      try { finish(environmentSetup.parseResult(stdout)); }
+      catch (_) { finish({}); }
+    });
+    timer = setTimeout(() => {
+      try { child.kill('SIGKILL'); } catch (_) {}
+      finish({});
+    }, 180000);
+    child.stdin.end(environmentSetup.inspectScript());
+  });
+}
+
 function logSecurityIncident(type, details) {
   const incident = {
     id: securityAuditLog.length + 1,
@@ -790,6 +942,24 @@ function logSecurityIncident(type, details) {
   };
   securityAuditLog.push(incident);
   console.warn(`[SECURITY INCIDENT #${incident.id}] ${type}:`, details);
+  return incident;
+}
+
+function reportProtectedAttempt(type, details = {}) {
+  const incident = logSecurityIncident(type, details);
+  if (!mainWindow || mainWindow.isDestroyed() || activeSessionMode !== 'exam') return incident;
+  const payload = {
+    incident,
+    phase: 'away',
+    mode: activeSessionMode,
+    timestamp: new Date().toLocaleTimeString(),
+    totalIncidents: securityAuditLog.filter(entry => /ATTEMPT|WINDOW_BLUR|MULTIPLE_DISPLAYS/.test(entry.type)).length
+  };
+  mainWindow.webContents.send('security:blur-detected', payload);
+  setTimeout(() => {
+    if (!mainWindow || mainWindow.isDestroyed() || activeSessionMode !== 'exam' || !mainWindow.isFocused()) return;
+    mainWindow.webContents.send('security:focus-regained', { ...payload, phase: 'returned', durationSeconds: 0.3 });
+  }, 300);
   return incident;
 }
 
@@ -850,7 +1020,7 @@ function createMainWindow() {
 
   mainWindow.on('blur', () => {
     const pythonWindow = Boolean(activePythonGuiExpected && activeProcess && !activeProcess.killed);
-    const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'activity';
+    const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'task';
     const decision = focusGuard.blur({
       sessionActive: focusSupervisionActive,
       ignored: isNativeDialogActive || Boolean(activePipProcess) || installationBusy,
@@ -885,7 +1055,7 @@ function createMainWindow() {
   });
 
   mainWindow.on('focus', () => {
-    const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'activity';
+    const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'task';
     const decision = focusGuard.focus({ sessionActive: focusSupervisionActive });
     if (!decision.violation) return;
     const durationSeconds = decision.durationSeconds.toFixed(1);
@@ -921,7 +1091,7 @@ function createMainWindow() {
   mainWindow.webContents.session.setPermissionCheckHandler((_contents, permission) => permission === 'clipboard-sanitized-write');
 
   mainWindow.webContents.setWindowOpenHandler(() => {
-    logSecurityIncident('UNAUTHORIZED_WINDOW_OPEN_ATTEMPT', {});
+    reportProtectedAttempt('UNAUTHORIZED_WINDOW_OPEN_ATTEMPT', {});
     return { action: 'deny' };
   });
 
@@ -936,7 +1106,7 @@ function createMainWindow() {
       (input.meta && input.alt && input.key.toLowerCase() === 'i')
     ) {
       event.preventDefault();
-      logSecurityIncident('DEVTOOLS_SHORTCUT_BLOCKED', { key: input.key });
+      reportProtectedAttempt('DEVTOOLS_SHORTCUT_BLOCKED', { key: input.key });
     }
 
     // Ctrl+R or F5 (handled for code execution instead of page reload)
@@ -950,20 +1120,20 @@ function createMainWindow() {
     // Alt+Tab / Super key block attempt
     if (input.alt && input.key === 'Tab') {
       event.preventDefault();
-      logSecurityIncident('ALT_TAB_ATTEMPT', {});
+      reportProtectedAttempt('ALT_TAB_ATTEMPT', {});
     }
 
     // Alt+F4 block attempt
     if (input.alt && input.key === 'F4') {
       event.preventDefault();
-      logSecurityIncident('ALT_F4_ATTEMPT', {});
+      reportProtectedAttempt('ALT_F4_ATTEMPT', {});
     }
   });
 
   mainWindow.on('close', (event) => {
     if (isKioskActive) {
       event.preventDefault();
-      logSecurityIncident('WINDOW_CLOSE_ATTEMPT', {});
+      reportProtectedAttempt('WINDOW_CLOSE_ATTEMPT', {});
       mainWindow.webContents.send('security:close-blocked', {});
       return;
     }
@@ -988,7 +1158,7 @@ function startMonitorWatchdog() {
     const displays = screen.getAllDisplays();
     const count = displays.length;
 
-    if (count > 1 && isKioskActive) {
+    if (count > 1 && isKioskActive && count !== lastReportedMonitorCount) {
       logSecurityIncident('MULTIPLE_DISPLAYS_DETECTED', { count });
     }
 
@@ -998,9 +1168,13 @@ function startMonitorWatchdog() {
       displays: displays.map((d, i) => ({
         id: d.id,
         label: `Pantalla ${i + 1} (${d.bounds.width}x${d.bounds.height})`,
-        isPrimary: d.bounds.x === 0 && d.bounds.y === 0
+        isPrimary: d.bounds.x === 0 && d.bounds.y === 0,
+        bounds: d.bounds,
+        workArea: d.workArea,
+        scaleFactor: d.scaleFactor
       }))
     });
+    lastReportedMonitorCount = count;
   };
 
   screen.on('display-added', check);
@@ -1274,7 +1448,7 @@ function setupIpcHandlers() {
     const pythonInfo = resolvePythonBinary();
     const displays = screen.getAllDisplays();
     const vcRedist = checkWindowsVCRedist();
-    const packages = inspectPythonPackages(pythonInfo.command);
+    const packages = await inspectPythonPackagesAsync(pythonInfo.command);
 
     const essentialKeys = environmentSetup.PACKAGES.map(item => item.module);
     const missingKeys = essentialKeys.filter((k) => !packages[k] || !packages[k].installed);
@@ -1736,6 +1910,8 @@ except Exception:
     if (!environmentReady && !diagnosticMode) return { success: false, error: 'Termina la preparación y las micropruebas del equipo antes de iniciar.' };
     if (isKioskActive) return { success: false, error: 'El examen ya está activo.' };
     const requestedMode = studentData?.mode || 'exam';
+    const safeStudentData = { ...(studentData || {}) };
+    delete safeStudentData.teacherPin;
     if (requestedMode !== 'exam' && !workspaceExplicitlySelected && !diagnosticMode) return { success: false, error: 'Elige una carpeta de proyecto o crea un proyecto vacío antes de iniciar.' };
     workspaceSealed = false;
     focusGuard.reset();
@@ -1746,7 +1922,7 @@ except Exception:
       activeSessionMode = 'activity';
       await notificationGuard.enable();
       logSecurityIncident('ACTIVITY_MODE_STARTED', {
-        student: studentData,
+        student: safeStudentData,
         startTime: new Date().toISOString()
       });
 
@@ -1755,6 +1931,7 @@ except Exception:
         requestProtectedFullscreen();
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
+        restoreRendererKeyboardFocus();
       }
 
       return { success: true, mode: 'activity' };
@@ -1763,12 +1940,12 @@ except Exception:
     if (studentData && studentData.mode === 'task') {
       isKioskActive = false;
       activeSessionMode = 'task';
-      await notificationGuard.restore();
+      await notificationGuard.enable();
       if (!fs.existsSync(currentWorkspace)) {
         fs.mkdirSync(currentWorkspace, { recursive: true });
       }
       logSecurityIncident('TASK_MODE_STARTED', {
-        student: studentData,
+        student: safeStudentData,
         startTime: new Date().toISOString()
       });
 
@@ -1777,16 +1954,22 @@ except Exception:
         requestProtectedFullscreen();
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
+        restoreRendererKeyboardFocus();
       }
 
       return { success: true, mode: 'task' };
     }
 
     if (!studentData?.examId || !String(studentData.examId).trim()) return { success: false, error: 'Escribe el ID dictado por el profesor.' };
+    const requestedTeacherPin = managedTeacherPin || String(studentData?.teacherPin || '').trim();
+    if (!/^\d{4,12}$/.test(requestedTeacherPin)) {
+      return { success: false, error: 'El profesor debe definir un PIN de 4 a 12 dígitos antes de iniciar el examen.' };
+    }
+    activeTeacherPin = requestedTeacherPin;
 
     // Each exam gets a new private directory. Previous projects are never
     // mounted into the exam session and the initial source file is blank.
-    const examWorkspace = createFreshExamWorkspace(studentData);
+    const examWorkspace = createFreshExamWorkspace(safeStudentData);
     const browserResult = await browserGuard.closeAll();
 
     const wifiResult = disableSystemWifi();
@@ -1796,12 +1979,13 @@ except Exception:
     }
     isKioskActive = true;
     activeSessionMode = 'exam';
+    writeActiveExamMarker(safeStudentData);
     await notificationGuard.enable();
     securityAuditLog = []; // Reset for this student session
 
     // Wi-Fi was verified before activating the protected session.
     logSecurityIncident('EXAM_STARTED', {
-      student: studentData,
+      student: safeStudentData,
       browsersClosed: browserResult.closed,
       startTime: new Date().toISOString()
     });
@@ -1822,6 +2006,7 @@ except Exception:
       } catch (err) {
         console.warn('Global shortcuts registration note:', err);
       }
+      restoreRendererKeyboardFocus();
     }
 
     return { success: true, mode: 'exam', ...examWorkspace };
@@ -1829,9 +2014,11 @@ except Exception:
 
   // Exit Kiosk Mode (Requires Teacher PIN)
   handle('security:exit-kiosk', async (event, enteredPin) => {
-    if (enteredPin === teacherPin) {
+    if (String(enteredPin || '') === activeTeacherPin) {
       isKioskActive = false;
       activeSessionMode = null;
+      activeTeacherPin = managedTeacherPin || null;
+      clearActiveExamMarker();
       focusGuard.reset();
       stopAudioWatchdog();
       await notificationGuard.restore();
@@ -1842,12 +2029,13 @@ except Exception:
         requestProtectedFullscreen({ force: true });
         mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
+        restoreRendererKeyboardFocus();
       }
       logSecurityIncident('TEACHER_UNLOCK_SUCCESSFUL', { pinEntered: true });
       setTimeout(() => void applyStagedUpdate(), 1500);
       return { success: true };
     } else {
-      logSecurityIncident('TEACHER_UNLOCK_FAILED_WRONG_PIN', { enteredPin });
+      logSecurityIncident('TEACHER_UNLOCK_FAILED_WRONG_PIN', { pinLength: String(enteredPin || '').length });
       return { success: false, error: 'PIN de profesor incorrecto.' };
     }
   });
@@ -1864,8 +2052,21 @@ except Exception:
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setAlwaysOnTop(false);
       requestProtectedFullscreen({ force: true });
+      restoreRendererKeyboardFocus();
     }
     setTimeout(() => void applyStagedUpdate(), 1500);
+    return { success: true };
+  });
+
+  handle('security:get-recovery-status', async () => {
+    const interruptedExam = readActiveExamMarker();
+    return { success: true, interruptedExam };
+  });
+
+  handle('security:get-pin-policy', async () => ({ success: true, managed: Boolean(managedTeacherPin) }));
+
+  handle('security:acknowledge-recovery', async () => {
+    clearActiveExamMarker();
     return { success: true };
   });
 
@@ -1889,7 +2090,7 @@ except Exception:
   });
 
   handle('system:set-alarm-active', async (event, active) => {
-    if (active === true && (activeSessionMode === 'exam' || activeSessionMode === 'activity')) {
+    if (active === true && (activeSessionMode === 'exam' || activeSessionMode === 'task')) {
       startAudioWatchdog();
       return { success: true, active: true };
     }
@@ -1977,6 +2178,23 @@ except Exception:
     workspacePath: workspaceExplicitlySelected ? currentWorkspace : null,
     workspaceName: workspaceExplicitlySelected ? path.basename(currentWorkspace) : null
   }));
+
+  handle('workspace:reveal-current', async () => {
+    if (!workspaceExplicitlySelected || !currentWorkspace) {
+      return { success: false, error: 'Abre un proyecto antes de mostrar su carpeta.' };
+    }
+    if (activeSessionMode === 'exam' && isKioskActive) {
+      return { success: false, error: 'El explorador de archivos no está disponible durante un examen.' };
+    }
+    try {
+      const error = await shell.openPath(currentWorkspace);
+      return error ? { success: false, error } : { success: true, workspacePath: currentWorkspace };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  handle('window:focus-editor', async () => ({ success: restoreRendererKeyboardFocus() }));
 
   // Window Screen Controls
   handle('window:set-fullscreen', async (event, flag) => {
@@ -2068,7 +2286,7 @@ except Exception:
       title: 'Agregar recursos al proyecto',
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'Recursos educativos', extensions: ['png','jpg','jpeg','gif','bmp','webp','svg','wav','mp3','ogg','flac','m4a','csv','tsv','json','txt','xlsx'] },
+        { name: 'Recursos educativos', extensions: ['pdf','png','jpg','jpeg','gif','bmp','webp','svg','wav','mp3','ogg','flac','m4a','csv','tsv','json','txt','xlsx'] },
         { name: 'Todos los archivos', extensions: ['*'] }
       ]
     }));
@@ -2298,6 +2516,7 @@ except Exception:
       // Release kiosk mode and re-enable Wi-Fi after submission
       isKioskActive = false;
       activeSessionMode = null;
+      clearActiveExamMarker();
       stopAudioWatchdog();
       await notificationGuard.restore();
       enableSystemWifi();
@@ -2481,6 +2700,7 @@ except Exception:
 }
 
 app.whenReady().then(async () => {
+  if (!ownsSingleInstance) return;
   setupIpcHandlers();
   createMainWindow();
   if (diagnosticMode) {
@@ -2507,6 +2727,13 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
+});
+
+app.on('second-instance', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  restoreRendererKeyboardFocus();
 });
 
 app.on('will-quit', () => {

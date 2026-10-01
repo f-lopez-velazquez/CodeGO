@@ -23,6 +23,7 @@ const server = http.createServer((request, response) => {
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
     await page.goto(`http://127.0.0.1:${server.address().port}`);
+    await page.locator('#view-lobby.active').waitFor();
     fs.mkdirSync(output, { recursive: true });
     await page.screenshot({ path: path.join(output, 'lobby-current.png') });
     await page.evaluate(() => {
@@ -129,7 +130,7 @@ const server = http.createServer((request, response) => {
     });
     await page.screenshot({ path: path.join(output, 'task-current.png') });
     await page.evaluate(() => {
-      setSessionMode('activity');
+      setSessionMode('task');
       sounds.startAlarmSiren = () => {};
       sounds.stopAlarmSiren = () => {};
       state.workspaceSessionActive = true;
