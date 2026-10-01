@@ -25,7 +25,7 @@ const { locateOfflineBundle, verifyOfflineBundle } = require('./offline-bundle')
 const { setupDiagnostic } = require('./setup-diagnostics');
 const { classifyWorkspaceFile } = require('./file-types');
 const { moveDirectory } = require('./fs-operations');
-const { sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow } = require('./window-integration');
+const { sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow, focusMacProcess } = require('./window-integration');
 const { createFocusGuard } = require('./focus-guard');
 const { MultiLanguageRunner, detectLanguage, detectToolchains, LANGUAGE_DEFS } = require('./language-runner');
 const updater = require('./updater');
@@ -123,6 +123,9 @@ let pythonWindowTimers = [];
 let pythonForegroundTimer = null;
 let pythonForeignFocusActive = false;
 let pythonForeignFocusSamples = 0;
+let supervisedBlurTimer = null;
+let supervisedAlertSent = false;
+let passiveBlurStartedAt = null;
 let fullscreenRetryTimer = null;
 let lastFullscreenRequestAt = 0;
 
@@ -170,6 +173,11 @@ function clearPythonWindowTimers() {
   pythonForegroundTimer = null;
   pythonForeignFocusActive = false;
   pythonForeignFocusSamples = 0;
+}
+
+function clearSupervisedBlurTimer() {
+  clearTimeout(supervisedBlurTimer);
+  supervisedBlurTimer = null;
 }
 
 async function foregroundProcessId() {
@@ -272,6 +280,16 @@ function prepareMainWindowForPythonGui(child) {
     [180, 450, 900, 1600, 2600].forEach(delay => {
       pythonWindowTimers.push(setTimeout(() => {
         if (activeProcess === child && !child.killed) placeHyprlandWindow(child.pid, activePythonWorkspace);
+      }, delay));
+    });
+  }
+  if (process.platform === 'darwin') {
+    // Pygame/SDL creates a second native application surface. macOS can leave
+    // it behind Electron's former fullscreen Space unless that exact child is
+    // promoted after the surface appears.
+    [240, 600, 1200, 2200].forEach(delay => {
+      pythonWindowTimers.push(setTimeout(() => {
+        if (activeProcess === child && !child.killed) focusMacProcess(child.pid);
       }, delay));
     });
   }
@@ -1020,6 +1038,18 @@ function createMainWindow() {
 
   mainWindow.on('blur', () => {
     const pythonWindow = Boolean(activePythonGuiExpected && activeProcess && !activeProcess.killed);
+    if (activeSessionMode === 'activity' && !pythonWindow && !isNativeDialogActive && !installationBusy) {
+      passiveBlurStartedAt = Date.now();
+      const incident = logSecurityIncident('FREE_MODE_WINDOW_EXIT', { mode: activeSessionMode });
+      mainWindow?.webContents.send('security:blur-detected', {
+        incident,
+        passive: true,
+        phase: 'away',
+        mode: activeSessionMode,
+        totalIncidents: securityAuditLog.filter(entry => entry.type === 'FREE_MODE_WINDOW_EXIT').length
+      });
+      return;
+    }
     const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'task';
     const decision = focusGuard.blur({
       sessionActive: focusSupervisionActive,
@@ -1035,15 +1065,23 @@ function createMainWindow() {
       return;
     }
 
-    const incident = logSecurityIncident('WINDOW_BLUR', {
-      mode: activeSessionMode,
-      message: activeSessionMode === 'exam'
-        ? 'Se detectó cambio de ventana durante el examen.'
-        : 'Se detectó cambio de ventana durante la actividad.',
-      timestamp: new Date().toLocaleTimeString()
-    });
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    clearSupervisedBlurTimer();
+    supervisedAlertSent = false;
+    const modeAtBlur = activeSessionMode;
+    // Native dialogs are explicitly guarded above. This short confirmation
+    // window filters transient focus hand-offs from OS notification banners
+    // and compositor animation without hiding a real application switch.
+    supervisedBlurTimer = setTimeout(() => {
+      supervisedBlurTimer = null;
+      if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isFocused() || activeSessionMode !== modeAtBlur) return;
+      supervisedAlertSent = true;
+      const incident = logSecurityIncident('WINDOW_BLUR', {
+        mode: activeSessionMode,
+        message: activeSessionMode === 'exam'
+          ? 'Se detectó cambio de ventana durante el examen.'
+          : 'Se detectó cambio de ventana durante la actividad.',
+        timestamp: new Date().toLocaleTimeString()
+      });
       mainWindow.webContents.send('security:blur-detected', {
         incident,
         phase: 'away',
@@ -1051,13 +1089,23 @@ function createMainWindow() {
         totalIncidents: securityAuditLog.filter(entry => entry.type === 'WINDOW_BLUR').length,
         durationSeconds: 1.0
       });
-    }
+    }, 650);
   });
 
   mainWindow.on('focus', () => {
+    if (activeSessionMode === 'activity' && passiveBlurStartedAt !== null) {
+      const durationSeconds = Math.max(0, Date.now() - passiveBlurStartedAt) / 1000;
+      passiveBlurStartedAt = null;
+      logSecurityIncident('FREE_MODE_WINDOW_RETURN', { mode: activeSessionMode, durationSeconds: Number(durationSeconds.toFixed(1)) });
+      return;
+    }
     const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'task';
     const decision = focusGuard.focus({ sessionActive: focusSupervisionActive });
     if (!decision.violation) return;
+    const alertWasSent = supervisedAlertSent;
+    clearSupervisedBlurTimer();
+    supervisedAlertSent = false;
+    if (!alertWasSent) return;
     const durationSeconds = decision.durationSeconds.toFixed(1);
 
     const incident = logSecurityIncident('WINDOW_REFOCUS', {
@@ -1915,12 +1963,15 @@ except Exception:
     if (requestedMode !== 'exam' && !workspaceExplicitlySelected && !diagnosticMode) return { success: false, error: 'Elige una carpeta de proyecto o crea un proyecto vacío antes de iniciar.' };
     workspaceSealed = false;
     focusGuard.reset();
+    clearSupervisedBlurTimer();
+    supervisedAlertSent = false;
+    passiveBlurStartedAt = null;
     const isActivity = studentData && studentData.mode === 'activity';
 
     if (isActivity) {
       isKioskActive = false;
       activeSessionMode = 'activity';
-      await notificationGuard.enable();
+      await notificationGuard.restore();
       logSecurityIncident('ACTIVITY_MODE_STARTED', {
         student: safeStudentData,
         startTime: new Date().toISOString()
@@ -2046,6 +2097,9 @@ except Exception:
     }
     activeSessionMode = null;
     focusGuard.reset();
+    clearSupervisedBlurTimer();
+    supervisedAlertSent = false;
+    passiveBlurStartedAt = null;
     stopAudioWatchdog();
     await notificationGuard.restore();
     globalShortcut.unregisterAll();
@@ -2464,7 +2518,7 @@ except Exception:
       const source = fs.readFileSync(filePath, 'utf8');
       activePythonGuiExpected = sourceLikelyOpensGui(source);
       activePythonWorkspace = activePythonGuiExpected ? activeHyprlandWorkspace() : null;
-      const result = pythonRunner.run(resolvePythonBinary().command, filePath);
+      const result = pythonRunner.run(resolvePythonBinary().command, filePath, { workingDirectory: currentWorkspace });
       if (!result.success) {
         activePythonGuiExpected = false;
         activePythonWorkspace = null;
@@ -2740,6 +2794,7 @@ app.on('will-quit', () => {
   clearTimeout(automaticUpdateStartTimer);
   clearInterval(automaticUpdateTimer);
   clearTimeout(fullscreenRetryTimer);
+  clearSupervisedBlurTimer();
   pythonRunner.kill();
   stopAudioWatchdog();
   void notificationGuard.restore();

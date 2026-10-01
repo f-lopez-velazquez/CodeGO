@@ -10,14 +10,27 @@ class PythonRunner {
     this.outputBuffer = null;
   }
 
-  run(command, filePath) {
+  run(command, filePath, options = {}) {
     if (this.child) return { success: false, error: 'Ya hay un proceso de Python en ejecución.' };
     const started = Date.now();
     try {
-      const environment = { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', PYTHONDONTWRITEBYTECODE: '1' };
+      const requestedDirectory = options.workingDirectory && path.resolve(options.workingDirectory);
+      const workingDirectory = requestedDirectory || path.dirname(filePath);
+      const environment = {
+        ...process.env,
+        PYTHONUNBUFFERED: '1',
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUTF8: '1',
+        PYTHONDONTWRITEBYTECODE: '1',
+        PYGAME_HIDE_SUPPORT_PROMPT: '1',
+        SDL_VIDEO_CENTERED: '1',
+        SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS: '0',
+        CODEGO_PROJECT_ROOT: workingDirectory
+      };
       delete environment.CODEGO_TEACHER_PIN;
+      delete environment.ELECTRON_RUN_AS_NODE;
       const child = spawn(command, ['-u', filePath], {
-        cwd: path.dirname(filePath),
+        cwd: workingDirectory,
         env: environment,
         detached: process.platform !== 'win32',
         windowsHide: true

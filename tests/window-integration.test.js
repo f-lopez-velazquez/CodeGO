@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { isHyprland, sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow } = require('../src/main/window-integration');
+const { isHyprland, sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow, focusMacProcess } = require('../src/main/window-integration');
 
 const hyprland = { XDG_CURRENT_DESKTOP: 'Hyprland', HYPRLAND_INSTANCE_SIGNATURE: 'test' };
 
@@ -37,4 +37,14 @@ test('falls back to the legacy dispatcher and rejects unsafe identifiers', () =>
   assert.deepEqual(calls.at(-2), ['dispatch', 'movetoworkspace', '2,pid:42']);
   assert.equal(placeHyprlandWindow('42;rm', '2', { environment: hyprland, execute }), false);
   assert.equal(placeHyprlandWindow(42, '2;rm', { environment: hyprland, execute }), false);
+});
+
+test('focuses the exact macOS GUI child without shell interpolation', () => {
+  const calls = [];
+  const execute = (command, args) => { calls.push([command, args]); return ''; };
+  assert.equal(focusMacProcess(812, { platform: 'darwin', execute }), true);
+  assert.equal(calls[0][0], 'osascript');
+  assert.match(calls[0][1][1], /unix id is 812/);
+  assert.equal(focusMacProcess('812; quit', { platform: 'darwin', execute }), false);
+  assert.equal(focusMacProcess(812, { platform: 'linux', execute }), false);
 });

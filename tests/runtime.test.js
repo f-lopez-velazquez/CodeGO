@@ -44,6 +44,26 @@ test('Python accepts consecutive input(), including empty and accented values', 
   assert.equal((await r.runner.stdin('late')).success, false);
 });
 
+test('Python runs from the project root so relative assets match an IDE workspace', { timeout: 10000 }, async t => {
+  const root = fixture(t);
+  const nested = path.join(root, 'src');
+  fs.mkdirSync(nested);
+  fs.writeFileSync(path.join(root, 'dato.txt'), 'recurso del proyecto');
+  const file = path.join(nested, 'main.py');
+  fs.writeFileSync(file, 'from pathlib import Path\nprint(Path("dato.txt").read_text(encoding="utf-8"))\n');
+  let output = '';
+  let complete;
+  const finished = new Promise(resolve => { complete = resolve; });
+  const runner = new PythonRunner({ send(channel, data) {
+    if (channel === 'python:stdout') output += data;
+    if (channel === 'python:finished') complete(data);
+  }});
+  t.after(() => runner.kill());
+  assert.equal(runner.run(python, file, { workingDirectory: root }).success, true);
+  assert.equal((await finished).exitCode, 0);
+  assert.match(output, /recurso del proyecto/);
+});
+
 test('Stop keeps ownership until close and allows a clean restart', { timeout: 10000 }, async t => {
   const r = runtime(t, 'import time\nprint("ready")\ntime.sleep(30)', (channel, chunk, runner) => {
     if (channel === 'python:stdout') {

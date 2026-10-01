@@ -74,7 +74,18 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
           ARCH=$([[ "${{ matrix.artifact }}" == "mac-arm64" ]] && echo "arm64" || echo "x64")
-          npx electron-builder --mac dmg zip --$ARCH --publish never
+          for ATTEMPT in 1 2 3; do
+            if npx electron-builder --mac dmg zip --$ARCH --publish never; then
+              exit 0
+            fi
+            echo "El creador de DMG no pudo desmontar su volumen temporal (intento ${ATTEMPT}/3). Limpiando y reintentando..."
+            while read -r DEVICE; do
+              [ -n "$DEVICE" ] && hdiutil detach -force "$DEVICE" || true
+            done < <(hdiutil info | awk '/^\/dev\// { print $1 }' | sort -u)
+            rm -f dist/*.dmg
+            sleep 5
+          done
+          exit 1
 
       - name: Test packaged application
         env:

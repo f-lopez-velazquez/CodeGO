@@ -213,6 +213,7 @@ const state = {
   detectedToolchains: null,
   examInitialFile: '',
   returnHomeAfterUnlock: false,
+  closeAfterUnlock: false,
   syntaxDiagnosticTimer: null,
   syntaxDiagnosticGeneration: 0,
   syntaxDiagnosticLine: null,
@@ -597,6 +598,7 @@ const DOM = {
   btnViewReceipt: document.getElementById('btn-view-receipt'),
   btnExitExamApp: document.getElementById('btn-exit-exam-app')
 };
+DOM.btnExitSession = document.getElementById('btn-exit-session');
 
 let appDialogQueue = Promise.resolve();
 
@@ -1815,7 +1817,7 @@ function setSessionMode(mode) {
       DOM.lobbyRulesList.innerHTML = `
         <li><strong>Gestión de Archivos:</strong> Puedes abrir cualquier carpeta en tu equipo o crear nuevos proyectos en Python.</li>
         <li><strong>Conectividad Libre:</strong> La conexión a red permanece habilitada durante la sesión.</li>
-        <li><strong>Trabajo libre:</strong> Puedes cambiar de programa y consultar materiales sin generar incidencias.</li>
+        <li><strong>Trabajo libre:</strong> Puedes cambiar de programa sin alarmas; el contador conserva solo el número de salidas como referencia.</li>
         <li><strong>Ejecución Directa:</strong> Ejecuta tu código las veces que sea necesario (F5 o botón ▶ Ejecutar).</li>
       `;
     }
@@ -2335,6 +2337,7 @@ function setupEventListeners() {
   if (DOM.btnExitExamApp) {
     DOM.btnExitExamApp.addEventListener('click', handleExitExamApp);
   }
+  DOM.btnExitSession?.addEventListener('click', handleClearSessionExit);
   DOM.btnCloseApp.addEventListener('click', handleExitExamApp);
 
   // Global Keyboard Shortcuts (F5: Run, Ctrl+S: Save, Ctrl++/Ctrl-: Zoom, Ctrl+0: Reset, Ctrl+B: Sidebar)
@@ -3052,7 +3055,15 @@ function beginHazardCountdown() {
 }
 
 function handleSecurityViolation(incidentData = {}) {
-  if (state.appMode === 'activity' || !state.workspaceSessionActive || state.isExamSubmitted || state.isTaskSubmitted) return;
+  if (!state.workspaceSessionActive || state.isExamSubmitted || state.isTaskSubmitted) return;
+  if (state.appMode === 'activity') {
+    if (!incidentData.passive || incidentData.phase === 'returned') return;
+    const reported = Number(incidentData.totalIncidents);
+    state.incidentsCount = Number.isFinite(reported) ? Math.max(state.incidentsCount, reported) : state.incidentsCount + 1;
+    DOM.incidentsCounterPill.className = 'incidents-pill clean passive';
+    DOM.incidentsCounterText.textContent = `${state.incidentsCount} salida${state.incidentsCount === 1 ? '' : 's'}`;
+    return;
+  }
 
   const isReturned = incidentData.phase === 'returned';
   const warningVisible = !DOM.modalFocusWarning.classList.contains('hidden');
@@ -4541,7 +4552,10 @@ async function handleTeacherUnlockConfirm() {
     const res = await window.electronAPI.exitKiosk(pin);
     if (res.success) {
       DOM.modalTeacherUnlock.classList.add('hidden');
-      if (state.returnHomeAfterUnlock) {
+      if (state.closeAfterUnlock) {
+        state.closeAfterUnlock = false;
+        await window.electronAPI.quitApp();
+      } else if (state.returnHomeAfterUnlock) {
         state.returnHomeAfterUnlock = false;
         state.workspaceSessionActive = false;
         switchView('lobby');
@@ -5059,6 +5073,21 @@ async function handleExitExamApp() {
       window.close();
     }
   }
+}
+
+async function handleClearSessionExit() {
+  if (state.isRunning) {
+    showNotice('Detén el programa en ejecución antes de salir.');
+    return;
+  }
+  if (state.appMode === 'exam' && !state.isExamSubmitted) {
+    const proceed = await askConfirmation('Para cerrar un examen activo, el profesor debe autorizar la salida con el PIN definido al comenzar.', { title: 'Salida supervisada', kind: 'danger', confirmLabel: 'Solicitar autorización' });
+    if (!proceed || !await saveAllFiles()) return;
+    state.closeAfterUnlock = true;
+    openTeacherUnlockModal();
+    return;
+  }
+  await handleExitExamApp();
 }
 
 // -----------------------------------------------------------------------------

@@ -1937,6 +1937,36 @@ body.screen-compact .incidents-pill {
   border-color: var(--border-medium);
 }
 
+.exit-session-button {
+  gap: 7px;
+  width: auto;
+  min-width: 64px;
+  padding-inline: 10px;
+  color: var(--text-secondary);
+}
+
+.exit-session-button:hover {
+  color: var(--text-primary);
+}
+
+.incidents-pill.passive {
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+}
+
+body.screen-dense .exit-session-button span,
+body.screen-narrow .exit-session-button span {
+  display: none;
+}
+
+body.screen-dense .exit-session-button,
+body.screen-narrow .exit-session-button {
+  min-width: 32px;
+  width: 32px;
+  padding-inline: 0;
+}
+
 /* Main Grid Layout & Splitters */
 .ide-main-grid {
   flex: 1 1 0;

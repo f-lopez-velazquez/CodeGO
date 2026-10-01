@@ -112,3 +112,21 @@ test('Startup, adaptive lobby and editor guide preferences are explicit', () => 
   assert.match(css, /indent-guides-off/);
   assert.match(css, /66%, 100% \{ background-color: #00c853; \}/);
 });
+
+test('Free mode records exits without starting the supervised alarm', () => {
+  const root = path.resolve(__dirname, '..');
+  const main = fs.readFileSync(path.join(root, 'src/main/main.js'), 'utf8');
+  const renderer = fs.readFileSync(path.join(root, 'src/renderer/app.js'), 'utf8');
+  assert.match(main, /FREE_MODE_WINDOW_EXIT/);
+  assert.match(main, /passive:\s*true/);
+  assert.match(renderer, /state\.appMode === 'activity'[\s\S]*incidentData\.passive/);
+  assert.match(renderer, /salida\$\{state\.incidentsCount === 1/);
+});
+
+test('Supervised focus changes debounce transient OS focus hand-offs', () => {
+  const root = path.resolve(__dirname, '..');
+  const main = fs.readFileSync(path.join(root, 'src/main/main.js'), 'utf8');
+  assert.match(main, /supervisedBlurTimer = setTimeout/);
+  assert.match(main, /mainWindow\.isFocused\(\)/);
+  assert.match(main, /}, 650\);/);
+});

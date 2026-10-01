@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.6.6 · Ventanas gráficas y supervisión cómoda
+
+- Pygame, Tkinter y otras ventanas gráficas se promueven al frente en macOS después de abandonar el espacio de pantalla completa de Electron.
+- Python ejecuta desde la raíz del proyecto, con UTF-8 y variables SDL portátiles, para que recursos relativos y comportamiento coincidan con el espacio de trabajo del editor.
+- Modo libre registra un contador pasivo de salidas sin mostrar alarma ni alterar las notificaciones del sistema.
+- Examen y tarea filtran transferencias de foco menores a 650 ms producidas por el compositor o avisos del sistema, manteniendo la alarma repetible ante cambios reales de aplicación.
+- La barra del editor incorpora una salida visible; un examen activo conserva la autorización mediante PIN del docente.
+- La construcción macOS recupera volúmenes DMG temporales ocupados y reintenta el empaquetado de forma acotada.
+
 ## 1.6.5 · Inicio inmediato y supervisión repetible
 
 - Muestra una pantalla de arranque desde el primer cuadro y mueve las comprobaciones largas a procesos asíncronos para que Windows, macOS y Linux no interpreten la preparación como un bloqueo.

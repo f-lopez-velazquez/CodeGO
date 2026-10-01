@@ -52,4 +52,23 @@ function placeHyprlandWindow(processId, workspace, options = {}) {
   }
 }
 
-module.exports = { isHyprland, sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow };
+function focusMacProcess(processId, options = {}) {
+  const platform = options.platform || process.platform;
+  const pid = Number(processId);
+  if (platform !== 'darwin' || !Number.isSafeInteger(pid) || pid <= 0) return false;
+  const execute = options.execute || execFileSync;
+  const script = `tell application "System Events" to set frontmost of first application process whose unix id is ${pid} to true`;
+  try {
+    execute('osascript', ['-e', script], {
+      encoding: 'utf8',
+      timeout: 2500,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+module.exports = { isHyprland, sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow, focusMacProcess };

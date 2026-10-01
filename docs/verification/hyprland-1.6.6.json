@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "version": "1.6.6",
+  "platform": "linux",
+  "desktop": "Omarchy / Hyprland",
+  "date": "2026-10-01",
+  "displays": [
+    {
+      "name": "eDP",
+      "logicalSize": "1280x720",
+      "scaleFactor": 1.5
+    },
+    {
+      "name": "HDMI",
+      "logicalSize": "960x540",
+      "scaleFactor": 2
+    }
+  ],
+  "observedRootCause": "Dos instancias simultaneas negociaban pantalla completa con el compositor.",
+  "mitigation": "Electron requestSingleInstanceLock y transferencia de foco mediante second-instance.",
+  "checks": {
+    "sourceTests": 65,
+    "browserLayoutCombinations": 32,
+    "electronInputAndScaling": true,
+    "appImagePackagedSmoke": true,
+    "offlineRuntime": true,
+    "singleInstanceGuard": true
+  },
+  "artifact": "CodeGO-1.6.6-linux-x86_64.AppImage",
+  "result": "PASS"
+}
