@@ -121,6 +121,7 @@ test('Free mode records exits without starting the supervised alarm', () => {
   assert.match(main, /passive:\s*true/);
   assert.match(renderer, /state\.appMode === 'activity'[\s\S]*incidentData\.passive/);
   assert.match(renderer, /salida\$\{state\.incidentsCount === 1/);
+  assert.match(renderer, /prepareNewWorkspaceSession\(\)[\s\S]*state\.incidentsCount = 0/);
 });
 
 test('Supervised focus changes debounce transient OS focus hand-offs', () => {

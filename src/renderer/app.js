@@ -2598,6 +2598,8 @@ function prepareNewWorkspaceSession() {
   state.isExamSubmitted = false;
   state.isTaskSubmitted = false;
   state.isSubmitting = false;
+  state.incidentsCount = 0;
+  updateIncidentsDisplay();
   state.editorErrorLine = null;
   state.runtimeErrorLocation = null;
   applyEditorLockState(false);

@@ -1971,6 +1971,7 @@ except Exception:
     if (isActivity) {
       isKioskActive = false;
       activeSessionMode = 'activity';
+      securityAuditLog = [];
       await notificationGuard.restore();
       logSecurityIncident('ACTIVITY_MODE_STARTED', {
         student: safeStudentData,
@@ -1991,6 +1992,7 @@ except Exception:
     if (studentData && studentData.mode === 'task') {
       isKioskActive = false;
       activeSessionMode = 'task';
+      securityAuditLog = [];
       await notificationGuard.enable();
       if (!fs.existsSync(currentWorkspace)) {
         fs.mkdirSync(currentWorkspace, { recursive: true });
