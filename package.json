@@ -1,6 +1,6 @@
 {
   "name": "codego-examguard",
-  "version": "1.6.10",
+  "version": "1.6.11",
   "description": "Entorno educativo de Python para aprender, practicar y evaluar",
   "homepage": "https://zolvek.com.mx/productos/codego",
   "author": {
@@ -26,7 +26,7 @@
     "build:dir": "electron-builder --dir --publish never",
     "test:browser": "node scripts/browser-tests.cjs",
     "build:release": "node scripts/build-release.cjs",
-    "build:patch": "node scripts/build-app-patch.cjs",
+    "build:patch": "node scripts/build-app-patch.cjs && node scripts/run-app-patch-smoke.cjs",
     "prepare:offline": "node scripts/prepare-offline-bundle.cjs",
     "test:offline": "node scripts/verify-offline-bundle.cjs",
     "capture:ui": "node scripts/capture-ui.cjs"

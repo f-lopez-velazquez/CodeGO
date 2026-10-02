@@ -6,6 +6,8 @@ const crypto = require('crypto');
 const { spawn, execFileSync } = require('child_process');
 const electron = require('electron');
 const shell = electron && typeof electron === 'object' ? electron.shell : null;
+let rawFs = fs;
+try { rawFs = require('original-fs'); } catch (_) {}
 
 /**
  * Parsea una versión semver limpia [major, minor, patch].
@@ -165,12 +167,12 @@ function normalizeDigest(value) {
 }
 
 function sha256File(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  return crypto.createHash('sha256').update(rawFs.readFileSync(filePath)).digest('hex');
 }
 
 function verifyDownloadedAsset(filePath, { digest = null, sizeBytes = 0 } = {}) {
-  if (!fs.existsSync(filePath)) throw new Error('La actualización descargada no existe.');
-  const actualSize = fs.statSync(filePath).size;
+  if (!rawFs.existsSync(filePath)) throw new Error('La actualización descargada no existe.');
+  const actualSize = rawFs.statSync(filePath).size;
   if (sizeBytes > 0 && actualSize !== Number(sizeBytes)) {
     throw new Error(`La actualización está incompleta (${actualSize} de ${sizeBytes} bytes).`);
   }
