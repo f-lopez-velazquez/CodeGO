@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
+const { EventEmitter } = require('node:events');
+const { PassThrough } = require('node:stream');
 const updater = require('../src/main/updater');
 const appPatch = require('../src/main/app-patch');
 
@@ -128,6 +130,44 @@ test('Updater: validates the published size and SHA-256 before installation', t 
   assert.equal(result.sha256, digest);
   assert.throws(() => updater.verifyDownloadedAsset(file, { digest: `sha256:${'0'.repeat(64)}` }), /SHA-256/);
   assert.throws(() => updater.verifyDownloadedAsset(file, { sizeBytes: 1 }), /incompleta/);
+});
+
+test('Updater: retries an empty CDN response and installs only the complete verified file', async t => {
+  const directory = temporary(t);
+  const destination = path.join(directory, 'CodeGO-app.asar.part');
+  const payload = Buffer.from('paquete de actualización íntegro');
+  const digest = crypto.createHash('sha256').update(payload).digest('hex');
+  let requests = 0;
+  const progress = [];
+  const request = (_url, _options, callback) => {
+    requests += 1;
+    const req = new EventEmitter();
+    req.setTimeout = () => {};
+    req.destroy = error => { if (error) req.emit('error', error); };
+    process.nextTick(() => {
+      const response = new PassThrough();
+      response.statusCode = 200;
+      response.headers = { 'content-length': String(payload.length) };
+      callback(response);
+      response.end(requests === 1 ? Buffer.alloc(0) : payload);
+    });
+    return req;
+  };
+
+  await updater.downloadAssetWithProgress('https://updates.example/codego.asar', destination, event => {
+    progress.push(event);
+  }, {
+    sizeBytes: payload.length,
+    digest: `sha256:${digest}`,
+    request,
+    maxAttempts: 3,
+    retryDelayMs: 1
+  });
+
+  assert.equal(requests, 2);
+  assert.deepEqual(fs.readFileSync(destination), payload);
+  assert.ok(progress.some(event => event.retrying && event.attempt === 2));
+  assert.equal(updater.verifyDownloadedAsset(destination, { sizeBytes: payload.length, digest: `sha256:${digest}` }).success, true);
 });
 
 test('Updater: Linux atomically replaces the installed AppImage and restarts it', t => {

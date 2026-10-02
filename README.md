@@ -20,7 +20,7 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Instalador base autónomo (recibe v1.6.9) | Alternativa |
+| Sistema | Instalador base autónomo (recibe v1.6.10) | Alternativa |
 | --- | --- | --- |
 | Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-portable-x64.exe) |
 | Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.tar.gz) |

@@ -5330,7 +5330,9 @@ function renderAutomaticUpdateState(payload = {}) {
   if (DOM.updateProgressFill) DOM.updateProgressFill.style.width = `${percent}%`;
 
   const statusCopy = {
-    downloading: [`Descargando v${payload.latestVersion || updateInfo?.latestVersion || ''} (${percent}%)...`, payload.totalBytes > 0 ? `${(payload.downloadedBytes / 1024 / 1024).toFixed(1)} MB de ${(payload.totalBytes / 1024 / 1024).toFixed(1)} MB` : 'La descarga continúa en segundo plano.'],
+    downloading: payload.retrying
+      ? [`Reconectando (${payload.attempt} de ${payload.maxAttempts})...`, 'La descarga se reanudará automáticamente.']
+      : [`Descargando v${payload.latestVersion || updateInfo?.latestVersion || ''} (${percent}%)...`, payload.totalBytes > 0 ? `${(payload.downloadedBytes / 1024 / 1024).toFixed(1)} MB de ${(payload.totalBytes / 1024 / 1024).toFixed(1)} MB` : 'La descarga continúa en segundo plano.'],
     ready: ['Actualización preparada', 'CodeGO se reiniciará para completar la instalación.'],
     deferred: ['Actualización preparada', payload.message || 'Se instalará al terminar la sesión actual.'],
     installing: ['Instalando actualización...', 'CodeGO se reiniciará automáticamente.'],
@@ -5455,6 +5457,15 @@ async function handleStartUpdate() {
       if (DOM.updateProgressFill) {
         DOM.updateProgressFill.style.width = `${progress.percent}%`;
       }
+      if (progress.retrying) {
+        if (DOM.updateProgressText) {
+          DOM.updateProgressText.textContent = `Reconectando (${progress.attempt} de ${progress.maxAttempts})...`;
+        }
+        if (DOM.updateProgressDetail) {
+          DOM.updateProgressDetail.textContent = 'La descarga se reanudará automáticamente.';
+        }
+        return;
+      }
       if (DOM.updateProgressText) {
         DOM.updateProgressText.textContent = `Descargando actualización (${progress.percent}%)...`;
       }
@@ -5491,7 +5502,7 @@ async function handleStartUpdate() {
     if (DOM.btnUpdateViewNotes) DOM.btnUpdateViewNotes.disabled = false;
     if (DOM.btnUpdateDismiss) DOM.btnUpdateDismiss.disabled = false;
     if (DOM.updateProgressText) DOM.updateProgressText.textContent = 'Error al actualizar.';
-    if (DOM.updateProgressDetail) DOM.updateProgressDetail.textContent = 'Puedes reintentar más tarde.';
+    if (DOM.updateProgressDetail) DOM.updateProgressDetail.textContent = 'Tu versión actual sigue intacta. Pulsa Actualizar para reintentar.';
   } finally {
     state.isUpdating = false;
     if (removeProgressListener) removeProgressListener();

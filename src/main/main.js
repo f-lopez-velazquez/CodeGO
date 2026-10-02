@@ -412,6 +412,7 @@ function readActiveExamMarker() {
 const AUTOMATIC_UPDATE_INTERVAL_MS = 30 * 60 * 1000;
 let automaticUpdateTimer = null;
 let automaticUpdateStartTimer = null;
+let automaticUpdateRetryTimer = null;
 let updateDownloadBusy = false;
 let updateApplyBusy = false;
 let availableUpdateInfo = null;
@@ -504,6 +505,8 @@ async function checkAndStageAutomaticUpdate({ installWhenReady = true, force = f
   }
 
   updateDownloadBusy = true;
+  clearTimeout(automaticUpdateRetryTimer);
+  automaticUpdateRetryTimer = null;
   try {
     setUpdateState('checking');
     const info = await updater.checkForUpdates({ currentVersion: currentAppVersion(), timeoutMs: 12000 });
@@ -565,6 +568,13 @@ async function checkAndStageAutomaticUpdate({ installWhenReady = true, force = f
     return { ...info, status: updateState.status, prepared: true };
   } catch (error) {
     setUpdateState('error', { latestVersion: availableUpdateInfo?.latestVersion, error: error.message });
+    if (app.isPackaged && !diagnosticMode) {
+      automaticUpdateRetryTimer = setTimeout(() => {
+        automaticUpdateRetryTimer = null;
+        void checkAndStageAutomaticUpdate({ installWhenReady: true, force: true });
+      }, 90 * 1000);
+      automaticUpdateRetryTimer.unref?.();
+    }
     return { success: false, hasUpdate: Boolean(availableUpdateInfo), error: error.message };
   } finally {
     updateDownloadBusy = false;
@@ -574,6 +584,8 @@ async function checkAndStageAutomaticUpdate({ installWhenReady = true, force = f
 function scheduleAutomaticUpdates() {
   if (diagnosticMode) return;
   clearTimeout(automaticUpdateStartTimer);
+  clearTimeout(automaticUpdateRetryTimer);
+  automaticUpdateRetryTimer = null;
   clearInterval(automaticUpdateTimer);
   automaticUpdateStartTimer = setTimeout(() => void checkAndStageAutomaticUpdate({ installWhenReady: true }), 12000);
   automaticUpdateTimer = setInterval(() => void checkAndStageAutomaticUpdate({ installWhenReady: true }), AUTOMATIC_UPDATE_INTERVAL_MS);

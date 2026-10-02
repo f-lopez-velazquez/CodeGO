@@ -182,65 +182,70 @@ function verifyDownloadedAsset(filePath, { digest = null, sizeBytes = 0 } = {}) 
   return { success: true, sizeBytes: actualSize, sha256: actualHash };
 }
 
-function downloadAssetWithProgress(downloadUrl, destPath, onProgress, options = {}) {
-  if (typeof options === 'number') options = { maxSizeBytes: options };
+function removePartialDownload(filePath) {
+  try { fs.unlinkSync(filePath); } catch (_) {}
+}
+
+function downloadAssetAttempt(downloadUrl, destPath, onProgress, options = {}) {
   const maxSizeBytes = options.maxSizeBytes || 1024 * 1024 * 1024;
+  const request = options.request || https.get;
+  const timeoutMs = options.timeoutMs || 60000;
   let lastProgressPercent = -1;
   let lastProgressAt = 0;
+
   return new Promise((resolve, reject) => {
+    let settled = false;
+    let fileStream = null;
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      fileStream?.destroy();
+      removePartialDownload(destPath);
+      reject(error instanceof Error ? error : new Error(String(error)));
+    };
+
     function get(currentUrl, redirectCount = 0) {
-      if (redirectCount > 10) {
-        return reject(new Error('Demasiadas redirecciones HTTP al descargar actualización.'));
-      }
-      if (!currentUrl.startsWith('https://')) {
-        return reject(new Error('La descarga requiere HTTPS.'));
-      }
+      if (redirectCount > 10) return fail(new Error('Demasiadas redirecciones HTTP al descargar actualización.'));
+      if (!currentUrl.startsWith('https://')) return fail(new Error('La descarga requiere HTTPS.'));
 
-      const req = https.get(currentUrl, {
-        headers: {
-          'User-Agent': 'CodeGO-ExamGuard-Updater'
-        }
-      }, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          let nextUrl = res.headers.location;
-          if (!nextUrl.startsWith('http')) {
-            const urlObj = new URL(currentUrl);
-            nextUrl = new URL(nextUrl, urlObj).href;
-          }
-          res.resume();
-          return get(nextUrl, redirectCount + 1);
-        }
-
-        if (res.statusCode !== 200) {
-          res.resume();
-          return reject(new Error(`Error HTTP al descargar: ${res.statusCode}`));
-        }
-
-        const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
-        if (totalBytes > maxSizeBytes) {
-          res.resume();
-          return reject(new Error(`La actualización supera el límite de ${Math.round(maxSizeBytes / 1024 / 1024)} MB.`));
-        }
-        let downloadedBytes = 0;
-        let settled = false;
-        const fileStream = fs.createWriteStream(destPath);
-
-        const fail = (error) => {
-          if (settled) return;
-          settled = true;
-          fileStream.destroy();
-          try { fs.unlinkSync(destPath); } catch (_) {}
-          reject(error);
-        };
-
-        res.on('data', (chunk) => {
-          downloadedBytes += chunk.length;
-          if (downloadedBytes > maxSizeBytes) {
-            req.destroy();
-            fail(new Error(`La descarga superó el límite máximo de ${Math.round(maxSizeBytes / 1024 / 1024)} MB.`));
+      let req;
+      try {
+        req = request(currentUrl, {
+          headers: { 'User-Agent': 'CodeGO-ExamGuard-Updater' }
+        }, (res) => {
+          if (settled) {
+            res.resume?.();
             return;
           }
-          if (onProgress) {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            const nextUrl = new URL(res.headers.location, currentUrl).href;
+            res.resume();
+            get(nextUrl, redirectCount + 1);
+            return;
+          }
+          if (res.statusCode !== 200) {
+            res.resume();
+            fail(new Error(`Error HTTP al descargar: ${res.statusCode}`));
+            return;
+          }
+
+          const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+          if (totalBytes > maxSizeBytes) {
+            res.resume();
+            fail(new Error(`La actualización supera el límite de ${Math.round(maxSizeBytes / 1024 / 1024)} MB.`));
+            return;
+          }
+
+          let downloadedBytes = 0;
+          fileStream = fs.createWriteStream(destPath, { flags: 'w' });
+          res.on('data', (chunk) => {
+            downloadedBytes += chunk.length;
+            if (downloadedBytes > maxSizeBytes) {
+              req.destroy(new Error(`La descarga superó el límite máximo de ${Math.round(maxSizeBytes / 1024 / 1024)} MB.`));
+              return;
+            }
+            if (!onProgress) return;
             const percent = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : 0;
             const now = Date.now();
             if (percent !== lastProgressPercent || now - lastProgressAt >= 500) {
@@ -248,41 +253,85 @@ function downloadAssetWithProgress(downloadUrl, destPath, onProgress, options = 
               lastProgressAt = now;
               onProgress({ percent, downloadedBytes, totalBytes });
             }
-          }
-        });
-
-        res.pipe(fileStream);
-
-        res.on('error', fail);
-
-        fileStream.on('finish', () => {
-          fileStream.close(() => {
-            if (settled) return;
-            try {
-              verifyDownloadedAsset(destPath, options);
-              settled = true;
-              resolve(destPath);
-            } catch (error) {
-              fail(error);
-            }
           });
+          res.once('aborted', () => fail(new Error('La conexión cerró la descarga antes de completarla.')));
+          res.once('error', fail);
+          fileStream.once('error', fail);
+          fileStream.once('finish', () => {
+            fileStream.close(() => {
+              if (settled) return;
+              try {
+                verifyDownloadedAsset(destPath, options);
+                settled = true;
+                resolve(destPath);
+              } catch (error) {
+                fail(error);
+              }
+            });
+          });
+          res.pipe(fileStream);
         });
+      } catch (error) {
+        fail(error);
+        return;
+      }
 
-        fileStream.on('error', fail);
-      });
-
-      req.on('error', (err) => {
-        try { fs.unlinkSync(destPath); } catch (_) {}
-        reject(err);
-      });
-
-      req.setTimeout(60000, () => {
+      req.once('error', fail);
+      req.setTimeout(timeoutMs, () => {
         req.destroy(new Error('La conexión de descarga se interrumpió por inactividad.'));
       });
     }
 
     get(downloadUrl);
   });
+}
+
+function shouldRetryDownload(error) {
+  const message = String(error?.message || error);
+  if (/requiere HTTPS|Demasiadas redirecciones|supera el límite/i.test(message)) return false;
+  if (/Error HTTP.*\b(400|401|403|404|405|410|422)\b/i.test(message)) return false;
+  return true;
+}
+
+async function downloadAssetWithProgress(downloadUrl, destPath, onProgress, options = {}) {
+  if (typeof options === 'number') options = { maxSizeBytes: options };
+  const maxAttempts = Math.max(1, Math.min(5, Number(options.maxAttempts) || 3));
+  const retryDelayMs = Math.max(0, Number(options.retryDelayMs) || 700);
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    removePartialDownload(destPath);
+    if (onProgress) onProgress({
+      percent: 0,
+      downloadedBytes: 0,
+      totalBytes: Number(options.sizeBytes) || 0,
+      attempt,
+      maxAttempts,
+      retrying: attempt > 1
+    });
+    try {
+      return await downloadAssetAttempt(downloadUrl, destPath, onProgress, options);
+    } catch (error) {
+      lastError = error;
+      removePartialDownload(destPath);
+      if (attempt >= maxAttempts || !shouldRetryDownload(error)) break;
+      if (onProgress) onProgress({
+        percent: 0,
+        downloadedBytes: 0,
+        totalBytes: Number(options.sizeBytes) || 0,
+        attempt: attempt + 1,
+        maxAttempts,
+        retrying: true,
+        retryReason: error.message
+      });
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs * attempt));
+    }
+  }
+
+  const suffix = maxAttempts > 1 && shouldRetryDownload(lastError)
+    ? ` Se intentó descargar ${maxAttempts} veces sin modificar la instalación actual.`
+    : '';
+  throw new Error(`${lastError?.message || 'No se pudo descargar la actualización.'}${suffix}`);
 }
 
 /**
