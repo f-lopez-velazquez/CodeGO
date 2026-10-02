@@ -83,6 +83,9 @@ Todos los canales IPC se comunican de forma segura a través de `window.electron
 | `window:set-fullscreen` | Renderer ➔ Main | Controla el modo pantalla completa de la ventana principal. |
 | `fs:list-workspace` | Renderer ➔ Main | Lista recursivamente los archivos del workspace activo. |
 | `fs:save-file` | Renderer ➔ Main | Guarda el contenido del archivo abierto en disco. |
+| `fs:rename` | Renderer ➔ Main | Renombra un archivo o carpeta dentro de su directorio, sin sobrescribir elementos existentes. |
+| `fs:preview-file` | Renderer ➔ Main | Devuelve una vista previa acotada de imágenes y audio mediante una URL de datos validada. |
+| `fs:reveal-item` | Renderer ➔ Main | Muestra un recurso en el explorador nativo; permanece bloqueado durante un examen. |
 | `exam:submit` | Renderer ➔ Main | Empaqueta el código y bitácora en ZIP con sello SHA-256. |
 | `task:submit` | Renderer ➔ Main | Empaqueta workspace jerárquico y registro de actividad en un contenedor `.codego` con sello Ed25519. |
 | `submission:verify-file` | Renderer ➔ Main | Audita integridad, sello Ed25519 y SHA-256 de archivos `.codego` y `.zip`. |
