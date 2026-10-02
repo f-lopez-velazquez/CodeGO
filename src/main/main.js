@@ -125,7 +125,6 @@ let pythonForeignFocusActive = false;
 let pythonForeignFocusSamples = 0;
 let supervisedBlurTimer = null;
 let supervisedAlertSent = false;
-let passiveBlurStartedAt = null;
 let fullscreenRetryTimer = null;
 let lastFullscreenRequestAt = 0;
 
@@ -146,6 +145,32 @@ function requestProtectedFullscreen({ force = false, focus = false } = {}) {
   return true;
 }
 
+function releaseWindowForFreeMode({ focus = false } = {}) {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  clearTimeout(fullscreenRetryTimer);
+  fullscreenRetryTimer = null;
+  protectedWindowTemporarilyReleased = false;
+  try {
+    mainWindow.setAlwaysOnTop(false);
+    if (mainWindow.isKiosk()) mainWindow.setKiosk(false);
+    const maximizeNormally = () => {
+      if (mainWindow && !mainWindow.isDestroyed() && activeSessionMode === 'activity' && !mainWindow.isFullScreen()) {
+        mainWindow.maximize();
+      }
+    };
+    if (mainWindow.isFullScreen()) {
+      mainWindow.setFullScreen(false);
+      setTimeout(maximizeNormally, 180);
+    } else maximizeNormally();
+    // Free practice behaves like a normal maximized desktop application. It
+    // must never reclaim focus when the student opens another program.
+    if (focus) restoreRendererKeyboardFocus();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 function restoreRendererKeyboardFocus() {
   if (!mainWindow || mainWindow.isDestroyed()) return false;
   try {
@@ -157,6 +182,7 @@ function restoreRendererKeyboardFocus() {
     // not renegotiate fullscreen, avoiding the Hyprland resize loop.
     setTimeout(() => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
+      if (activeSessionMode === 'activity' && !mainWindow.isFocused()) return;
       mainWindow.focus();
       mainWindow.webContents.focus();
     }, 90);
@@ -254,10 +280,12 @@ function restoreMainWindowAfterPython() {
     if (activeSessionMode === 'exam') {
       mainWindow.setKiosk(true);
       mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      mainWindow.focus();
+    } else if (activeSessionMode === 'task') {
+      requestProtectedFullscreen({ force: true, focus: true });
     } else {
-      requestProtectedFullscreen({ force: true });
+      releaseWindowForFreeMode();
     }
-    mainWindow.focus();
   } catch (_) {}
 }
 
@@ -1022,11 +1050,11 @@ function createMainWindow() {
     });
   }
 
-  // codeGO is designed as a focused, full-workspace application. If the
-  // operating system leaves fullscreen, request it again once the compositor
-  // has settled instead of creating a resize loop.
+  // Only supervised sessions enforce fullscreen. Free practice is a regular
+  // maximized application and must allow Alt+Tab, workspaces and other apps.
   mainWindow.on('leave-full-screen', () => {
     if (diagnosticMode || protectedWindowTemporarilyReleased || !mainWindow || mainWindow.isDestroyed()) return;
+    if (!['exam', 'task'].includes(activeSessionMode)) return;
     clearTimeout(fullscreenRetryTimer);
     fullscreenRetryTimer = setTimeout(() => {
       if (!mainWindow || mainWindow.isDestroyed() || protectedWindowTemporarilyReleased) return;
@@ -1038,18 +1066,7 @@ function createMainWindow() {
 
   mainWindow.on('blur', () => {
     const pythonWindow = Boolean(activePythonGuiExpected && activeProcess && !activeProcess.killed);
-    if (activeSessionMode === 'activity' && !pythonWindow && !isNativeDialogActive && !installationBusy) {
-      passiveBlurStartedAt = Date.now();
-      const incident = logSecurityIncident('FREE_MODE_WINDOW_EXIT', { mode: activeSessionMode });
-      mainWindow?.webContents.send('security:blur-detected', {
-        incident,
-        passive: true,
-        phase: 'away',
-        mode: activeSessionMode,
-        totalIncidents: securityAuditLog.filter(entry => entry.type === 'FREE_MODE_WINDOW_EXIT').length
-      });
-      return;
-    }
+    if (activeSessionMode === 'activity') return;
     const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'task';
     const decision = focusGuard.blur({
       sessionActive: focusSupervisionActive,
@@ -1093,12 +1110,7 @@ function createMainWindow() {
   });
 
   mainWindow.on('focus', () => {
-    if (activeSessionMode === 'activity' && passiveBlurStartedAt !== null) {
-      const durationSeconds = Math.max(0, Date.now() - passiveBlurStartedAt) / 1000;
-      passiveBlurStartedAt = null;
-      logSecurityIncident('FREE_MODE_WINDOW_RETURN', { mode: activeSessionMode, durationSeconds: Number(durationSeconds.toFixed(1)) });
-      return;
-    }
+    if (activeSessionMode === 'activity') return;
     const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'task';
     const decision = focusGuard.focus({ sessionActive: focusSupervisionActive });
     if (!decision.violation) return;
@@ -1965,7 +1977,6 @@ except Exception:
     focusGuard.reset();
     clearSupervisedBlurTimer();
     supervisedAlertSent = false;
-    passiveBlurStartedAt = null;
     const isActivity = studentData && studentData.mode === 'activity';
 
     if (isActivity) {
@@ -1973,17 +1984,15 @@ except Exception:
       activeSessionMode = 'activity';
       securityAuditLog = [];
       await notificationGuard.restore();
+      stopAudioWatchdog();
       logSecurityIncident('ACTIVITY_MODE_STARTED', {
         student: safeStudentData,
         startTime: new Date().toISOString()
       });
 
       if (mainWindow) {
-        if (mainWindow.isKiosk()) mainWindow.setKiosk(false);
-        requestProtectedFullscreen();
-        mainWindow.setAlwaysOnTop(false);
         globalShortcut.unregisterAll();
-        restoreRendererKeyboardFocus();
+        releaseWindowForFreeMode({ focus: true });
       }
 
       return { success: true, mode: 'activity' };
@@ -2101,7 +2110,6 @@ except Exception:
     focusGuard.reset();
     clearSupervisedBlurTimer();
     supervisedAlertSent = false;
-    passiveBlurStartedAt = null;
     stopAudioWatchdog();
     await notificationGuard.restore();
     globalShortcut.unregisterAll();
@@ -2255,7 +2263,10 @@ except Exception:
   // Window Screen Controls
   handle('window:set-fullscreen', async (event, flag) => {
     if (diagnosticMode) return { success: true };
-    if (flag === false) return { success: false, error: 'codeGO trabaja siempre en pantalla completa.' };
+    if (activeSessionMode === 'activity' && flag === false) {
+      return { success: releaseWindowForFreeMode(), isFullScreen: false };
+    }
+    if (flag === false) return { success: false, error: 'La sesión supervisada trabaja en pantalla completa.' };
     if (mainWindow && !mainWindow.isDestroyed()) {
       requestProtectedFullscreen();
       return { success: true, isFullScreen: mainWindow.isFullScreen() };
@@ -2265,6 +2276,9 @@ except Exception:
 
   handle('window:maximize', async () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
+      if (activeSessionMode === 'activity') {
+        return { success: releaseWindowForFreeMode(), isFullScreen: false };
+      }
       requestProtectedFullscreen();
       return { success: true };
     }
@@ -2274,9 +2288,19 @@ except Exception:
   // Safe App Exit (Unmutes and re-enables Wi-Fi before closing)
   handle('app:quit-safe', async () => {
     if (isKioskActive) return { success: false, error: 'Se requiere autorización docente para salir.' };
+    allowWindowClose = true;
+    closeRequestPending = false;
+    activeSessionMode = null;
+    focusGuard.reset();
+    clearSupervisedBlurTimer();
+    supervisedAlertSent = false;
     stopAudioWatchdog();
+    await notificationGuard.restore();
+    globalShortcut.unregisterAll();
     enableSystemWifi();
+    pythonRunner.kill();
     app.quit();
+    return { success: true };
   });
 
   // File System Operations (Dynamic currentWorkspace with enhanced cross-platform subfolder support)

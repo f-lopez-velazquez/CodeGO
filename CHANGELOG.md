@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.6.7 · Modo libre realmente libre
+
+- Libera pantalla completa, kiosk, primer plano, atajos globales y vigilancia de audio al entrar en modo libre.
+- Deja de observar o registrar los cambios de ventana durante la práctica libre.
+- Evita recuperar el foco desde una pasada diferida de Wayland/Hyprland después de que el usuario cambió de aplicación.
+- Mantiene codeGO como una ventana normal maximizada y no vuelve a pantalla completa al terminar una ventana de Pygame.
+- Corrige el cierre seguro para que el botón **Salir** autorice al manejador nativo antes de finalizar la aplicación.
+
 ## 1.6.6 · Ventanas gráficas y supervisión cómoda
 
 - Pygame, Tkinter y otras ventanas gráficas se promueven al frente en macOS después de abandonar el espacio de pantalla completa de Electron.

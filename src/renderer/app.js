@@ -1817,7 +1817,7 @@ function setSessionMode(mode) {
       DOM.lobbyRulesList.innerHTML = `
         <li><strong>Gestión de Archivos:</strong> Puedes abrir cualquier carpeta en tu equipo o crear nuevos proyectos en Python.</li>
         <li><strong>Conectividad Libre:</strong> La conexión a red permanece habilitada durante la sesión.</li>
-        <li><strong>Trabajo libre:</strong> Puedes cambiar de programa sin alarmas; el contador conserva solo el número de salidas como referencia.</li>
+        <li><strong>Trabajo libre:</strong> Puedes cambiar de programa, escritorio o ventana sin alarmas, bloqueos ni seguimiento.</li>
         <li><strong>Ejecución Directa:</strong> Ejecuta tu código las veces que sea necesario (F5 o botón ▶ Ejecutar).</li>
       `;
     }
@@ -3058,14 +3058,9 @@ function beginHazardCountdown() {
 
 function handleSecurityViolation(incidentData = {}) {
   if (!state.workspaceSessionActive || state.isExamSubmitted || state.isTaskSubmitted) return;
-  if (state.appMode === 'activity') {
-    if (!incidentData.passive || incidentData.phase === 'returned') return;
-    const reported = Number(incidentData.totalIncidents);
-    state.incidentsCount = Number.isFinite(reported) ? Math.max(state.incidentsCount, reported) : state.incidentsCount + 1;
-    DOM.incidentsCounterPill.className = 'incidents-pill clean passive';
-    DOM.incidentsCounterText.textContent = `${state.incidentsCount} salida${state.incidentsCount === 1 ? '' : 's'}`;
-    return;
-  }
+  // Free practice has no focus surveillance. It behaves like any normal
+  // desktop editor and ignores every security-focus event defensively.
+  if (state.appMode === 'activity') return;
 
   const isReturned = incidentData.phase === 'returned';
   const warningVisible = !DOM.modalFocusWarning.classList.contains('hidden');

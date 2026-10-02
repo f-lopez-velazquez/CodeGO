@@ -83,7 +83,7 @@ test('Desktop startup delegates fullscreen to one debounced main-process path', 
   const renderer = fs.readFileSync(path.join(root, 'src/renderer/app.js'), 'utf8');
   assert.match(main, /fullscreen:\s*!diagnosticMode/);
   assert.equal((main.match(/mainWindow\.setFullScreen\(true\)/g) || []).length, 1);
-  assert.equal((main.match(/mainWindow\.maximize\(\)/g) || []).length, 0);
+  assert.equal((main.match(/mainWindow\.maximize\(\)/g) || []).length, 1);
   assert.doesNotMatch(renderer, /await window\.electronAPI\.setFullScreen\(true\)/);
   assert.match(main, /requestSingleInstanceLock\(\)/);
   assert.match(main, /app\.on\('second-instance'/);
@@ -113,15 +113,23 @@ test('Startup, adaptive lobby and editor guide preferences are explicit', () => 
   assert.match(css, /66%, 100% \{ background-color: #00c853; \}/);
 });
 
-test('Free mode records exits without starting the supervised alarm', () => {
+test('Free mode releases desktop restrictions and never supervises focus', () => {
   const root = path.resolve(__dirname, '..');
   const main = fs.readFileSync(path.join(root, 'src/main/main.js'), 'utf8');
   const renderer = fs.readFileSync(path.join(root, 'src/renderer/app.js'), 'utf8');
-  assert.match(main, /FREE_MODE_WINDOW_EXIT/);
-  assert.match(main, /passive:\s*true/);
-  assert.match(renderer, /state\.appMode === 'activity'[\s\S]*incidentData\.passive/);
-  assert.match(renderer, /salida\$\{state\.incidentsCount === 1/);
-  assert.match(renderer, /prepareNewWorkspaceSession\(\)[\s\S]*state\.incidentsCount = 0/);
+  assert.match(main, /function releaseWindowForFreeMode[\s\S]*setAlwaysOnTop\(false\)[\s\S]*setFullScreen\(false\)[\s\S]*maximize\(\)/);
+  assert.match(main, /mainWindow\.on\('blur'[\s\S]*activeSessionMode === 'activity'\) return/);
+  assert.match(main, /leave-full-screen'[\s\S]*!\['exam', 'task'\]\.includes\(activeSessionMode\)/);
+  assert.match(main, /isActivity[\s\S]*stopAudioWatchdog\(\)[\s\S]*releaseWindowForFreeMode\(\{ focus: true \}\)/);
+  assert.doesNotMatch(main, /FREE_MODE_WINDOW_(?:EXIT|RETURN)/);
+  assert.match(renderer, /state\.appMode === 'activity'\) return/);
+  assert.doesNotMatch(renderer, /incidentData\.passive/);
+});
+
+test('Safe quit authorizes the native close handler before quitting', () => {
+  const root = path.resolve(__dirname, '..');
+  const main = fs.readFileSync(path.join(root, 'src/main/main.js'), 'utf8');
+  assert.match(main, /handle\('app:quit-safe'[\s\S]*allowWindowClose = true;[\s\S]*app\.quit\(\);[\s\S]*success: true/);
 });
 
 test('Supervised focus changes debounce transient OS focus hand-offs', () => {
