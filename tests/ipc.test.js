@@ -53,7 +53,9 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   assert.match(preview.dataUrl,/^data:image\/png;base64,/);
   assert.equal((await call('fs:preview-file','main.py')).success,false);
   assert.equal((await call('fs:reveal-item','main.py')).success,true);
-  assert.equal(revealed.at(-1),path.join(workspace,'main.py'));
+  // macOS exposes /var through the canonical /private/var path. The workspace
+  // guard intentionally resolves links before revealing an item.
+  assert.equal(revealed.at(-1),path.join(fs.realpathSync(workspace),'main.py'));
   vm.runInContext('mainWindow.isDestroyed = () => true;', context);
   assert.equal((await call('fs:read-file','main.py')).success, false);
   vm.runInContext('mainWindow.isDestroyed = () => false;', context);
