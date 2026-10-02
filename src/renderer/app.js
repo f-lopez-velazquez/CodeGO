@@ -166,6 +166,8 @@ const state = {
   workspacePath: '',
   workspaceName: '',
   draggedTreeItem: null,
+  previewFilePath: '',
+  treeMenuTrigger: null,
   isRunning: false,
   pythonGuiActive: false,
   pythonInfo: null,
@@ -412,6 +414,7 @@ const DOM = {
   btnImportAssets: document.getElementById('btn-import-assets'),
   btnRefreshFiles: document.getElementById('btn-refresh-files'),
   explorerDropHint: document.getElementById('explorer-drop-hint'),
+  fileContextMenu: document.getElementById('file-context-menu'),
 
   // Editor
   editorTabsBar: document.getElementById('editor-tabs-bar'),
@@ -454,6 +457,15 @@ const DOM = {
   appDialogSelect: document.getElementById('app-dialog-select'),
   appDialogCancel: document.getElementById('app-dialog-cancel'),
   appDialogConfirm: document.getElementById('app-dialog-confirm'),
+  mediaPreviewDialog: document.getElementById('media-preview-dialog'),
+  mediaPreviewTitle: document.getElementById('media-preview-title'),
+  mediaPreviewMeta: document.getElementById('media-preview-meta'),
+  mediaPreviewImage: document.getElementById('media-preview-image'),
+  mediaPreviewAudioWrap: document.getElementById('media-preview-audio-wrap'),
+  mediaPreviewAudio: document.getElementById('media-preview-audio'),
+  btnCloseMediaPreview: document.getElementById('btn-close-media-preview'),
+  btnDoneMediaPreview: document.getElementById('btn-done-media-preview'),
+  btnRevealPreviewItem: document.getElementById('btn-reveal-preview-item'),
   toastRegion: document.getElementById('toast-region'),
 
   // Terminal
@@ -1895,6 +1907,39 @@ function setupEventListeners() {
   DOM.btnRevealWorkspace?.addEventListener('click', revealWorkspaceInSystem);
   DOM.btnRevealWorkspaceSidebar?.addEventListener('click', revealWorkspaceInSystem);
   DOM.btnRevealSelectedWorkspace?.addEventListener('click', revealWorkspaceInSystem);
+  DOM.btnCloseMediaPreview?.addEventListener('click', closeMediaPreview);
+  DOM.btnDoneMediaPreview?.addEventListener('click', closeMediaPreview);
+  DOM.mediaPreviewDialog?.addEventListener('cancel', event => {
+    event.preventDefault();
+    closeMediaPreview();
+  });
+  DOM.mediaPreviewDialog?.addEventListener('click', event => {
+    if (event.target === DOM.mediaPreviewDialog) closeMediaPreview();
+  });
+  DOM.btnRevealPreviewItem?.addEventListener('click', () => {
+    if (state.previewFilePath) revealWorkspaceItem(state.previewFilePath);
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!DOM.fileContextMenu?.classList.contains('hidden') && !event.target.closest('#file-context-menu, .tree-more-button')) closeTreeContextMenu();
+  });
+  DOM.fileContextMenu?.addEventListener('keydown', event => {
+    const options = [...DOM.fileContextMenu.querySelectorAll('button')];
+    const current = options.indexOf(document.activeElement);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      const trigger = state.treeMenuTrigger;
+      closeTreeContextMenu();
+      trigger?.focus?.();
+    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0
+        : event.key === 'End' ? options.length - 1
+          : (current + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+      options[next]?.focus();
+    }
+  });
+  window.addEventListener('resize', closeTreeContextMenu);
+  window.addEventListener('blur', closeTreeContextMenu);
 
   // A finished delivery remains read-only. A task keeps normal clipboard
   // behavior throughout editing and is restricted only after it is sealed.
@@ -2996,6 +3041,7 @@ function isInternalModalOpen() {
     'modal-task-submit',
     'modal-verify-submission',
     'modal-release-notes',
+    'media-preview-dialog',
     'app-dialog'
   ];
   return internalModalIds.some(id => {
@@ -3246,6 +3292,213 @@ async function moveWorkspaceItem(sourcePath, targetDirectory = '') {
   appendTerminalOutput(`Movido a ${result.path}\n`, 'system');
 }
 
+function remapWorkspaceState(oldPath, newPath) {
+  const remap = current => current === oldPath || current.startsWith(`${oldPath}/`)
+    ? newPath + current.slice(oldPath.length)
+    : current;
+  state.openTabs.forEach(tab => {
+    tab.path = remap(tab.path);
+    tab.name = tab.path.split('/').pop();
+  });
+  state.activeFilePath = remap(state.activeFilePath);
+  state.collapsedFolders = new Set([...state.collapsedFolders].map(remap));
+  if (state.previewFilePath) state.previewFilePath = remap(state.previewFilePath);
+  renderTabs();
+  if (state.activeFilePath) updateBreadcrumbs(state.activeFilePath);
+}
+
+async function renameWorkspaceItem(item) {
+  if (!window.electronAPI?.renameItem || isWorkspaceLocked()) return;
+  const oldPath = String(item.path || '').replace(/\\/g, '/');
+  const currentName = oldPath.split('/').pop();
+  const newName = await requestText(
+    item.type === 'directory' ? 'Renombrar carpeta' : 'Renombrar archivo',
+    currentName,
+    { message: 'El contenido y las pestañas abiertas se conservarán.', label: 'Nuevo nombre', value: currentName, confirmLabel: 'Renombrar' }
+  );
+  if (!newName || newName === currentName) return;
+  if (/[\\/\0]/.test(newName) || newName === '.' || newName === '..') {
+    await showNotice('Usa solamente el nombre. Para cambiarlo de carpeta, elige Mover.', { title: 'Nombre no válido', kind: 'warning' });
+    return;
+  }
+  if (!await saveAllFiles()) return;
+  const parent = oldPath.split('/').slice(0, -1).join('/');
+  const newPath = parent ? `${parent}/${newName}` : newName;
+  const result = await window.electronAPI.renameItem({ oldPath, newPath });
+  if (!result.success) {
+    await showNotice(result.error, { title: 'No se pudo renombrar', kind: 'warning' });
+    return;
+  }
+  remapWorkspaceState(result.oldPath || oldPath, result.path || newPath);
+  await loadWorkspaceFiles();
+  showToast(`Renombrado como ${newName}`, 'success');
+}
+
+function formatResourceSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 1024) return `${bytes || 0} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+}
+
+function closeMediaPreview() {
+  if (!DOM.mediaPreviewDialog) return;
+  DOM.mediaPreviewAudio?.pause();
+  DOM.mediaPreviewAudio?.removeAttribute('src');
+  DOM.mediaPreviewAudio?.load();
+  DOM.mediaPreviewImage?.removeAttribute('src');
+  if (DOM.mediaPreviewDialog.open) DOM.mediaPreviewDialog.close();
+  state.previewFilePath = '';
+  state.isInternalModalOpen = false;
+  focusEditorReliably();
+}
+
+async function previewWorkspaceFile(relativePath) {
+  if (!window.electronAPI?.previewFile) return;
+  closeTreeContextMenu();
+  const result = await window.electronAPI.previewFile(relativePath);
+  if (!result.success) {
+    await showNotice(result.error, { title: 'Vista previa no disponible', kind: 'warning' });
+    return;
+  }
+  state.previewFilePath = relativePath;
+  state.isInternalModalOpen = true;
+  DOM.mediaPreviewTitle.textContent = result.name;
+  DOM.mediaPreviewMeta.textContent = `${result.kind === 'image' ? 'Imagen' : 'Audio'} · ${formatResourceSize(result.size)}`;
+  DOM.mediaPreviewImage.classList.toggle('hidden', result.kind !== 'image');
+  DOM.mediaPreviewAudioWrap.classList.toggle('hidden', result.kind !== 'audio');
+  if (result.kind === 'image') {
+    DOM.mediaPreviewImage.alt = `Vista previa de ${result.name}`;
+    DOM.mediaPreviewImage.src = result.dataUrl;
+  } else {
+    DOM.mediaPreviewAudio.src = result.dataUrl;
+  }
+  DOM.btnRevealPreviewItem?.classList.toggle('hidden', state.appMode === 'exam');
+  DOM.mediaPreviewDialog.showModal();
+  DOM.btnDoneMediaPreview?.focus();
+}
+
+async function revealWorkspaceItem(relativePath) {
+  closeTreeContextMenu();
+  const result = await window.electronAPI?.revealItem?.(relativePath);
+  if (!result?.success) {
+    await showNotice(result?.error || 'No se pudo mostrar el elemento.', { title: 'No se pudo abrir la ubicación', kind: 'warning' });
+  }
+}
+
+async function createFileInWorkspaceDirectory(directory = '', folderName = '') {
+  if (isWorkspaceLocked()) return;
+  const fileName = await requestText('Nuevo archivo', 'helper.py', {
+    message: directory ? `Se creará dentro de ${folderName || directory}.` : 'Se creará en la raíz del proyecto.',
+    label: 'Nombre del archivo'
+  });
+  if (!fileName) return;
+  const cleanName = fileName.trim().replace(/^\/+/, '');
+  const fullPath = directory ? `${directory}/${cleanName}` : cleanName;
+  const result = await window.electronAPI?.createFile?.(fullPath);
+  if (!result?.success) { await showNotice(result?.error || 'No se pudo crear el archivo.'); return; }
+  if (directory) state.collapsedFolders.delete(directory);
+  await loadWorkspaceFiles();
+  await openFileInEditor(fullPath);
+}
+
+async function createFolderInWorkspaceDirectory(directory = '', folderName = '') {
+  if (isWorkspaceLocked()) return;
+  const name = await requestText('Nueva carpeta', 'componentes', {
+    message: directory ? `Se creará dentro de ${folderName || directory}.` : 'Se creará en la raíz del proyecto.',
+    label: 'Nombre de la carpeta'
+  });
+  if (!name) return;
+  const cleanName = name.trim().replace(/^\/+/, '');
+  const fullPath = directory ? `${directory}/${cleanName}` : cleanName;
+  const result = await window.electronAPI?.createFolder?.(fullPath);
+  if (!result?.success) { await showNotice(result?.error || 'No se pudo crear la carpeta.'); return; }
+  if (directory) state.collapsedFolders.delete(directory);
+  await loadWorkspaceFiles();
+}
+
+async function deleteWorkspaceTreeItem(item) {
+  if (isWorkspaceLocked()) return;
+  const itemPath = String(item.path || '').replace(/\\/g, '/');
+  const message = item.type === 'directory'
+    ? `Se eliminará la carpeta “${item.name}” y todo su contenido.`
+    : `Se eliminará “${item.name}” del proyecto.`;
+  if (!await askConfirmation(message, { title: item.type === 'directory' ? 'Eliminar carpeta' : 'Eliminar archivo', kind: 'danger', confirmLabel: 'Eliminar' })) return;
+  if (!await saveAllFiles()) return;
+  const result = await window.electronAPI?.deleteItem?.(itemPath);
+  if (!result?.success) { await showNotice(result?.error || 'No se pudo eliminar el elemento.'); return; }
+  [...state.openTabs].filter(tab => tab.path === itemPath || tab.path.startsWith(`${itemPath}/`)).forEach(tab => closeTab(tab.path));
+  await loadWorkspaceFiles();
+  showToast(`${item.name} se eliminó`, 'success');
+}
+
+function closeTreeContextMenu() {
+  if (!DOM.fileContextMenu) return;
+  DOM.fileContextMenu.classList.add('hidden');
+  DOM.fileContextMenu.replaceChildren();
+  document.querySelectorAll('.tree-more-button[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
+  state.treeMenuTrigger = null;
+}
+
+function openTreeContextMenu(item, source) {
+  if (!DOM.fileContextMenu) return;
+  closeTreeContextMenu();
+  state.treeMenuTrigger = source.currentTarget instanceof HTMLElement ? source.currentTarget : null;
+  const locked = isWorkspaceLocked();
+  const isDirectory = item.type === 'directory';
+  const isPreviewable = ['image', 'audio'].includes(item.kind);
+  const actions = [];
+  if (isPreviewable) actions.push({ action: 'preview', label: 'Vista previa', icon: '◉' });
+  if (!isDirectory && item.editable !== false) actions.push({ action: 'open', label: 'Abrir en el editor', icon: '↗' });
+  if (isDirectory) {
+    actions.push({ action: 'toggle', label: state.collapsedFolders.has(item.path) ? 'Expandir carpeta' : 'Contraer carpeta', icon: '›' });
+    if (!locked) actions.push({ action: 'new-file', label: 'Nuevo archivo aquí', icon: '+' }, { action: 'new-folder', label: 'Nueva subcarpeta', icon: '□' });
+  }
+  if (!locked) actions.push({ separator: true }, { action: 'rename', label: 'Renombrar', icon: '✎' }, { action: 'move', label: 'Mover a…', icon: '→' });
+  if (state.appMode !== 'exam') actions.push({ action: 'reveal', label: 'Mostrar en carpeta', icon: '⌕' });
+  if (!locked) actions.push({ separator: true }, { action: 'delete', label: 'Eliminar', icon: '×', danger: true });
+
+  for (const entry of actions) {
+    if (entry.separator) {
+      const separator = document.createElement('div');
+      separator.className = 'menu-separator';
+      separator.setAttribute('role', 'separator');
+      DOM.fileContextMenu.appendChild(separator);
+      continue;
+    }
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.role = 'menuitem';
+    button.className = entry.danger ? 'danger' : '';
+    button.innerHTML = `<span class="menu-icon" aria-hidden="true">${entry.icon}</span><span>${entry.label}</span>`;
+    button.addEventListener('click', async () => {
+      closeTreeContextMenu();
+      if (entry.action === 'preview') await previewWorkspaceFile(item.path);
+      if (entry.action === 'open') await openFileInEditor(item.path);
+      if (entry.action === 'toggle') {
+        if (state.collapsedFolders.has(item.path)) state.collapsedFolders.delete(item.path); else state.collapsedFolders.add(item.path);
+        renderFileTree(state.filesTree);
+      }
+      if (entry.action === 'new-file') await createFileInWorkspaceDirectory(item.path, item.name);
+      if (entry.action === 'new-folder') await createFolderInWorkspaceDirectory(item.path, item.name);
+      if (entry.action === 'rename') await renameWorkspaceItem(item);
+      if (entry.action === 'move') await chooseAndMoveWorkspaceItem(item.path);
+      if (entry.action === 'reveal') await revealWorkspaceItem(item.path);
+      if (entry.action === 'delete') await deleteWorkspaceTreeItem(item);
+    });
+    DOM.fileContextMenu.appendChild(button);
+  }
+
+  DOM.fileContextMenu.classList.remove('hidden');
+  const menuRect = DOM.fileContextMenu.getBoundingClientRect();
+  const anchorRect = source.currentTarget?.getBoundingClientRect?.();
+  const requestedX = Number.isFinite(source.clientX) && source.clientX > 0 ? source.clientX : anchorRect?.right || 10;
+  const requestedY = Number.isFinite(source.clientY) && source.clientY > 0 ? source.clientY : anchorRect?.bottom || 10;
+  DOM.fileContextMenu.style.left = `${Math.max(10, Math.min(requestedX, window.innerWidth - menuRect.width - 10))}px`;
+  DOM.fileContextMenu.style.top = `${Math.max(10, Math.min(requestedY, window.innerHeight - menuRect.height - 10))}px`;
+  source.currentTarget?.setAttribute?.('aria-expanded', 'true');
+  DOM.fileContextMenu.querySelector('button')?.focus();
+}
+
 function workspaceFolderPaths(tree = state.filesTree, paths = []) {
   for (const item of tree || []) {
     if (item.type !== 'directory') continue;
@@ -3305,16 +3558,13 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
           <span class="folder-name">${escapeHtml(item.name)}</span>
         </div>
         <div class="tree-folder-actions">
-          <button class="btn-tree-subaction" title="Crear archivo en esta carpeta" aria-label="Crear archivo en ${escapeHtml(item.name)}" data-action="new-file-in-folder" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
-          <button class="btn-tree-subaction" title="Crear subcarpeta" aria-label="Crear subcarpeta en ${escapeHtml(item.name)}" data-action="new-subfolder-in-folder" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7h6l2 2h9v10h-17z"/><path d="M12 12v5M9.5 14.5h5"/></svg></button>
-          <button class="btn-tree-subaction" title="Mover carpeta" aria-label="Mover ${escapeHtml(item.name)}" data-action="move-folder" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M14 8l4 4-4 4"/></svg></button>
-          <button class="btn-tree-subaction danger" title="Eliminar carpeta" aria-label="Eliminar ${escapeHtml(item.name)}" data-action="delete-folder" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M8 10v8M12 10v8M16 10v8M6 7l1 14h10l1-14"/></svg></button>
+          <button type="button" class="tree-more-button" title="Acciones de ${escapeHtml(item.name)}" aria-label="Acciones de ${escapeHtml(item.name)}" aria-haspopup="menu" aria-expanded="false">···</button>
         </div>
       `;
 
       // Click to toggle folder expand/collapse
       folderEl.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-tree-subaction')) return;
+        if (e.target.closest('.tree-more-button')) return;
         if (state.collapsedFolders.has(itemPath)) {
           state.collapsedFolders.delete(itemPath);
         } else {
@@ -3323,72 +3573,26 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
         renderFileTree(state.filesTree || tree);
       });
       folderEl.addEventListener('keydown', event => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
+        if (event.key === 'F2') {
+          event.preventDefault();
+          renameWorkspaceItem({ ...item, path: itemPath });
+        } else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+          event.preventDefault();
+          openTreeContextMenu({ ...item, path: itemPath }, { currentTarget: folderEl });
+        } else if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          folderEl.click();
+        }
+      });
+
+      folderEl.querySelector('.tree-more-button')?.addEventListener('click', event => {
+        event.stopPropagation();
+        openTreeContextMenu({ ...item, path: itemPath }, event);
+      });
+      folderEl.addEventListener('contextmenu', event => {
         event.preventDefault();
-        folderEl.click();
+        openTreeContextMenu({ ...item, path: itemPath }, event);
       });
-
-      // Actions within this directory
-      const newFileBtn = folderEl.querySelector('[data-action="new-file-in-folder"]');
-      if (newFileBtn) {
-        newFileBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          if (isWorkspaceLocked()) return;
-          const fileName = await requestText('Nuevo archivo', 'helper.py', { message: `Se creará dentro de ${item.name}.`, label: 'Nombre del archivo' });
-          if (fileName && fileName.trim()) {
-            const cleanName = fileName.trim().replace(/^\/+/, '');
-            const fullPath = `${itemPath}/${cleanName}`;
-            if (window.electronAPI) {
-              const res = await window.electronAPI.createFile(fullPath);
-              if (!res.success) { showNotice(res.error); return; }
-              state.collapsedFolders.delete(itemPath);
-              await loadWorkspaceFiles();
-              await openFileInEditor(fullPath);
-            }
-          }
-        });
-      }
-
-      const newFolderBtn = folderEl.querySelector('[data-action="new-subfolder-in-folder"]');
-      if (newFolderBtn) {
-        newFolderBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          if (isWorkspaceLocked()) return;
-          const folderName = await requestText('Nueva subcarpeta', 'componentes', { message: `Se creará dentro de ${item.name}.`, label: 'Nombre de la carpeta' });
-          if (folderName && folderName.trim()) {
-            const cleanName = folderName.trim().replace(/^\/+/, '');
-            const fullPath = `${itemPath}/${cleanName}`;
-            if (window.electronAPI) {
-              const res = await window.electronAPI.createFolder(fullPath);
-              if (!res.success) { showNotice(res.error); return; }
-              state.collapsedFolders.delete(itemPath);
-              await loadWorkspaceFiles();
-            }
-          }
-        });
-      }
-
-      const deleteFolderBtn = folderEl.querySelector('[data-action="delete-folder"]');
-      const moveFolderBtn = folderEl.querySelector('[data-action="move-folder"]');
-      moveFolderBtn?.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await chooseAndMoveWorkspaceItem(itemPath);
-      });
-      if (deleteFolderBtn) {
-        deleteFolderBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          if (isWorkspaceLocked()) return;
-          if (await askConfirmation(`Se eliminará la carpeta “${item.name}” y todo su contenido.`, { title: 'Eliminar carpeta', kind: 'danger', confirmLabel: 'Eliminar' })) {
-            if (window.electronAPI) {
-              if (!await saveAllFiles()) return;
-              const res = await window.electronAPI.deleteItem(itemPath);
-              if (!res.success) { showNotice(res.error); return; }
-              state.openTabs.filter(t => t.path === itemPath || t.path.startsWith(itemPath + '/')).forEach(t => closeTab(t.path));
-              loadWorkspaceFiles();
-            }
-          }
-        });
-      }
 
       folderWrap.appendChild(folderEl);
 
@@ -3432,13 +3636,16 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
           <span class="tree-item-name">${escapeHtml(item.name)}</span>
         </div>
         <div class="tree-item-actions">
-          <button class="btn-tree-action" title="Mover archivo" aria-label="Mover ${escapeHtml(item.name)}" data-action="move" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M14 8l4 4-4 4"/></svg></button>
-          <button class="btn-tree-action danger" title="Eliminar archivo" aria-label="Eliminar ${escapeHtml(item.name)}" data-action="delete" data-path="${escapeHtml(itemPath)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M8 10v8M12 10v8M16 10v8M6 7l1 14h10l1-14"/></svg></button>
+          <button type="button" class="tree-more-button" title="Acciones de ${escapeHtml(item.name)}" aria-label="Acciones de ${escapeHtml(item.name)}" aria-haspopup="menu" aria-expanded="false">···</button>
         </div>
       `;
 
       itemEl.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-tree-action')) return;
+        if (e.target.closest('.tree-more-button')) return;
+        if (item.kind === 'image' || item.kind === 'audio') {
+          previewWorkspaceFile(itemPath);
+          return;
+        }
         if (item.editable === false) {
           appendTerminalOutput(`${itemPath} es un recurso ${item.kind}. Python puede usarlo mediante una ruta relativa; no se abrirá como texto.\n`, 'system');
           return;
@@ -3446,31 +3653,26 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
         openFileInEditor(itemPath);
       });
       itemEl.addEventListener('keydown', event => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        itemEl.click();
+        if (event.key === 'F2') {
+          event.preventDefault();
+          renameWorkspaceItem({ ...item, path: itemPath });
+        } else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+          event.preventDefault();
+          openTreeContextMenu({ ...item, path: itemPath }, { currentTarget: itemEl });
+        } else if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          itemEl.click();
+        }
       });
 
-      const deleteBtn = itemEl.querySelector('[data-action="delete"]');
-      itemEl.querySelector('[data-action="move"]')?.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await chooseAndMoveWorkspaceItem(itemPath);
+      itemEl.querySelector('.tree-more-button')?.addEventListener('click', event => {
+        event.stopPropagation();
+        openTreeContextMenu({ ...item, path: itemPath }, event);
       });
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          if (isWorkspaceLocked()) return;
-          if (await askConfirmation(`Se eliminará “${item.name}” del proyecto.`, { title: 'Eliminar archivo', kind: 'danger', confirmLabel: 'Eliminar' })) {
-            if (window.electronAPI) {
-              if (!await saveAllFiles()) return;
-              const result = await window.electronAPI.deleteItem(itemPath);
-              if (!result.success) { showNotice(result.error); return; }
-              closeTab(itemPath);
-              loadWorkspaceFiles();
-            }
-          }
-        });
-      }
+      itemEl.addEventListener('contextmenu', event => {
+        event.preventDefault();
+        openTreeContextMenu({ ...item, path: itemPath }, event);
+      });
 
       container.appendChild(itemEl);
     }

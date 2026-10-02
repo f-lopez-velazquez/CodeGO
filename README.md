@@ -20,14 +20,14 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Descarga directa 1.6.7 autónoma | Alternativa |
+| Sistema | Instalador base autónomo (recibe v1.6.9) | Alternativa |
 | --- | --- | --- |
 | Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-portable-x64.exe) |
 | Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.tar.gz) |
 | macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-mac-arm64.zip) |
 | macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-mac-x64.zip) |
 
-Cada instalador 1.6.7 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura prepara y comprueba el entorno sin internet antes de habilitar el editor. Después, codeGO comprueba actualizaciones al iniciar y cada 30 minutos mientras permanece abierto, también en segundo plano. Descarga el paquete del sistema, valida su SHA-256 y lo aplica cuando no hay una sesión ni una ejecución activa. La versión instalada aparece siempre en el inicio. Si una operación se interrumpe, codeGO reintenta y conserva el avance; también permite reconstruir sus componentes sin borrar proyectos ni entregas. En Linux, el lanzador protege el arranque frente a variables globales de Electron y, en Hyprland, mantiene las ventanas de Pygame y otras interfaces en el espacio de trabajo activo. Windows y macOS todavía no tienen certificado comercial; macOS no está notarizado. Tras mover la aplicación a `/Applications`, si Gatekeeper bloquea la primera apertura, usa:
+Cada instalador base 1.6.8 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura prepara y comprueba el entorno sin internet antes de habilitar el editor. Después, codeGO comprueba actualizaciones al iniciar y cada 30 minutos mientras permanece abierto, también en segundo plano. Las mejoras normales llegan como un paquete ligero verificado, sin volver a descargar Electron, Python ni las librerías. La versión instalada aparece siempre en el inicio. Si una operación se interrumpe, codeGO reintenta y conserva el avance; también permite reconstruir sus componentes sin borrar proyectos ni entregas. En Linux, el lanzador protege el arranque frente a variables globales de Electron y, en Hyprland, mantiene las ventanas de Pygame y otras interfaces en el espacio de trabajo activo. Windows y macOS todavía no tienen certificado comercial; macOS no está notarizado. Tras mover la aplicación a `/Applications`, si Gatekeeper bloquea la primera apertura, usa:
 
 Pygame, Tkinter, Turtle, Matplotlib y OpenCV abren una ventana nativa: codeGO libera temporalmente la pantalla completa y promueve esa ventana al frente, también en macOS. Python usa la raíz del proyecto como carpeta de ejecución para que imágenes, sonidos, datos y módulos relativos se resuelvan de forma consistente.
 
@@ -52,7 +52,9 @@ La ayuda y el diagnóstico `CG-SETUP-108` muestran el mismo comando para copiarl
 codeGO incluye un explorador de archivos con soporte integral de jerarquías de carpetas y subcarpetas:
 - Árbol jerárquico colapsable/expandible con ordenamiento natural (carpetas primero).
 - Movimiento de archivos y carpetas mediante arrastre, con validación de destino y conservación de pestañas abiertas.
+- Renombrado seguro desde el menú contextual o con `F2`, conservando pestañas y rutas abiertas.
 - Creación rápida de archivos y subdirectorios dentro de cualquier nivel.
+- Vista previa integrada de imágenes y audio, y acceso directo a su ubicación en el explorador nativo.
 - Barra de navegación por migas de pan (`Breadcrumbs`) que indica la ruta relativa en tiempo real.
 - Compatibilidad multiplataforma transparente (rutas normalizadas en Linux, Windows y macOS).
 - Botón para agregar imágenes, sonidos y datos a `recursos/`; los binarios no se abren como texto ni se corrompen.

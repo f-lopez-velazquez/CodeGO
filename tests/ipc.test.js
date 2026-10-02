@@ -12,9 +12,11 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   const handlers = new Map();
   const filename = path.resolve(__dirname, '../src/main/main.js');
   const realRequire = createRequire(filename);
+  const revealed = [];
   const electron = {
     app: {getPath:()=>dir,whenReady:()=>({then:()=>{}}),on:()=>{},requestSingleInstanceLock:()=>true,quit:()=>{}},
-    ipcMain: {handle:(name,fn)=>handlers.set(name,fn)}
+    ipcMain: {handle:(name,fn)=>handlers.set(name,fn)},
+    shell: {showItemInFolder:filePath=>revealed.push(filePath),openPath:async filePath=>{revealed.push(filePath);return '';}}
   };
   const context = vm.createContext({
     require: name => name === 'electron' ? electron : realRequire(name),
@@ -26,6 +28,7 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   const sender = vm.runInContext('mainWindow.webContents',context);
   const event = {sender,senderFrame:sender.mainFrame};
   const call = (name,data) => handlers.get(name)(event,data);
+  const workspace = path.join(dir, 'exam_workspace');
   const initialWorkspace = await call('workspace:get-current');
   assert.equal(initialWorkspace.selected, false);
   assert.deepEqual(JSON.parse(JSON.stringify((await call('fs:list-workspace')).tree)), []);
@@ -39,6 +42,18 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   assert.equal((await call('fs:read-file','ejercicios/main.py')).content,'print("safe")');
   assert.equal((await call('fs:move',{sourcePath:'ejercicios',targetDirectory:'ejercicios'})).success,false);
   assert.equal((await call('fs:move',{sourcePath:'ejercicios/main.py',targetDirectory:''})).success,true);
+  const renamed = await call('fs:rename',{oldPath:'main.py',newPath:'programa.py'});
+  assert.deepEqual(JSON.parse(JSON.stringify(renamed)), {success:true,oldPath:'main.py',path:'programa.py'});
+  assert.equal((await call('fs:rename',{oldPath:'programa.py',newPath:'otra/programa.py'})).success,false);
+  assert.equal((await call('fs:rename',{oldPath:'programa.py',newPath:'main.py'})).success,true);
+  fs.writeFileSync(path.join(workspace,'muestra.png'), Buffer.from([137,80,78,71]));
+  const preview = await call('fs:preview-file','muestra.png');
+  assert.equal(preview.success,true);
+  assert.equal(preview.kind,'image');
+  assert.match(preview.dataUrl,/^data:image\/png;base64,/);
+  assert.equal((await call('fs:preview-file','main.py')).success,false);
+  assert.equal((await call('fs:reveal-item','main.py')).success,true);
+  assert.equal(revealed.at(-1),path.join(workspace,'main.py'));
   vm.runInContext('mainWindow.isDestroyed = () => true;', context);
   assert.equal((await call('fs:read-file','main.py')).success, false);
   vm.runInContext('mainWindow.isDestroyed = () => false;', context);

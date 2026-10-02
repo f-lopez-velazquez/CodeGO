@@ -127,10 +127,40 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
       endSession: async () => ({ success: true }),
       listWorkspace: async () => ({ success: true, tree: [{ type: 'file', name: 'main.py', path: 'main.py', editable: true }] }),
       readFile: async () => ({ success: true, content: 'print("hola")' }),
+      renameItem: async data => { (window.testRenames ||= []).push(data); return { success: true, oldPath: data.oldPath, path: data.newPath }; },
+      previewFile: async relativePath => ({ success: true, kind: 'image', mime: 'image/png', dataUrl: 'data:image/png;base64,iVBORw0KGgo=', name: relativePath.split('/').pop(), size: 1024 }),
+      revealItem: async relativePath => { (window.testReveals ||= []).push(relativePath); return { success: true }; },
       focusEditorWindow: async () => ({ success: true }),
       revealCurrentWorkspace: async () => ({ success: true, workspacePath: '/proyectos/Computacion3A' })
     };
   });
+  await page.evaluate(() => {
+    state.appMode = 'activity';
+    state.filesTree = [
+      { type: 'directory', name: 'recursos', path: 'recursos', children: [
+        { type: 'file', name: 'logo.png', path: 'recursos/logo.png', kind: 'image', editable: false }
+      ] }
+    ];
+    state.collapsedFolders.clear();
+    renderFileTree(state.filesTree);
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.evaluate(() => DOM.sidebarExplorer.classList.remove('collapsed'));
+  await page.getByText('logo.png', { exact: true }).click();
+  assert(await page.locator('#media-preview-dialog').isVisible(), 'Image preview did not open inside codeGO');
+  assert((await page.locator('#media-preview-title').innerText()) === 'logo.png', 'Preview does not identify its resource');
+  await page.locator('#btn-done-media-preview').click();
+  await page.locator('.tree-item').hover();
+  await page.locator('.tree-item .tree-more-button').click();
+  assert(await page.locator('#file-context-menu').isVisible(), 'File actions menu did not open');
+  assert(await page.locator('#file-context-menu').getByText('Renombrar', { exact: true }).isVisible(), 'Rename action is missing');
+  assert(await page.locator('#file-context-menu').getByText('Mostrar en carpeta', { exact: true }).isVisible(), 'Native reveal action is missing');
+  await page.locator('#file-context-menu').getByText('Renombrar', { exact: true }).click();
+  await page.locator('#app-dialog-input').fill('marca.png');
+  await page.locator('#app-dialog-confirm').click();
+  await page.waitForFunction(() => window.testRenames?.length === 1);
+  const renameRequest = await page.evaluate(() => window.testRenames[0]);
+  assert(renameRequest.oldPath === 'recursos/logo.png' && renameRequest.newPath === 'recursos/marca.png', `Rename lost its folder: ${JSON.stringify(renameRequest)}`);
   const homeReturn = await page.evaluate(async () => {
     state.appMode = 'activity';
     state.workspaceSelected = true;

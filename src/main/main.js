@@ -2377,6 +2377,59 @@ except Exception:
     }
   });
 
+  handle('fs:preview-file', async (event, relativePath) => {
+    try {
+      const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
+      const stat = await fs.promises.stat(safePath);
+      if (!stat.isFile()) throw new Error('Selecciona una imagen o un archivo de audio.');
+      const fileType = classifyWorkspaceFile(safePath);
+      if (!['image', 'audio'].includes(fileType.kind)) {
+        return { success: false, error: 'La vista previa está disponible para imágenes y audio.' };
+      }
+      const maximumBytes = fileType.kind === 'image' ? 30 * 1024 * 1024 : 60 * 1024 * 1024;
+      if (stat.size > maximumBytes) {
+        return { success: false, error: `El recurso supera el límite de vista previa de ${maximumBytes / 1024 / 1024} MB.` };
+      }
+      const mimeTypes = {
+        '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
+        '.bmp': 'image/bmp', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+        '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg',
+        '.flac': 'audio/flac', '.m4a': 'audio/mp4'
+      };
+      const mime = mimeTypes[path.extname(safePath).toLowerCase()];
+      if (!mime) return { success: false, error: 'Este formato no admite vista previa.' };
+      const dataUrl = `data:${mime};base64,${(await fs.promises.readFile(safePath)).toString('base64')}`;
+      return {
+        success: true,
+        kind: fileType.kind,
+        mime,
+        dataUrl,
+        name: path.basename(safePath),
+        size: stat.size
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  handle('fs:reveal-item', async (event, relativePath) => {
+    if (activeSessionMode === 'exam') {
+      return { success: false, error: 'El explorador del sistema no está disponible durante un examen.' };
+    }
+    try {
+      const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
+      if (!fs.existsSync(safePath)) throw new Error('El archivo o carpeta ya no existe.');
+      if (fs.statSync(safePath).isDirectory()) {
+        const error = await shell.openPath(safePath);
+        return error ? { success: false, error } : { success: true };
+      }
+      shell.showItemInFolder(safePath);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
   handle('fs:import-assets', async () => {
     if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     const selected = await withNativeDialog(() => dialog.showOpenDialog(mainWindow, {
@@ -2463,11 +2516,33 @@ except Exception:
   handle('fs:rename', async (event, { oldPath, newPath }) => {
     if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
+      const normalizedOld = String(oldPath || '').replace(/\\/g, '/');
+      const normalizedNew = String(newPath || '').replace(/\\/g, '/');
+      if (normalizedOld.split('/').slice(0, -1).join('/') !== normalizedNew.split('/').slice(0, -1).join('/')) {
+        throw new Error('Para cambiar de carpeta, utiliza la opción Mover.');
+      }
+      const newName = normalizedNew.split('/').pop() || '';
+      if (!newName.trim() || newName === '.' || newName === '..' || /[\\/\0]/.test(newName)) {
+        throw new Error('Escribe un nombre válido sin diagonales.');
+      }
       const safeOld = resolveWorkspacePath(currentWorkspace, oldPath);
       const safeNew = resolveWorkspacePath(currentWorkspace, newPath);
-      fs.mkdirSync(path.dirname(safeNew), { recursive: true });
-      fs.renameSync(safeOld, safeNew);
-      return { success: true, path: newPath.replace(/\\/g, '/') };
+      if (!fs.existsSync(safeOld)) throw new Error('El archivo o carpeta ya no existe.');
+      if (safeOld === safeNew) return { success: true, oldPath: normalizedOld, path: normalizedNew };
+      const isCaseOnlyRename = safeOld.toLocaleLowerCase('en-US') === safeNew.toLocaleLowerCase('en-US');
+      if (fs.existsSync(safeNew) && !isCaseOnlyRename) throw new Error(`Ya existe “${newName}” en esta carpeta.`);
+      if (fs.existsSync(safeNew) && isCaseOnlyRename) {
+        const temporary = path.join(path.dirname(safeOld), `.codego-rename-${process.pid}-${Date.now()}`);
+        fs.renameSync(safeOld, temporary);
+        try { fs.renameSync(temporary, safeNew); }
+        catch (error) {
+          try { fs.renameSync(temporary, safeOld); } catch (_) {}
+          throw error;
+        }
+      } else {
+        fs.renameSync(safeOld, safeNew);
+      }
+      return { success: true, oldPath: normalizedOld, path: normalizedNew };
     } catch (e) {
       return { success: false, error: e.message };
     }

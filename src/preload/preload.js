@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteItem: (relativePath) => ipcRenderer.invoke('fs:delete', relativePath),
   renameItem: (data) => ipcRenderer.invoke('fs:rename', data),
   moveItem: (data) => ipcRenderer.invoke('fs:move', data),
+  previewFile: (relativePath) => ipcRenderer.invoke('fs:preview-file', relativePath),
+  revealItem: (relativePath) => ipcRenderer.invoke('fs:reveal-item', relativePath),
   importAssets: () => ipcRenderer.invoke('fs:import-assets'),
   openFolderDialog: () => ipcRenderer.invoke('workspace:open-folder-dialog'),
   restoreWorkspace: (workspacePath) => ipcRenderer.invoke('workspace:restore', workspacePath),

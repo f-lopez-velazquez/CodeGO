@@ -98,6 +98,24 @@ test('Lobby always contains a runtime-backed version label', () => {
   assert.match(renderer, /lobbyAppVersion\.textContent/);
 });
 
+test('Project explorer supports safe rename, native reveal and in-app media previews', () => {
+  const root = path.resolve(__dirname, '..');
+  const main = fs.readFileSync(path.join(root, 'src/main/main.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(root, 'src/preload/preload.js'), 'utf8');
+  const renderer = fs.readFileSync(path.join(root, 'src/renderer/app.js'), 'utf8');
+  const html = fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8');
+  assert.match(preload, /previewFile:.*fs:preview-file/);
+  assert.match(preload, /revealItem:.*fs:reveal-item/);
+  assert.match(main, /handle\('fs:preview-file'/);
+  assert.match(main, /activeSessionMode === 'exam'[\s\S]*explorador del sistema no está disponible/);
+  assert.match(main, /Ya existe “\$\{newName\}”/);
+  assert.match(renderer, /function renameWorkspaceItem/);
+  assert.match(renderer, /function previewWorkspaceFile/);
+  assert.match(renderer, /event\.key === 'F2'/);
+  assert.match(html, /id="media-preview-dialog"/);
+  assert.match(html, /media-src 'self' data:/);
+});
+
 test('Desktop boots verified lightweight app updates with automatic rollback', () => {
   const root = path.resolve(__dirname, '..');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
