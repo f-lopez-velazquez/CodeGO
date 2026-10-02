@@ -60,6 +60,11 @@ function findMatchingAsset(assets, platform = process.platform, arch = process.a
   return null;
 }
 
+function findAppPatchAsset(assets) {
+  if (!Array.isArray(assets)) return null;
+  return assets.find(asset => /^CodeGO-[0-9A-Za-z._-]+-app\.asar$/.test(String(asset?.name || ''))) || null;
+}
+
 /**
  * Consulta la API de GitHub Releases para la última versión publicada.
  */
@@ -94,7 +99,18 @@ function checkForUpdates({
           const rawTag = release.tag_name || '';
           const latestVersion = rawTag.replace(/^v/i, '');
           const hasUpdate = isNewerVersion(currentVersion, latestVersion);
-          const matchingAsset = findMatchingAsset(release.assets || []);
+          const releaseAssets = release.assets || [];
+          const nativeAsset = findMatchingAsset(releaseAssets);
+          const appPatchAsset = findAppPatchAsset(releaseAssets);
+          const matchingAsset = appPatchAsset || nativeAsset;
+
+          const assetRecord = asset => asset ? {
+            name: asset.name,
+            downloadUrl: asset.browser_download_url,
+            sizeBytes: asset.size,
+            digest: asset.digest || null,
+            kind: asset === appPatchAsset ? 'app-patch' : 'native-installer'
+          } : null;
 
           resolve({
             success: true,
@@ -105,12 +121,8 @@ function checkForUpdates({
             releaseNotes: release.body || '',
             releaseUrl: release.html_url || `https://github.com/${repoOwner}/${repoName}/releases/latest`,
             publishedAt: release.published_at,
-            asset: matchingAsset ? {
-              name: matchingAsset.name,
-              downloadUrl: matchingAsset.browser_download_url,
-              sizeBytes: matchingAsset.size,
-              digest: matchingAsset.digest || null
-            } : null
+            asset: assetRecord(matchingAsset),
+            fallbackAsset: matchingAsset === appPatchAsset ? assetRecord(nativeAsset) : null
           });
         } catch (e) {
           resolve({
@@ -440,6 +452,7 @@ module.exports = {
   parseSemver,
   isNewerVersion,
   findMatchingAsset,
+  findAppPatchAsset,
   checkForUpdates,
   downloadAssetWithProgress,
   normalizeDigest,

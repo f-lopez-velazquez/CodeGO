@@ -25,13 +25,15 @@ Los runners no reproducen las políticas de cada escuela, tarjetas Wi-Fi, firmwa
 
 Android, iOS, ChromeOS, Windows ARM y Linux ARM no tienen instaladores validados en esta versión.
 
-## Preparación autónoma 1.6.7
+## Preparación autónoma 1.6.8
 
 CodeGO usa un Python 3.13.15 privado incluido en cada instalador. Antes de extraerlo verifica el manifiesto y SHA-256 de todos los componentes; instala 28 librerías solo desde ruedas locales, ejecuta `pip check` y supera micropruebas de Pygame, Tk, imágenes, gráficas, cálculo, datos, Excel, SQLite, recursos binarios relativos, serial virtual, HTTP, cifrado y entrada UTF-8. La creación del entorno, cada paquete y las micropruebas tienen reintentos acotados. Después de agotar la recuperación automática, la interfaz ofrece reanudar desde lo completado o reconstruir el runtime dentro del perfil para evitar montajes temporales y restos incompletos.
 
-## Actualización y publicación autónomas 1.6.7
+## Actualización y publicación autónomas 1.6.8
 
 La publicación se considera aprobada cuando los cuatro sistemas de construcción terminan correctamente; cada instalador indica su commit de origen en los archivos `provenance-*.json` de la Release. La ejecución exacta queda enlazada desde la Release y el historial público de Actions. Las pruebas unitarias simulan la sustitución con copia anterior en Linux, el instalador silencioso en Windows y la extracción y sustitución del paquete en macOS. El inicio real se comprueba también en Hyprland para confirmar que la ventana no alterna entre tamaños al negociar la pantalla completa.
+
+La 1.6.8 incorpora el bootstrap de actualizaciones ligeras. Un cambio normal de interfaz o lógica se entrega como un `app.asar` multiplataforma de aproximadamente 1–3 MB, conservando Electron, Python y las ruedas ya instaladas. Se valida tamaño y SHA-256 antes de activarlo, se conserva el paquete sano anterior y se revierte si la interfaz no alcanza `did-finish-load`. La regresión del editor compara las métricas del cursor, resaltado, números y guías en cinco tamaños tipográficos y 32 combinaciones de ventana, zoom y distribución.
 
 En Omarchy/Hyprland se reprodujo la oscilación cuando coexistían dos procesos de codeGO que intentaban ocupar la pantalla completa. La versión 1.6.6 adquiere un bloqueo de instancia única: una segunda apertura entrega el foco a la ventana existente y termina sin crear otra superficie. El AppImage se validó además con los dos monitores y factores de escala del equipo de prueba; la evidencia resumida está en [`verification/hyprland-1.6.6.json`](verification/hyprland-1.6.6.json).
 

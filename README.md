@@ -22,10 +22,10 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 | Sistema | Descarga directa 1.6.7 autónoma | Alternativa |
 | --- | --- | --- |
-| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.7/CodeGO-1.6.7-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.7/CodeGO-1.6.7-portable-x64.exe) |
-| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.7/CodeGO-1.6.7-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.7/CodeGO-1.6.7-linux-x64.tar.gz) |
-| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.7/CodeGO-1.6.7-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.7/CodeGO-1.6.7-mac-arm64.zip) |
-| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.7/CodeGO-1.6.7-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.7/CodeGO-1.6.7-mac-x64.zip) |
+| Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-portable-x64.exe) |
+| Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.tar.gz) |
+| macOS Apple Silicon | [DMG ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-mac-arm64.dmg) | [ZIP ARM64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-mac-arm64.zip) |
+| macOS Intel | [DMG x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-mac-x64.dmg) | [ZIP x64](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-mac-x64.zip) |
 
 Cada instalador 1.6.7 lleva Python 3.13 y 28 librerías versionadas dentro. La primera apertura prepara y comprueba el entorno sin internet antes de habilitar el editor. Después, codeGO comprueba actualizaciones al iniciar y cada 30 minutos mientras permanece abierto, también en segundo plano. Descarga el paquete del sistema, valida su SHA-256 y lo aplica cuando no hay una sesión ni una ejecución activa. La versión instalada aparece siempre en el inicio. Si una operación se interrumpe, codeGO reintenta y conserva el avance; también permite reconstruir sus componentes sin borrar proyectos ni entregas. En Linux, el lanzador protege el arranque frente a variables globales de Electron y, en Hyprland, mantiene las ventanas de Pygame y otras interfaces en el espacio de trabajo activo. Windows y macOS todavía no tienen certificado comercial; macOS no está notarizado. Tras mover la aplicación a `/Applications`, si Gatekeeper bloquea la primera apertura, usa:
 
@@ -94,7 +94,9 @@ La compatibilidad se comprueba por **sistema, arquitectura y versión**, no para
 
 La página de descarga está incluida en [website/](website/README.md).
 
-El flujo [release.yml](.github/workflows/release.yml) exige que la matriz pase, genera el paquete autónomo propio de cada plataforma, prueba el instalador y publica artefactos con SHA-256 y procedencia. La distribución pública actual no tiene firma comercial ni notarización. Configuración, evidencia local y pendientes reales: [guía de producción](docs/PRODUCCION.md).
+El flujo [release.yml](.github/workflows/release.yml) exige que la matriz pase, genera el paquete autónomo propio de cada plataforma, prueba el instalador y publica artefactos con SHA-256 y procedencia. Después de instalar una base compatible, [lightweight-update.yml](.github/workflows/lightweight-update.yml) publica cambios normales de interfaz y lógica como un `app.asar` verificado de aproximadamente 1–3 MB. codeGO lo activa de forma atómica y restaura la versión anterior si la nueva interfaz no termina de cargar. El runtime Python y las librerías educativas no se vuelven a descargar.
+
+La distribución pública actual no tiene firma comercial ni notarización. Configuración, evidencia local y pendientes reales: [guía de producción](docs/PRODUCCION.md).
 
 ## Licencia y colaboración
 

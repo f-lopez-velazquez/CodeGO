@@ -20,6 +20,25 @@ jobs:
   verify:
     uses: ./.github/workflows/verify.yml
 
+  app-patch:
+    needs: verify
+    name: Build lightweight app package
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:patch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-patch
+          path: dist/patch/*
+          if-no-files-found: error
+          retention-days: 7
+
   build:
     needs: verify
     name: Build — ${{ matrix.os }}
@@ -107,7 +126,7 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: build
+    needs: [build, app-patch]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_release == 'true'
     steps:
@@ -120,10 +139,16 @@ jobs:
           pattern: installers-*
           merge-multiple: true
 
+      - name: Download lightweight app package
+        uses: actions/download-artifact@v4
+        with:
+          name: app-patch
+          path: release-assets
+
       - name: Generate SHA256 checksums
         run: |
           cd release-assets
-          cat SHA256SUMS-*.txt > SHA256SUMS.txt
+          cat SHA256SUMS-*.txt *.asar.sha256 > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Create GitHub Release
@@ -143,6 +168,7 @@ jobs:
           - **Errores para aprender**: explicación clara, detección de línea y acceso directo al código.
           - **Correcciones guiadas**: causas específicas, pasos concretos y un ejemplo válido para los errores frecuentes de Python.
           - **Edición asistida**: guías de sangría por bloque, nivel actual, comprobación de sintaxis en vivo, salto exacto con F8, pares automáticos y sangría o desangría de bloques.
+          - **Cursor preciso**: el cursor, el resaltado, las guías y los números comparten métricas enteras para mantenerse alineados con escalado de pantalla y zoom.
           - **Continuidad de trabajo**: al volver desde Inicio, el archivo activo recupera el foco y queda editable de inmediato.
           - **Foco de escritorio**: Electron recupera el teclado también en Wayland/Hyprland, sin obligar a ejecutar y detener un programa.
           - **Feedback claro**: diálogos propios, confirmaciones sonoras discretas y hora exacta de la última versión guardada.
@@ -163,6 +189,7 @@ jobs:
           - **PIN del docente**: cada examen usa un PIN definido al comenzar o una política administrada; no existe una clave universal incluida.
           - **Inicio estable**: una pantalla de preparación mantiene la aplicación sensible mientras revisa el equipo y una sola instancia evita el parpadeo de ventanas duplicadas.
           - **Actualización automática**: comprueba en segundo plano, valida SHA-256 y aplica el paquete nativo cuando no hay una sesión activa.
+          - **Actualizaciones ligeras**: después de esta base, las mejoras normales se descargan como un paquete multiplataforma de aproximadamente 1–3 MB, con instalación atómica y reversión automática.
           - **Pantalla estable**: evita la negociación repetida de pantalla completa en Wayland/Hyprland y muestra siempre la versión instalada en el inicio.
 
           ### Instalación

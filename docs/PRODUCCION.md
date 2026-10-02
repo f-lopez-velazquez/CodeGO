@@ -12,6 +12,12 @@ Con la aplicación abierta, el proceso principal comprueba GitHub al inicio y ca
 
 El workflow `release.yml` exige matriz exitosa, construye el runtime y las ruedas en el sistema nativo, prueba el paquete y publica checksums y procedencia. Los certificados opcionales deben almacenarse exclusivamente como secretos de Actions del entorno `production`.
 
+## Actualizaciones ligeras
+
+Una versión que solo cambia `src/` puede publicarse con **Publish lightweight codeGO update**. Antes de ejecutarlo se incrementa `version` en `package.json` y `package-lock.json` y se suben los cambios a la rama principal. El flujo ejecuta sintaxis, pruebas, auditoría, crea `CodeGO-<versión>-app.asar`, conserva los instaladores base para equipos nuevos y publica la versión como `latest`.
+
+El paquete contiene únicamente el código y la dependencia JavaScript de producción. El bootstrap instalado valida su SHA-256 en cada arranque, lo marca sano únicamente después de `did-finish-load` y revierte al paquete anterior cuando un inicio queda incompleto. Cambios de Electron, dependencias, bootstrap, runtime Python, ruedas, iconos nativos o configuración del instalador siguen requiriendo `release.yml` y una compilación completa.
+
 La publicación actual es verificable por SHA-256 pero no está firmada comercialmente. Una distribución firmada debe añadir verificación Authenticode del instalador y notarización de macOS.
 
 ## Aceptación en el aula

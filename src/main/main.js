@@ -29,6 +29,7 @@ const { sourceLikelyOpensGui, activeHyprlandWorkspace, placeHyprlandWindow, focu
 const { createFocusGuard } = require('./focus-guard');
 const { MultiLanguageRunner, detectLanguage, detectToolchains, LANGUAGE_DEFS } = require('./language-runner');
 const updater = require('./updater');
+const appPatch = require('./app-patch');
 const { NotificationGuard } = require('./notification-guard');
 const { BrowserGuard, DisplayGuard } = require('./session-guards');
 const { diagnosePython } = require('./syntax-diagnostics');
@@ -49,7 +50,7 @@ if (app.commandLine && process.platform === 'linux' && (process.env.WAYLAND_DISP
 
 const packagedReportArgument = process.argv.find(argument => argument.startsWith('--self-test-report='));
 const diagnosticMode = Boolean(packagedReportArgument);
-const ownsSingleInstance = diagnosticMode || app.requestSingleInstanceLock();
+const ownsSingleInstance = diagnosticMode || process.env.CODEGO_BOOTSTRAP_OWNS_LOCK === '1' || app.requestSingleInstanceLock();
 if (!ownsSingleInstance) app.quit();
 let diagnosticDirectory;
 if (diagnosticMode) {
@@ -393,7 +394,7 @@ function writeActiveExamMarker(student = {}) {
     studentName: String(student.name || ''),
     studentId: String(student.id || ''),
     startedAt: new Date().toISOString(),
-    version: app.getVersion()
+    version: currentAppVersion()
   };
   fs.writeFileSync(`${activeExamMarkerPath}.tmp`, JSON.stringify(record, null, 2), { mode: 0o600 });
   fs.renameSync(`${activeExamMarkerPath}.tmp`, activeExamMarkerPath);
@@ -417,12 +418,12 @@ let availableUpdateInfo = null;
 let stagedUpdatePath = null;
 let updateState = {
   status: 'idle',
-  currentVersion: typeof app.getVersion === 'function' ? app.getVersion() : '0.0.0',
+  currentVersion: process.env.CODEGO_EFFECTIVE_VERSION || (typeof app.getVersion === 'function' ? app.getVersion() : '0.0.0'),
   automatic: true
 };
 
 function currentAppVersion() {
-  return typeof app.getVersion === 'function' ? app.getVersion() : updateState.currentVersion || '0.0.0';
+  return process.env.CODEGO_EFFECTIVE_VERSION || (typeof app.getVersion === 'function' ? app.getVersion() : updateState.currentVersion || '0.0.0');
 }
 
 function publicUpdateState() {
@@ -463,6 +464,17 @@ async function applyStagedUpdate() {
   updateApplyBusy = true;
   try {
     setUpdateState('installing', { latestVersion: availableUpdateInfo.latestVersion, percent: 100 });
+    if (availableUpdateInfo.asset.kind === 'app-patch' || updater.findAppPatchAsset([availableUpdateInfo.asset])) {
+      const expectedHash = updater.normalizeDigest(availableUpdateInfo.asset.digest);
+      const installed = appPatch.installPatch(app.getPath('userData'), stagedUpdatePath, {
+        version: availableUpdateInfo.latestVersion,
+        sha256: expectedHash
+      });
+      allowWindowClose = true;
+      app.relaunch({ args: process.argv.slice(1).filter(argument => argument !== '--updated').concat('--updated') });
+      setTimeout(() => app.quit(), 120);
+      return { success: true, action: 'restarting', automatic: true, lightweight: true, path: installed.path };
+    }
     const userIcon = path.join(os.homedir(), '.local', 'share', 'icons', 'hicolor', '512x512', 'apps', 'codego.png');
     const result = updater.launchInstaller(stagedUpdatePath, process.platform, {
       currentExecutable: process.execPath,
@@ -484,7 +496,7 @@ async function applyStagedUpdate() {
 }
 
 async function checkAndStageAutomaticUpdate({ installWhenReady = true, force = false } = {}) {
-  if (diagnosticMode) return { success: true, hasUpdate: false, currentVersion: app.getVersion() };
+  if (diagnosticMode) return { success: true, hasUpdate: false, currentVersion: currentAppVersion() };
   if (updateDownloadBusy) return { success: true, busy: true, ...publicUpdateState() };
   if (!force && ['ready', 'deferred', 'installing'].includes(updateState.status) && stagedUpdatePath) {
     if (installWhenReady) setTimeout(() => void applyStagedUpdate(), 250);
@@ -494,7 +506,7 @@ async function checkAndStageAutomaticUpdate({ installWhenReady = true, force = f
   updateDownloadBusy = true;
   try {
     setUpdateState('checking');
-    const info = await updater.checkForUpdates({ currentVersion: app.getVersion(), timeoutMs: 12000 });
+    const info = await updater.checkForUpdates({ currentVersion: currentAppVersion(), timeoutMs: 12000 });
     if (!info.success) {
       setUpdateState('offline', { error: info.error });
       return info;
@@ -502,7 +514,7 @@ async function checkAndStageAutomaticUpdate({ installWhenReady = true, force = f
     if (!info.hasUpdate) {
       availableUpdateInfo = null;
       stagedUpdatePath = null;
-      setUpdateState('current', { latestVersion: app.getVersion() });
+      setUpdateState('current', { latestVersion: currentAppVersion() });
       return info;
     }
 
@@ -1062,6 +1074,11 @@ function createMainWindow() {
     }, activeSessionMode === 'exam' ? 250 : 1600);
   });
 
+  if (process.env.CODEGO_PATCH_VERSION) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      appPatch.markPatchHealthy(app.getPath('userData'), process.env.CODEGO_PATCH_VERSION);
+    });
+  }
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
   mainWindow.on('blur', () => {
@@ -1488,7 +1505,7 @@ function setupIpcHandlers() {
   });
   handle('system:self-test', async () => {
     if (isKioskActive || activeProcess) return { success: false, checks: [{ name: 'Disponibilidad', success: false, detail: 'Detén Python y termina el examen antes de comprobar el equipo.' }] };
-    return runSelfTest({ command: resolvePythonBinary().command, directory: app.getPath('userData'), version: app.getVersion() });
+    return runSelfTest({ command: resolvePythonBinary().command, directory: app.getPath('userData'), version: currentAppVersion() });
   });
   handle('system:open-support-page', async () => {
     if (isKioskActive || activeSessionMode) return { success: false, error: 'Disponible desde la pantalla de inicio.' };
@@ -2590,7 +2607,7 @@ except Exception:
     if (activeProcess) return { success: false, error: 'Detén Python antes de entregar.' };
     if (workspaceSealed) return { success: false, error: 'El examen ya fue entregado.' };
     try {
-      const result = createSubmission({ workspace: currentWorkspace, outputDirectory: path.join(app.getPath('userData'), 'exam_submissions'), student: studentData, auditLog: securityAuditLog, version: app.getVersion() });
+      const result = createSubmission({ workspace: currentWorkspace, outputDirectory: path.join(app.getPath('userData'), 'exam_submissions'), student: studentData, auditLog: securityAuditLog, version: currentAppVersion() });
       workspaceSealed = true;
 
       // Release kiosk mode and re-enable Wi-Fi after submission
@@ -2647,7 +2664,7 @@ except Exception:
         outputDirectory: app.getPath('downloads'),
         student: student || {},
         telemetry: telemetry || {},
-        version: app.getVersion(),
+        version: currentAppVersion(),
         signingIdentity: ensureSigningIdentity(path.join(app.getPath('userData'), 'identity'))
       });
 
@@ -2751,7 +2768,7 @@ except Exception:
 
   // In-App Auto-Updater Handlers (Lobby Only)
   handle('updater:get-current-version', async () => {
-    return { success: true, version: app.getVersion() };
+    return { success: true, version: currentAppVersion() };
   });
 
   handle('updater:get-state', async () => ({ success: true, ...publicUpdateState() }));
@@ -2759,12 +2776,12 @@ except Exception:
   handle('updater:check-and-install', async () => checkAndStageAutomaticUpdate({ installWhenReady: true, force: true }));
 
   handle('updater:check', async () => {
-    const info = await updater.checkForUpdates({ currentVersion: app.getVersion(), timeoutMs: 12000 });
+    const info = await updater.checkForUpdates({ currentVersion: currentAppVersion(), timeoutMs: 12000 });
     if (info.success && info.hasUpdate) {
       availableUpdateInfo = info;
       setUpdateState('available', { latestVersion: info.latestVersion, releaseName: info.releaseName });
     } else if (info.success) {
-      setUpdateState('current', { latestVersion: app.getVersion() });
+      setUpdateState('current', { latestVersion: currentAppVersion() });
     }
     return info;
   });
@@ -2793,7 +2810,7 @@ app.whenReady().then(async () => {
         mainWindow.webContents.once('did-fail-load', (_event, code, message) => reject(new Error(`${code}: ${message}`)));
       });
       console.info('CodeGO: interfaz cargada.');
-      const report = await runPackagedCheck({ window: mainWindow, command: resolvePythonBinary().command, directory: diagnosticDirectory, version: app.getVersion(), packaged: app.isPackaged, reportPath: path.resolve(packagedReportArgument.slice('--self-test-report='.length)) });
+      const report = await runPackagedCheck({ window: mainWindow, command: resolvePythonBinary().command, directory: diagnosticDirectory, version: currentAppVersion(), packaged: app.isPackaged, reportPath: path.resolve(packagedReportArgument.slice('--self-test-report='.length)) });
       clearTimeout(watchdog);
       mainWindow.destroy();
       try { fs.rmSync(diagnosticDirectory, { recursive: true, force: true, maxRetries: 3 }); } catch (_) {}

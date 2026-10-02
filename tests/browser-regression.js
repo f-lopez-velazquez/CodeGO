@@ -158,6 +158,28 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     };
   });
   assert(homeReturn.ideActive && homeReturn.focused && homeReturn.editable && homeReturn.changed, `Editor did not recover after Home: ${JSON.stringify(homeReturn)}`);
+  const editorMetrics = await page.evaluate(() => {
+    const fontKeys = ['fontFamily', 'fontSize', 'lineHeight', 'fontWeight', 'fontStyle', 'letterSpacing'];
+    const boxKeys = ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'];
+    const samples = [];
+    for (const size of [12, 14, 16, 18, 20]) {
+      setEditorFontSize(size);
+      const textarea = getComputedStyle(DOM.codeTextarea);
+      const highlighting = getComputedStyle(DOM.editorHighlighting);
+      const code = getComputedStyle(DOM.highlightingContent);
+      const numbers = getComputedStyle(DOM.editorLineNumbers);
+      samples.push({
+        size,
+        integerLineHeight: Number.parseFloat(textarea.lineHeight) % 1 === 0,
+        overlay: fontKeys.every(key => textarea[key] === highlighting[key] && textarea[key] === code[key])
+          && boxKeys.every(key => textarea[key] === highlighting[key]),
+        numberLineHeight: textarea.lineHeight === numbers.lineHeight
+      });
+    }
+    setEditorFontSize(14);
+    return samples;
+  });
+  assert(editorMetrics.every(sample => sample.integerLineHeight && sample.overlay && sample.numberLineHeight), `Editor layers can drift from the caret: ${JSON.stringify(editorMetrics)}`);
   await page.evaluate(() => revealWorkspaceInSystem());
   assert(await page.locator('.app-toast').filter({ hasText: 'explorador de archivos' }).count() === 1, 'Workspace reveal has no visible feedback');
   const dragSupervision = await page.evaluate(async () => {

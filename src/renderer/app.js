@@ -868,7 +868,11 @@ function setTheme(themeName) {
 
 function setEditorFontSize(size) {
   state.editorFontSize = parseInt(size, 10);
-  document.documentElement.style.setProperty('--editor-font-size', `${size}px`);
+  // An integer CSS-pixel line box prevents the native textarea caret from
+  // drifting away from the syntax layer at 125/150% OS scaling.
+  const lineHeight = Math.round(state.editorFontSize * 1.55);
+  document.documentElement.style.setProperty('--editor-font-size', `${state.editorFontSize}px`);
+  document.documentElement.style.setProperty('--editor-line-height', `${lineHeight}px`);
 
   document.querySelectorAll('.btn-font-size').forEach((btn) => {
     btn.classList.toggle('active', parseInt(btn.dataset.size, 10) === state.editorFontSize);

@@ -47,6 +47,7 @@ La aplicación opera bajo **tres modalidades especializadas**:
 ```
 CodeGO/
 ├── src/
+│   ├── bootstrap.js          # Selecciona paquete integrado/ligero y revierte un inicio fallido
 │   ├── main/
 │   │   └── main.js           # Proceso Principal de Electron (Kiosk, Wi-Fi, Audio Watchdog, IPC, Python Spawn)
 │   ├── preload/
@@ -101,6 +102,11 @@ La petición del usuario de septiembre de 2026 sustituye la barra separada anter
 4. El tamaño inicial y mínimo de BrowserWindow deben caber en las dimensiones lógicas del monitor. Probar escalado del SO además de zoom de la aplicación, y verificar también los créditos y el pie del editor.
 5. El editor mantiene guías de sangría por cada cuatro espacios y usa el Python privado para comprobar sintaxis en vivo. `F8` abre la línea del diagnóstico actual.
 6. La salida de procesos se agrupa y limita antes de enviarla al renderer; `Detener` debe finalizar el grupo completo, incluidos procesos hijos y programas con salida infinita.
+7. El cursor, la capa de resaltado, los números y las guías comparten `--editor-line-height` en píxeles enteros. Los tokens solo cambian color; no deben usar negrita o cursiva porque moverían el texto visible respecto del cursor nativo.
+
+## 4.1 Actualizaciones ligeras
+
+`src/bootstrap.js` valida y carga `CodeGO-<versión>-app.asar` desde el perfil del usuario. El paquete se considera sano solo después de que la ventana emite `did-finish-load`; si el siguiente arranque encuentra un intento pendiente, restaura automáticamente la versión anterior. Cambios normales de `src/` se publican mediante `.github/workflows/lightweight-update.yml`. Cambios de Electron, dependencias, runtime, ruedas, bootstrap o configuración nativa requieren un instalador completo.
 
 ---
 

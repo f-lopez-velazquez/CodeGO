@@ -5,6 +5,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 const updater = require('../src/main/updater');
+const appPatch = require('../src/main/app-patch');
 
 function temporary(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-updater-test-'));
@@ -68,6 +69,53 @@ test('Updater: findMatchingAsset detects correct OS binary', () => {
   // Empty or invalid assets
   assert.equal(updater.findMatchingAsset([], 'linux'), null);
   assert.equal(updater.findMatchingAsset(null, 'win32'), null);
+});
+
+test('Updater: prefers one platform-independent app patch for routine releases', () => {
+  const assets = [
+    { name: 'CodeGO-1.6.8-setup-x64.exe' },
+    { name: 'CodeGO-1.6.9-app.asar' },
+    { name: 'CodeGO-1.6.9-app.asar.sha256' }
+  ];
+  assert.equal(updater.findAppPatchAsset(assets).name, 'CodeGO-1.6.9-app.asar');
+  assert.equal(updater.findAppPatchAsset([{ name: 'CodeGO-1.6.9-linux-x64.AppImage' }]), null);
+});
+
+test('Updater: app patches activate atomically and become healthy after UI load', t => {
+  const directory = temporary(t);
+  const source = path.join(directory, 'download.asar');
+  fs.writeFileSync(source, 'app patch 1.6.9');
+  const sha256 = crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex');
+  const installed = appPatch.installPatch(directory, source, { version: '1.6.9', sha256 });
+  assert.equal(fs.readFileSync(installed.path, 'utf8'), 'app patch 1.6.9');
+
+  const firstLaunch = appPatch.resolvePatchForLaunch(directory);
+  assert.equal(firstLaunch.version, '1.6.9');
+  assert.equal(firstLaunch.pending, true);
+  assert.equal(appPatch.markPatchHealthy(directory, '1.6.9'), true);
+  const nextLaunch = appPatch.resolvePatchForLaunch(directory);
+  assert.equal(nextLaunch.version, '1.6.9');
+  assert.equal(nextLaunch.pending, false);
+});
+
+test('Updater: failed app patch rolls back to the last healthy version', t => {
+  const directory = temporary(t);
+  const first = path.join(directory, 'first.asar');
+  fs.writeFileSync(first, 'healthy patch');
+  const firstHash = crypto.createHash('sha256').update(fs.readFileSync(first)).digest('hex');
+  appPatch.installPatch(directory, first, { version: '1.6.9', sha256: firstHash });
+  appPatch.resolvePatchForLaunch(directory);
+  appPatch.markPatchHealthy(directory, '1.6.9');
+
+  const second = path.join(directory, 'second.asar');
+  fs.writeFileSync(second, 'broken patch');
+  const secondHash = crypto.createHash('sha256').update(fs.readFileSync(second)).digest('hex');
+  appPatch.installPatch(directory, second, { version: '1.6.10', sha256: secondHash });
+  assert.equal(appPatch.resolvePatchForLaunch(directory).version, '1.6.10');
+  const restored = appPatch.resolvePatchForLaunch(directory);
+  assert.equal(restored.version, '1.6.9');
+  assert.equal(restored.restored, true);
+  assert.equal(appPatch.readMetadata(directory).lastFailure.version, '1.6.10');
 });
 
 test('Updater: validates the published size and SHA-256 before installation', t => {

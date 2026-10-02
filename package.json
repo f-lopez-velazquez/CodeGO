@@ -1,13 +1,13 @@
 {
   "name": "codego-examguard",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "description": "Entorno educativo de Python para aprender, practicar y evaluar",
   "homepage": "https://zolvek.com.mx/productos/codego",
   "author": {
     "name": "Francisco López Velázquez",
     "url": "https://zolvek.com.mx"
   },
-  "main": "src/main/main.js",
+  "main": "src/bootstrap.js",
   "scripts": {
     "start": "node scripts/start.cjs",
     "test-run": "npm test",
@@ -26,6 +26,7 @@
     "build:dir": "electron-builder --dir --publish never",
     "test:browser": "node scripts/browser-tests.cjs",
     "build:release": "node scripts/build-release.cjs",
+    "build:patch": "node scripts/build-app-patch.cjs",
     "prepare:offline": "node scripts/prepare-offline-bundle.cjs",
     "test:offline": "node scripts/verify-offline-bundle.cjs",
     "capture:ui": "node scripts/capture-ui.cjs"

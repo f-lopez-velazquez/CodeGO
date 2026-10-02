@@ -98,6 +98,20 @@ test('Lobby always contains a runtime-backed version label', () => {
   assert.match(renderer, /lobbyAppVersion\.textContent/);
 });
 
+test('Desktop boots verified lightweight app updates with automatic rollback', () => {
+  const root = path.resolve(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const bootstrap = fs.readFileSync(path.join(root, 'src/bootstrap.js'), 'utf8');
+  const main = fs.readFileSync(path.join(root, 'src/main/main.js'), 'utf8');
+  assert.equal(pkg.main, 'src/bootstrap.js');
+  assert.match(bootstrap, /resolvePatchForLaunch/);
+  assert.match(bootstrap, /rollbackPatch/);
+  assert.match(bootstrap, /requestSingleInstanceLock\(\)[\s\S]*resolvePatchForLaunch/);
+  assert.match(main, /markPatchHealthy/);
+  assert.match(main, /CODEGO_EFFECTIVE_VERSION/);
+  assert.match(pkg.scripts['build:patch'], /build-app-patch/);
+});
+
 test('Startup, adaptive lobby and editor guide preferences are explicit', () => {
   const root = path.resolve(__dirname, '..');
   const html = fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8');
@@ -111,6 +125,20 @@ test('Startup, adaptive lobby and editor guide preferences are explicit', () => 
   assert.match(renderer, /indentGuideStyle/);
   assert.match(css, /indent-guides-off/);
   assert.match(css, /66%, 100% \{ background-color: #00c853; \}/);
+});
+
+test('Editor caret, syntax text and guides share exact font metrics', () => {
+  const root = path.resolve(__dirname, '..');
+  const renderer = fs.readFileSync(path.join(root, 'src/renderer/app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'src/renderer/styles.css'), 'utf8');
+  assert.match(css, /--editor-line-height:\s*22px/);
+  assert.match(css, /#editor-highlighting,[\s\S]*#code-textarea[\s\S]*line-height:\s*var\(--editor-line-height\)/);
+  assert.match(css, /font-variant-ligatures:\s*none/);
+  assert.match(css, /#editor-highlighting \.tok-kw,[\s\S]*font-weight:\s*inherit;[\s\S]*font-style:\s*inherit/);
+  assert.match(css, /\.editor-line-numbers[\s\S]*line-height:\s*var\(--editor-line-height\)/);
+  assert.match(css, /\.indent-guide-line[\s\S]*height:\s*var\(--editor-line-height\)/);
+  assert.match(renderer, /Math\.round\(state\.editorFontSize \* 1\.55\)/);
+  assert.match(renderer, /setProperty\('--editor-line-height'/);
 });
 
 test('Free mode releases desktop restrictions and never supervises focus', () => {

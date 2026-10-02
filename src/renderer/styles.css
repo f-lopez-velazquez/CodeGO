@@ -8,6 +8,12 @@
   /* Dynamic Scalable Variables */
   --zoom-scale: 1;
   --editor-font-size: 14px;
+  /* Keep every editor layer on the same integer-pixel rhythm. Chromium can
+     round a unitless line-height differently for a textarea and a PRE when
+     the OS uses fractional display scaling. */
+  --editor-line-height: 22px;
+  --editor-pad-block: 14px;
+  --editor-pad-inline: 14px;
   --terminal-font-size: 13.5px;
 
   /* Theme: Slate Academic (Default) */
@@ -2565,8 +2571,8 @@ body.mode-exam-active .sidebar-reveal-button { display: none; }
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--editor-font-size);
-  line-height: 1.5;
-  padding: 14px 8px;
+  line-height: var(--editor-line-height);
+  padding: var(--editor-pad-block) 8px;
   text-align: right;
   user-select: none;
   overflow: hidden;
@@ -2584,24 +2590,24 @@ body.mode-exam-active .sidebar-reveal-button { display: none; }
   position: absolute;
   inset: 0;
   z-index: 0;
-  padding: 14px;
+  padding: var(--editor-pad-block) var(--editor-pad-inline);
   overflow: hidden;
   pointer-events: none;
   font-family: var(--font-mono);
   font-size: var(--editor-font-size);
-  line-height: 1.5;
+  line-height: var(--editor-line-height);
   box-sizing: border-box;
 }
 
 .indent-guide-line {
   display: flex;
-  height: 1.5em;
+  height: var(--editor-line-height);
   min-width: max-content;
 }
 
 .indent-guide-level {
   width: 4ch;
-  height: 1.5em;
+  height: var(--editor-line-height);
   flex: 0 0 4ch;
   border-right: 1px solid color-mix(in srgb, var(--text-muted) 28%, transparent);
   box-sizing: border-box;
@@ -2619,11 +2625,16 @@ body.mode-exam-active .sidebar-reveal-button { display: none; }
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: 14px;
+  padding: var(--editor-pad-block) var(--editor-pad-inline);
   border: none;
   font-family: var(--font-mono);
   font-size: var(--editor-font-size);
-  line-height: 1.5;
+  line-height: var(--editor-line-height);
+  font-weight: 400;
+  font-style: normal;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+  letter-spacing: 0;
   tab-size: 4;
   box-sizing: border-box;
 }
@@ -2638,9 +2649,15 @@ body.mode-exam-active .sidebar-reveal-button { display: none; }
 }
 
 #editor-highlighting code {
+  display: block;
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+  font-variant-ligatures: inherit;
+  font-feature-settings: inherit;
+  letter-spacing: inherit;
   white-space: inherit;
 }
 
@@ -2784,6 +2801,23 @@ body.theme-paper .tok-fn {
 }
 body.theme-paper .tok-decorator {
   color: #e11d48;
+}
+
+/* Syntax colors must never change glyph geometry. The actual caret belongs to
+   the transparent textarea underneath, so bold or italic token spans would
+   move the painted code away from that caret. */
+#editor-highlighting .tok-kw,
+#editor-highlighting .tok-builtin,
+#editor-highlighting .tok-bool,
+#editor-highlighting .tok-self,
+#editor-highlighting .tok-str,
+#editor-highlighting .tok-num,
+#editor-highlighting .tok-comment,
+#editor-highlighting .tok-op,
+#editor-highlighting .tok-fn,
+#editor-highlighting .tok-decorator {
+  font-weight: inherit;
+  font-style: inherit;
 }
 body.theme-paper #code-textarea::selection {
   background: rgba(2, 132, 199, 0.22);
