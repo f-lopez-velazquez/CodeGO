@@ -21,7 +21,7 @@
     "test:environment": "node scripts/verify-environment-setup.cjs",
     "test:packaged": "node scripts/packaged-smoke.cjs",
     "verify:submission": "node scripts/verify-submission.cjs",
-    "audit": "npm audit --audit-level=low",
+    "audit": "npm audit --omit=dev",
     "verify": "npm run check && npm test && npm run test:electron && npm run test:browser && npm run audit",
     "build:dir": "electron-builder --dir --publish never",
     "test:browser": "node scripts/browser-tests.cjs",
