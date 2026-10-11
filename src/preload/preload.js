@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   beep: () => ipcRenderer.invoke('system:beep'),
   enforceAudio: () => ipcRenderer.invoke('system:enforce-audio'),
   setAlarmActive: (active) => ipcRenderer.invoke('system:set-alarm-active', active === true),
+  requestRefocus: () => ipcRenderer.invoke('security:request-refocus'),
   getRecoveryStatus: () => ipcRenderer.invoke('security:get-recovery-status'),
   acknowledgeRecovery: () => ipcRenderer.invoke('security:acknowledge-recovery'),
   getTeacherPinPolicy: () => ipcRenderer.invoke('security:get-pin-policy'),

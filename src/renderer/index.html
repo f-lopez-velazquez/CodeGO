@@ -123,8 +123,8 @@
             <input type="text" id="student-name" placeholder="Tu nombre" autocomplete="off" required>
           </div>
           <div class="input-group">
-            <label for="student-id">Matrícula / ID <span class="required">*</span></label>
-            <input type="text" id="student-id" placeholder="No. de control" autocomplete="off" required>
+            <label for="student-id">Matrícula / ID <small class="text-muted">(opcional)</small></label>
+            <input type="text" id="student-id" placeholder="No. de control (opcional)" autocomplete="off">
           </div>
         </div>
 
@@ -139,16 +139,16 @@
           <small>Todos los alumnos deben escribir exactamente el mismo ID.</small>
         </div>
 
-        <div class="form-row exam-only-field exam-pin-setup" id="exam-pin-setup">
+        <div class="form-row exam-only-field exam-pin-setup" id="exam-pin-setup" style="display: none !important;">
           <div class="input-group">
-            <label for="exam-teacher-pin">PIN del profesor <span class="required">*</span></label>
+            <label for="exam-teacher-pin">PIN del profesor</label>
             <input type="password" id="exam-teacher-pin" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="4 a 12 dígitos" autocomplete="new-password">
           </div>
           <div class="input-group">
-            <label for="exam-teacher-pin-confirm">Confirmar PIN <span class="required">*</span></label>
+            <label for="exam-teacher-pin-confirm">Confirmar PIN</label>
             <input type="password" id="exam-teacher-pin-confirm" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="Repite el PIN" autocomplete="new-password">
           </div>
-          <small class="exam-pin-help" id="exam-pin-help">El profesor lo define antes de iniciar. Se usará solo para una salida autorizada.</small>
+          <small class="exam-pin-help" id="exam-pin-help">PIN opcional para salida autorizada.</small>
         </div>
 
         <section class="project-picker" id="project-picker" aria-labelledby="project-picker-title">

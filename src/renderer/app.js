@@ -85,6 +85,11 @@ class SoundEngine {
         this.ctx.resume();
       }
       this.isSirenPlaying = true;
+      if (this.sirenSafetyTimer) clearTimeout(this.sirenSafetyTimer);
+      // Auto-silence safety watchdog: never allow the siren to wail unattended for more than 15s
+      this.sirenSafetyTimer = setTimeout(() => {
+        this.stopAlarmSiren();
+      }, 15000);
 
       // Sonido de alerta institucional armónico y moderado (no estridente)
       this.sirenOsc1 = this.ctx.createOscillator();
@@ -121,6 +126,10 @@ class SoundEngine {
   }
 
   stopAlarmSiren() {
+    if (this.sirenSafetyTimer) {
+      clearTimeout(this.sirenSafetyTimer);
+      this.sirenSafetyTimer = null;
+    }
     if (!this.isSirenPlaying) return;
     try {
       const osc1 = this.sirenOsc1;
@@ -2315,7 +2324,32 @@ function setupEventListeners() {
   });
 
   // Modals & Warnings
-  DOM.btnDismissHazard.addEventListener('click', dismissHazardWarning);
+  DOM.btnDismissHazard.addEventListener('click', () => {
+    if (state.hazardAwaitingReturn) {
+      acknowledgeUserReturned('button-click');
+      return;
+    }
+    if (!DOM.btnDismissHazard.disabled && !DOM.btnDismissHazard.classList.contains('waiting')) {
+      dismissHazardWarning();
+    }
+  });
+  DOM.btnDismissHazard.addEventListener('pointerdown', () => {
+    if (state.hazardAwaitingReturn) acknowledgeUserReturned('btn-pointerdown');
+  });
+  DOM.modalFocusWarning?.addEventListener('pointerdown', () => {
+    if (state.hazardAwaitingReturn) acknowledgeUserReturned('modal-pointerdown');
+  });
+  window.addEventListener('focus', () => {
+    if (state.hazardAwaitingReturn) acknowledgeUserReturned('window-focus');
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.hazardAwaitingReturn) {
+      acknowledgeUserReturned('visibility');
+    }
+  });
+  window.addEventListener('keydown', () => {
+    if (state.hazardAwaitingReturn) acknowledgeUserReturned('keydown');
+  });
   DOM.btnTeacherUnlock.addEventListener('click', openTeacherUnlockModal);
   DOM.btnCancelTeacher.addEventListener('click', () => DOM.modalTeacherUnlock.classList.add('hidden'));
   DOM.btnConfirmTeacher.addEventListener('click', handleTeacherUnlockConfirm);
@@ -2708,17 +2742,6 @@ async function handleStartExamClick() {
     return;
   }
 
-  if (!id) {
-    DOM.studentIdInput.classList.add('input-field-error');
-    if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
-      DOM.lobbyValidationText.textContent = 'Por favor, ingresa tu Matrícula o No. de Control para continuar.';
-      DOM.lobbyValidationBanner.classList.remove('hidden');
-    }
-    DOM.studentIdInput.focus();
-    DOM.studentIdInput.select();
-    return;
-  }
-
   if (state.appMode === 'exam' && !examId) {
     DOM.examIdInput?.classList.add('input-field-error');
     if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
@@ -2726,16 +2749,6 @@ async function handleStartExamClick() {
       DOM.lobbyValidationBanner.classList.remove('hidden');
     }
     DOM.examIdInput?.focus();
-    return;
-  }
-
-  if (state.appMode === 'exam' && !state.teacherPinManaged && (!/^\d{4,12}$/.test(teacherPin) || teacherPin !== teacherPinConfirm)) {
-    DOM.examTeacherPinInput?.classList.add('input-field-error');
-    DOM.examTeacherPinConfirmInput?.classList.add('input-field-error');
-    showLobbyValidation(!/^\d{4,12}$/.test(teacherPin)
-      ? 'El profesor debe definir un PIN de 4 a 12 dígitos antes de iniciar.'
-      : 'La confirmación del PIN no coincide.');
-    DOM.examTeacherPinInput?.focus();
     return;
   }
 
@@ -2759,7 +2772,7 @@ async function handleStartExamClick() {
 
   // Save student info
   state.student.name = name;
-  state.student.id = id;
+  state.student.id = id || '';
   state.student.subject = subject;
   state.student.examId = examId;
   state.student.language = state.selectedLanguage;
@@ -2768,7 +2781,7 @@ async function handleStartExamClick() {
   prepareNewWorkspaceSession();
 
   // Update IDE topbar info
-  DOM.navStudentLabel.textContent = `Alumno: ${name} (${id})`;
+  DOM.navStudentLabel.textContent = id ? `Alumno: ${name} (${id})` : `Alumno: ${name}`;
   DOM.navSubjectLabel.textContent = subject;
 
   if (state.appMode === 'exam') {
@@ -3061,6 +3074,15 @@ function clearHazardTimers() {
   state.hazardAudioInterval = null;
 }
 
+function acknowledgeUserReturned(source = 'interaction') {
+  if (!state.hazardAwaitingReturn) return;
+  state.hazardAwaitingReturn = false;
+  sounds.stopAlarmSiren();
+  window.electronAPI?.requestRefocus?.();
+  window.electronAPI?.setAlarmActive?.(false);
+  beginHazardCountdown();
+}
+
 function beginHazardCountdown() {
   let remainingSeconds = 12;
   state.hazardAwaitingReturn = false;
@@ -3118,7 +3140,7 @@ function handleSecurityViolation(incidentData = {}) {
   if (isReturned) {
     if (!warningVisible || !state.hazardAwaitingReturn) return;
     if (incidentData.durationSeconds) DOM.hazardDuration.textContent = `${incidentData.durationSeconds} segundos`;
-    beginHazardCountdown();
+    acknowledgeUserReturned('ipc');
     return;
   }
 
@@ -4782,10 +4804,21 @@ async function handleGoHome() {
     return;
   }
   if (state.appMode === 'exam' && !state.isExamSubmitted) {
-    const proceed = await askConfirmation('Salir al inicio interrumpe el examen y queda registrado. Solicita al profesor que autorice la salida con su PIN.', { title: 'Examen en curso', kind: 'danger', confirmLabel: 'Solicitar salida' });
+    if (state.teacherPinManaged) {
+      const proceed = await askConfirmation('Salir al inicio interrumpe el examen y queda registrado. Solicita al profesor que autorice la salida con su PIN.', { title: 'Examen en curso', kind: 'danger', confirmLabel: 'Solicitar salida' });
+      if (!proceed) return;
+      state.returnHomeAfterUnlock = true;
+      openTeacherUnlockModal();
+      return;
+    }
+    const proceed = await askConfirmation('Salir al inicio interrumpe el examen y queda registrado. ¿Deseas salir al inicio?', { title: 'Examen en curso', kind: 'danger', confirmLabel: 'Salir al inicio' });
     if (!proceed) return;
-    state.returnHomeAfterUnlock = true;
-    openTeacherUnlockModal();
+    if (window.electronAPI) {
+      await window.electronAPI.exitKiosk('');
+    }
+    state.workspaceSessionActive = false;
+    switchView('lobby');
+    renderRecentProjects();
     return;
   }
   const message = state.appMode === 'task' && !state.isTaskSubmitted

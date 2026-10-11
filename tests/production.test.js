@@ -384,3 +384,33 @@ test('macOS Wi-Fi finds the actual interface instead of assuming en0', () => {
   const wifi = createWifiControl({platform:'darwin',execute:(_cmd,args)=>args[0]==='-listallhardwareports'?'Hardware Port: Wi-Fi\nDevice: en7\nEthernet Address: 00':'Wi-Fi Power (en7): Off'});
   assert.equal(wifi.inspect().disabled,true);
 });
+
+test('Exam mode: teacher PIN is not mandatory, student ID is optional, and hazard alarm recovers reliably', () => {
+  const root = path.resolve(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8');
+  const appJs = fs.readFileSync(path.join(root, 'src/renderer/app.js'), 'utf8');
+  const mainJs = fs.readFileSync(path.join(root, 'src/main/main.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'src/renderer/styles.css'), 'utf8');
+
+  // Student ID must NOT be required
+  assert.doesNotMatch(html, /id="student-id"[^>]*required/);
+  assert.match(html, /id="student-id"[^>]*placeholder="No\. de control \(opcional\)"/);
+
+  // Teacher PIN in exam mode lobby must be hidden
+  assert.match(html, /id="exam-pin-setup"[^>]*style="display:\s*none\s*!important;"/);
+  assert.match(css, /#exam-pin-setup\s*\{\s*display:\s*none\s*!important;\s*\}/);
+
+  // App.js must not block exam start on empty PIN or missing student ID
+  assert.doesNotMatch(appJs, /if\s*\(!id\)\s*\{\s*DOM\.studentIdInput\.classList\.add\('input-field-error'\)/);
+  assert.doesNotMatch(appJs, /if\s*\(state\.appMode === 'exam' && !state\.teacherPinManaged && \(!\/\\d\{4,12\}\/\.test\(teacherPin\)/);
+
+  // Main.js must accept starting kiosk without a teacher pin
+  assert.match(mainJs, /activeTeacherPin = requestedTeacherPin \|\| null;/);
+  assert.match(mainJs, /if \(!activeTeacherPin \|\| String\(enteredPin \|\| ''\) === activeTeacherPin\)/);
+
+  // Hazard alarm must have acknowledgeUserReturned and safety watchdog
+  assert.match(appJs, /function acknowledgeUserReturned/);
+  assert.match(appJs, /this\.sirenSafetyTimer = setTimeout/);
+  assert.match(mainJs, /security:request-refocus/);
+});
+

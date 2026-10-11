@@ -1140,14 +1140,16 @@ function createMainWindow() {
 
   mainWindow.on('focus', () => {
     if (activeSessionMode === 'activity') return;
-    const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'task';
-    const decision = focusGuard.focus({ sessionActive: focusSupervisionActive });
-    if (!decision.violation) return;
     const alertWasSent = supervisedAlertSent;
     clearSupervisedBlurTimer();
     supervisedAlertSent = false;
-    if (!alertWasSent) return;
-    const durationSeconds = decision.durationSeconds.toFixed(1);
+    stopAudioWatchdog();
+    const focusSupervisionActive = activeSessionMode === 'exam' || activeSessionMode === 'task';
+    const decision = focusGuard.focus({ sessionActive: focusSupervisionActive });
+    if (!alertWasSent && !decision.violation) return;
+    const durationSeconds = (decision.violation && typeof decision.durationSeconds === 'number')
+      ? decision.durationSeconds.toFixed(1)
+      : '1.0';
 
     const incident = logSecurityIncident('WINDOW_REFOCUS', {
       mode: activeSessionMode,
@@ -2053,10 +2055,10 @@ except Exception:
 
     if (!studentData?.examId || !String(studentData.examId).trim()) return { success: false, error: 'Escribe el ID dictado por el profesor.' };
     const requestedTeacherPin = managedTeacherPin || String(studentData?.teacherPin || '').trim();
-    if (!/^\d{4,12}$/.test(requestedTeacherPin)) {
-      return { success: false, error: 'El profesor debe definir un PIN de 4 a 12 dígitos antes de iniciar el examen.' };
+    if (requestedTeacherPin && !/^\d{4,12}$/.test(requestedTeacherPin)) {
+      return { success: false, error: 'El PIN debe contener de 4 a 12 dígitos.' };
     }
-    activeTeacherPin = requestedTeacherPin;
+    activeTeacherPin = requestedTeacherPin || null;
 
     // Each exam gets a new private directory. Previous projects are never
     // mounted into the exam session and the initial source file is blank.
@@ -2103,14 +2105,16 @@ except Exception:
     return { success: true, mode: 'exam', ...examWorkspace };
   });
 
-  // Exit Kiosk Mode (Requires Teacher PIN)
+  // Exit Kiosk Mode (Allows exit if no PIN configured, or validates against activeTeacherPin)
   handle('security:exit-kiosk', async (event, enteredPin) => {
-    if (String(enteredPin || '') === activeTeacherPin) {
+    if (!activeTeacherPin || String(enteredPin || '') === activeTeacherPin) {
       isKioskActive = false;
       activeSessionMode = null;
       activeTeacherPin = managedTeacherPin || null;
       clearActiveExamMarker();
       focusGuard.reset();
+      clearSupervisedBlurTimer();
+      supervisedAlertSent = false;
       stopAudioWatchdog();
       await notificationGuard.restore();
       enableSystemWifi();
@@ -2122,7 +2126,7 @@ except Exception:
         globalShortcut.unregisterAll();
         restoreRendererKeyboardFocus();
       }
-      logSecurityIncident('TEACHER_UNLOCK_SUCCESSFUL', { pinEntered: true });
+      logSecurityIncident('TEACHER_UNLOCK_SUCCESSFUL', { pinEntered: Boolean(enteredPin) });
       setTimeout(() => void applyStagedUpdate(), 1500);
       return { success: true };
     } else {
@@ -2132,9 +2136,10 @@ except Exception:
   });
 
   handle('security:end-session', async () => {
-    if (activeSessionMode === 'exam' && isKioskActive) {
+    if (activeSessionMode === 'exam' && isKioskActive && activeTeacherPin) {
       return { success: false, error: 'La salida del examen requiere autorización docente.' };
     }
+    isKioskActive = false;
     activeSessionMode = null;
     focusGuard.reset();
     clearSupervisedBlurTimer();
@@ -2148,6 +2153,14 @@ except Exception:
       restoreRendererKeyboardFocus();
     }
     setTimeout(() => void applyStagedUpdate(), 1500);
+    return { success: true };
+  });
+
+  handle('security:request-refocus', async () => {
+    if (activeSessionMode === 'activity') return { success: false };
+    clearSupervisedBlurTimer();
+    supervisedAlertSent = false;
+    stopAudioWatchdog();
     return { success: true };
   });
 
