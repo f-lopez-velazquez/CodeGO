@@ -82,3 +82,12 @@ La pantalla instalada 1.6.14 indicaba correctamente la versión publicada: los c
 La web utiliza la marca y el lobby del escritorio, explorador, archivo activo, resaltado alineado con el cursor, paneles redimensionables y consola. En móvil ofrece navegación inferior, símbolos y sangría, selector de lecciones, una sección de aprendizaje por paso y altura ajustada al teclado mediante VisualViewport. No se afirma paridad de controles nativos.
 
 El currículo ampliado tiene 20 lecciones en cinco unidades, 40 ejemplos, 60 preguntas de comprensión, 40 ejercicios y cuatro evaluaciones de 12 preguntas más retos integradores. El progreso de comprensión se distingue de la práctica. Los ejercicios de una lección conservan archivos y pruebas independientes. Las soluciones de referencia están en tests/fixtures, fuera de los archivos publicados; los ejemplos y los 44 retos se ejecutan con Python real en las pruebas.
+
+
+## Ejemplos animados de aprendizaje
+
+Los 40 ejemplos se recorren con escritura progresiva, resaltado de la línea actual, explicación de la instrucción, estado anterior/nuevo de las variables, celdas de colecciones, referencias compartidas, pila de llamadas, retorno y consola. Los 236 pasos se obtienen de ejecuciones reales con `sys.settrace` mediante `scripts/build-example-traces.py`. La traza estática evita iniciar otro intérprete al consultar una explicación y funciona sin red cuando la aplicación está en caché.
+
+La animación tiene pausa, avance/retroceso, repetición, velocidad, barra de pasos y salto al resultado completo. Solo un ejemplo se reproduce a la vez. Se pausa al salir de la vista, desplazarlo fuera de pantalla, ocultar la pestaña o perder el foco; los temporizadores se liberan al cambiar de lección. Con movimiento reducido, el código se presenta completo y el recorrido manual sigue disponible. La escritura no envía avisos al lector de pantalla por carácter y la reproducción automática evita acumular narraciones habladas.
+
+La explicación es una ejecución grabada del ejemplo incluido, no un depurador general de cualquier código del alumno. Cambiar el ejemplo exige regenerar la traza; sus pruebas verifican el SHA-256 del código, la salida real, la acumulación de bucles, el alcance de variables, las referencias compartidas y los retornos. Esta entrega modifica el curso web; el instalable accede al mismo curso desde su enlace y no requiere otro paquete nativo.

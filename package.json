@@ -32,7 +32,9 @@
     "capture:ui": "node scripts/capture-ui.cjs",
     "test:webapp": "node scripts/webapp-browser-tests.cjs",
     "deploy:webapp": "node scripts/sync-webapp.cjs && npx --yes firebase-tools deploy --only hosting:codego-python --project zolvek-mx",
-    "test:webapp:offline": "node scripts/webapp-offline-tests.cjs"
+    "test:webapp:offline": "node scripts/webapp-offline-tests.cjs",
+    "build:examples": "node scripts/build-example-traces.cjs",
+    "test:examples": "node scripts/example-player-browser-tests.cjs"
   },
   "keywords": [
     "exam",

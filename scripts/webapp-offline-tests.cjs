@@ -33,7 +33,12 @@ export const signInWithPopup=async()=>{}; export const signOut=async()=>{};`;
     await page.locator('#app').waitFor();
     assert.equal(await page.locator('#code-editor').inputValue(), 'print("Python sin red")');
     await execute();
-    console.log('Offline: shell, project recovery and real Python work after disabling network and reloading.');
+    await page.locator('#open-course').click();
+    await page.locator('[data-lesson-step=examples]').click();
+    const example = page.locator('.example-demo').first();
+    await example.locator('[data-demo-action=finish]').click();
+    assert.equal((await example.locator('.demo-console pre').textContent()).trim(), require('../webapp/course').lessons[0].examples[0].output.trim());
+    console.log('Offline: shell, project recovery, real Python and animated teaching examples work after disabling network and reloading.');
   } catch (error) { console.error(error); process.exitCode = 1; }
   finally { await browser?.close(); }
 })();

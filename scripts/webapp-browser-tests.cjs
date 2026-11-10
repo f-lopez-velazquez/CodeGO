@@ -112,6 +112,12 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
         assert(await page.locator('#lesson-content').isVisible());
         await page.locator('[data-lesson-step=examples]').click();
         assert.equal(await page.locator('.example-card').count(), 2);
+        const animatedExample = page.locator('.example-demo').first();
+        await animatedExample.locator('[data-demo-action=finish]').click();
+        assert.equal(await animatedExample.getAttribute('data-phase'), 'finished');
+        await page.locator('.mobile-tabs [data-pane=editor]').click();
+        assert.equal(await animatedExample.getAttribute('data-playing'), 'false');
+        await page.locator('.mobile-tabs [data-pane=course]').click();
         await page.screenshot({ path: `output/playwright/webapp-course-${width}.png` });
       }
     }

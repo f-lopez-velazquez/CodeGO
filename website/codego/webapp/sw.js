@@ -1,6 +1,6 @@
 /* Cache only this app and pinned runtime libraries. Never cache auth API responses. */
-const CACHE = 'codego-shell-v1.6.15';
-const FILES = ['./', 'index.html', 'site.css', 'app.js', 'store.js', 'course.js', 'course-content.js', 'learning.js', 'editor.js', 'codego-mark.svg', 'codego-sdk.js', 'execution-worker.js', 'firebase-config.js', 'icon.png', 'manifest.webmanifest', 'licenses/freeCodeCamp.txt'];
+const CACHE = 'codego-shell-v1.6.15-animated-examples-2';
+const FILES = ['./', 'index.html', 'site.css', 'app.js', 'store.js', 'course.js', 'course-content.js', 'learning.js', 'example-traces.js', 'example-player.js', 'editor.js', 'codego-mark.svg', 'codego-sdk.js', 'execution-worker.js', 'firebase-config.js', 'icon.png', 'manifest.webmanifest', 'licenses/freeCodeCamp.txt'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('codego-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));

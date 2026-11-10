@@ -14,6 +14,8 @@
     let activeAssessment = curriculum.assessments[0];
     let area = 'lessons';
     let step = 'understand';
+    let examplePlayers = [];
+    function clearExamples() { examplePlayers.forEach(player => player.destroy()); examplePlayers = []; }
     function learning() {
       const state = getState();
       state.learning ||= { version: 2, quiz: {}, exercises: {}, assessments: {} };
@@ -77,6 +79,7 @@
       return card;
     }
     function renderLesson() {
+      clearExamples();
       const lesson = activeLesson;
       const progress = curriculum.lessonProgress(lesson, learning());
       const container = $('lesson-content'); container.replaceChildren();
@@ -97,10 +100,13 @@
         const points = node('ul', undefined, 'lesson-keypoints'); lesson.keyPoints.forEach(text => points.append(node('li', text))); section.append(points);
         section.append(node('p', lesson.pitfall, 'pitfall'));
       } else if (step === 'examples') {
-        lesson.examples.forEach(example => {
-          const card = node('article', undefined, 'example-card'); card.append(node('h5', example.title), node('pre', example.code));
-          const output = node('div', undefined, 'example-output'); output.append(node('small', 'Salida esperada'), node('pre', example.output));
-          card.append(output, node('p', example.explanation)); section.append(card);
+        section.append(node('p', 'Observa cómo se escribe el programa y sigue sus valores. Puedes pausar o elegir cada paso.', 'demo-instructions'));
+        lesson.examples.forEach((example, index) => {
+          const key = `${lesson.id}:${index}`;
+          let player;
+          player = root.createCodeGOExamplePlayer({ example, trace: root.CodeGOExampleTraces.examples[key], key, autoplay: index === 0,
+            onStart: () => examplePlayers.forEach(other => { if (other !== player) other.pause(); }) });
+          examplePlayers.push(player); section.append(player.element);
         });
       } else if (step === 'quiz') {
         section.append(node('h4', 'Comprueba lo que entendiste'));
@@ -141,6 +147,7 @@
       const link = node('a', 'Tema de referencia en freeCodeCamp ↗'); link.href = lesson.source; link.target = '_blank'; link.rel = 'noopener'; actions.append(link); container.append(actions);
     }
     function renderAssessment() {
+      clearExamples();
       const assessment = activeAssessment;
       const questions = curriculum.assessmentQuestions(assessment);
       const saved = learning().assessments[assessment.id];
@@ -191,6 +198,6 @@
       const report = { format: 'codego-learning-report-v2', student: state.student, generatedAt: new Date().toISOString(), learning: learning(), masteredLessons: curriculum.lessons.filter(lesson => curriculum.lessonProgress(lesson, learning()).mastered).map(lesson => lesson.id), note: 'Progreso local de práctica. No acredita autoría ni calificación institucional.' };
       download('codego-progreso.json', JSON.stringify(report, null, 2));
     };
-    return { render };
+    return { render, pauseAnimations: () => examplePlayers.forEach(player => player.pause()) };
   };
 })(globalThis);

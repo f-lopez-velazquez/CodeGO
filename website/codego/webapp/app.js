@@ -138,6 +138,7 @@ function setPane(pane) {
   $('terminal-pane').hidden = learning && !mobile;
   document.querySelectorAll('.mobile-tabs button').forEach(button => button.setAttribute('aria-current', button.dataset.pane === pane ? 'page' : 'false'));
   if (learning) renderCourse();
+  else learningUI.pauseAnimations();
 }
 document.querySelectorAll('.mobile-tabs [data-pane]').forEach(button => button.addEventListener('click', () => setPane(button.dataset.pane)));
 $('open-course').onclick = () => setPane('course');
