@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // System diagnostics & Package Management
   runSelfTest: () => ipcRenderer.invoke('system:self-test'),
+  openLearningCourse: () => ipcRenderer.invoke('system:open-learning-course'),
   openSupportPage: () => ipcRenderer.invoke('system:open-support-page'),
   getEnvironmentStatus: () => ipcRenderer.invoke('system:environment-status'),
   prepareEnvironment: (options = {}) => ipcRenderer.invoke('system:prepare-environment', options),

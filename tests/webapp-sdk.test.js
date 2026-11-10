@@ -58,7 +58,7 @@ test('CodeGO Web SDK: exports, security hashing and multi-language definitions',
     hmacSignature: hmac
   });
 
-  assert.ok(certHtml.includes('CERTIFICADO DIGITAL DE AUTORÍA'), 'El certificado HTML debe contener el título');
+  assert.ok(certHtml.includes('REPORTE DE ACTIVIDAD WEB'), 'El certificado HTML debe contener el título');
   assert.ok(certHtml.includes('Ana Gómez'), 'El certificado debe contener el nombre del estudiante');
   assert.ok(certHtml.includes(hmac), 'El certificado debe contener el sello HMAC');
   assert.ok(certHtml.includes('CPP'), 'El certificado debe contener el lenguaje');

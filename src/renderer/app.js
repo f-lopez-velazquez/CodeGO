@@ -205,7 +205,7 @@ const state = {
   currentVerifiedFile: null,
   verifiedSubmissionData: null,
   termLayout: 'side', // 'side' (Default: Side-by-side vertical split) | 'bottom'
-  appMode: 'exam', // 'exam' | 'task' | 'activity'
+  appMode: 'activity', // 'exam' | 'task' | 'activity'
   examSessionActive: false, // Strictly true only when in an active, unsubmitted exam session
   workspaceSessionActive: false, // True during an active IDE workspace session (Exam, Task or Activity)
   isInternalModalOpen: false,
@@ -796,9 +796,11 @@ function autoFitScreenLayout() {
 // 2.2 WI-FI REAL-TIME MONITORING
 // ==============================================================
 let wifiPollInterval = null;
+let wifiQueryPending = false;
 
 async function updateWifiStatus() {
-  if (!window.electronAPI || !window.electronAPI.getWifiStatus) return;
+  if (!window.electronAPI?.getWifiStatus || wifiQueryPending) return;
+  wifiQueryPending = true;
   try {
     const status = await window.electronAPI.getWifiStatus();
     if (DOM.navWifiBadge && DOM.wifiStatusText) {
@@ -828,12 +830,17 @@ async function updateWifiStatus() {
       }
     }
   } catch (_) {}
+  finally { wifiQueryPending = false; }
 }
 
 function startWifiMonitoring() {
   if (wifiPollInterval) clearInterval(wifiPollInterval);
   updateWifiStatus();
-  wifiPollInterval = setInterval(updateWifiStatus, 2500);
+  const poll = async () => {
+    if (!document.hidden || state.examSessionActive) await updateWifiStatus();
+    wifiPollInterval = setTimeout(poll, state.examSessionActive && state.appMode === 'exam' ? 2500 : 30000);
+  };
+  wifiPollInterval = setTimeout(poll, 30000);
 }
 
 // ==============================================================
@@ -1413,6 +1420,7 @@ function setupProgressLabel(step) {
 }
 
 async function startAutoRepairProcess({ strategy = 'resume' } = {}) {
+  document.getElementById('session-setup-dialog')?.close();
   state.isInternalModalOpen = true;
   state.environmentSetupRequired = true;
   state.environmentReady = false;
@@ -1645,6 +1653,8 @@ function rememberRecentProject() {
     studentId: DOM.studentIdInput?.value.trim() || state.studentId || '',
     examSubject: DOM.examSubjectInput?.value.trim() || state.examSubject || 'Programación en Python',
     appMode: state.appMode || 'activity',
+    activeFilePath: state.activeFilePath || '',
+    openTabs: state.openTabs.map(tab => ({ path: tab.path })),
     lastOpenedAt: Date.now()
   };
   const projects = readRecentProjects().filter(project => project.workspacePath !== current.workspacePath);
@@ -1677,6 +1687,7 @@ async function openSavedProject(project, triggerButton = null) {
       showLobbyValidation(restored?.error || 'La carpeta guardada ya no está disponible. Elige otra carpeta.');
       return false;
     }
+    state.pendingProjectRestore = project;
     await handleStartExamClick();
     return true;
   } catch (error) {
@@ -1761,6 +1772,7 @@ function checkAndDisplayLastSession() {
       if (DOM.continueSubjectTitle) DOM.continueSubjectTitle.textContent = `Materia: ${session.examSubject || 'Programación en Python'}`;
       if (DOM.continueFileLabel) DOM.continueFileLabel.textContent = `Proyecto anterior: ${session.workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'Proyecto'}`;
       DOM.lobbyContinueCard.classList.remove('hidden');
+      document.getElementById('btn-resume-project')?.classList.remove('hidden');
 
       if (DOM.btnContinueLastSession) {
         DOM.btnContinueLastSession.onclick = () => openSavedProject(session, DOM.btnContinueLastSession);
@@ -1813,7 +1825,7 @@ function setSessionMode(mode) {
     if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante la tarea o actividad';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
-        <li><strong>Edición flexible:</strong> Puedes copiar, cortar y pegar mientras desarrollas tu tarea.</li>
+        <li><strong>Escritura directa:</strong> Copiar, cortar y pegar están deshabilitados durante la tarea.</li>
         <li><strong>Supervisión:</strong> Cada salida del programa queda registrada y requiere una espera de 12 segundos al regresar.</li>
         <li><strong>Registro de actividad:</strong> Se conservan el tiempo de edición y las pruebas ejecutadas como contexto para el docente.</li>
         <li><strong>Entrega verificable:</strong> Genera un contenedor .codego firmado con Ed25519 para comprobar su integridad.</li>
@@ -1950,19 +1962,20 @@ function setupEventListeners() {
   window.addEventListener('resize', closeTreeContextMenu);
   window.addEventListener('blur', closeTreeContextMenu);
 
-  // A finished delivery remains read-only. A task keeps normal clipboard
-  // behavior throughout editing and is restricted only after it is sealed.
-  document.addEventListener('copy', (e) => {
-    if (isWorkspaceLocked()) {
-      e.preventDefault();
-      appendTerminalOutput('La entrega sellada está protegida contra cambios y copia.', 'system');
+  // Keep identity fields usable; protect the supervised workspace, including mobile paste/drop.
+  const blockClipboard = event => {
+    if (isWorkspaceLocked() || (state.workspaceSessionActive && state.appMode !== 'activity' && !event.target.closest('dialog, .modal-overlay'))) {
+      event.preventDefault();
+      if (event.type === 'paste') state.taskTelemetry.externalPasteAttempts = (state.taskTelemetry.externalPasteAttempts || 0) + 1;
+      showToast('En esta modalidad escribe tu código sin copiar ni pegar.', 'info');
     }
+  };
+  ['copy', 'cut', 'paste'].forEach(type => document.addEventListener(type, blockClipboard));
+  DOM.codeTextarea.addEventListener('beforeinput', event => {
+    if (state.appMode !== 'activity' && state.workspaceSessionActive && /insertFromPaste|insertFromDrop|deleteByCut/.test(event.inputType)) event.preventDefault();
   });
-  document.addEventListener('cut', (e) => {
-    if (isWorkspaceLocked()) e.preventDefault();
-  });
-  document.addEventListener('paste', (e) => {
-    if (isWorkspaceLocked()) e.preventDefault();
+  DOM.codeTextarea.addEventListener('drop', event => {
+    if (state.appMode !== 'activity' && state.workspaceSessionActive) event.preventDefault();
   });
 
   // Test sound button in lobby
@@ -1976,7 +1989,21 @@ function setupEventListeners() {
   });
 
   // Start Exam Button
-  DOM.btnStartExam.addEventListener('click', handleStartExamClick);
+  DOM.btnStartExam.addEventListener('click', openSessionSetup);
+  document.getElementById('btn-online-course')?.addEventListener('click', async () => {
+    const result = await window.electronAPI?.openLearningCourse?.();
+    if (!result?.success) showToast(result?.error || 'Abre codego-python.web.app para acceder al curso con Google.', 'info');
+  });
+  document.getElementById('btn-resume-project')?.addEventListener('click', openSessionSetup);
+  document.getElementById('btn-close-session-setup')?.addEventListener('click', () => document.getElementById('session-setup-dialog').close());
+  document.getElementById('session-setup-form')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = event.submitter;
+    if (button?.disabled) return;
+    if (button) button.disabled = true;
+    try { await handleStartExamClick(); }
+    finally { if (button) button.disabled = false; }
+  });
   DOM.btnLobbyOpenFolder?.addEventListener('click', chooseWorkspaceFolder);
   DOM.btnLobbyNewProject?.addEventListener('click', createBlankWorkspace);
 
@@ -2711,6 +2738,30 @@ async function createBlankWorkspace() {
   return setWorkspaceSelection(result) ? result : null;
 }
 
+async function openSessionSetup() {
+  const dialog = document.getElementById('session-setup-dialog');
+  if (!dialog || dialog.open) return;
+  dialog.showModal();
+  DOM.studentNameInput.focus();
+  if (!state.workspaceSelected && window.electronAPI?.getCurrentWorkspace) {
+    try {
+      const previous = readRecentProjects()[0];
+      let result;
+      if (previous && window.electronAPI.restoreWorkspace) result = await window.electronAPI.restoreWorkspace(previous.workspacePath);
+      if (!result?.success) {
+        const current = await window.electronAPI.getCurrentWorkspace();
+        result = { ...current, success: current.selected };
+      }
+      if (setWorkspaceSelection(result)) {
+        try {
+          const saved = JSON.parse(localStorage.getItem('codego_last_session') || 'null');
+          if (saved?.workspacePath === state.workspacePath && saved.appMode !== 'exam') state.pendingProjectRestore = saved;
+        } catch (_) {}
+      }
+    } catch (error) { showLobbyValidation('No se pudo recuperar la carpeta. Selecciona otra para continuar.'); }
+  }
+}
+
 async function handleStartExamClick() {
   if (!state.environmentReady && window.electronAPI?.getEnvironmentStatus) {
     await startAutoRepairProcess();
@@ -2867,6 +2918,7 @@ async function startCountdownSequence() {
 }
 
 function enterIdeWorkspace() {
+  document.getElementById('session-setup-dialog')?.close();
   switchView('ide');
   state.workspaceSessionActive = true;
   state.isSubmitting = false;
@@ -2948,7 +3000,7 @@ function enterIdeWorkspace() {
       DOM.sidebarTitleLabel.textContent = 'ESPACIO DE TAREA';
     }
     if (DOM.workspaceHintLabel) {
-      DOM.workspaceHintLabel.textContent = 'Edición flexible con entrega verificable';
+      DOM.workspaceHintLabel.textContent = 'Sin copiar ni pegar · entrega verificable';
     }
 
     state.examStartTime = Date.now();
@@ -3007,6 +3059,13 @@ function enterIdeWorkspace() {
   loadWorkspaceFiles().then(async () => {
     if (state.appMode === 'exam' && state.examInitialFile) {
       await openFileInEditor(state.examInitialFile);
+    } else if (state.pendingProjectRestore?.activeFilePath) {
+      const saved = state.pendingProjectRestore;
+      state.pendingProjectRestore = null;
+      for (const tab of (saved.openTabs || []).slice(0, 10)) {
+        if (tab.path && tab.path !== saved.activeFilePath) await openFileInEditor(tab.path);
+      }
+      await openFileInEditor(saved.activeFilePath);
     } else if (state.activeFilePath && state.openTabs.some(tab => tab.path === state.activeFilePath)) {
       await openFileInEditor(state.activeFilePath);
     }
@@ -3208,10 +3267,15 @@ function updateIncidentsDisplay() {
 // ==============================================================
 // 10. FILE EXPLORER & WORKSPACE
 // ==============================================================
+let workspaceLoad = null;
 async function loadWorkspaceFiles() {
-  if (window.electronAPI) {
-    const res = await window.electronAPI.listWorkspace();
-    if (res.success) {
+  const root = state.workspacePath;
+  if (workspaceLoad?.root === root) return workspaceLoad.promise;
+  const promise = (async () => {
+    try {
+      const res = window.electronAPI ? await window.electronAPI.listWorkspace() : { success: true, tree: [] };
+      if (state.workspacePath !== root) return;
+      if (!res.success) throw new Error(res.error || 'No se pudo leer la carpeta.');
       state.filesTree = res.tree;
       if (!state.workspaceTreeInitialized) {
         state.collapsedFolders = new Set(workspaceFolderPaths(res.tree));
@@ -3219,12 +3283,14 @@ async function loadWorkspaceFiles() {
       }
       renderFileTree(res.tree);
       updateEditorEmptyState();
+      if (res.warnings?.length) showToast(res.warnings[0], 'info', 6000);
+    } catch (error) {
+      showToast(`No se pudo actualizar Archivos. ${error.message}`, 'error');
     }
-  } else {
-    state.filesTree = [];
-    renderFileTree([]);
-    updateEditorEmptyState();
-  }
+  })();
+  workspaceLoad = { root, promise };
+  try { return await promise; }
+  finally { if (workspaceLoad?.promise === promise) workspaceLoad = null; }
 }
 
 function updateEditorEmptyState() {
@@ -3624,7 +3690,7 @@ function renderFileTree(tree, container = DOM.fileTreeContainer, depth = 0) {
         childrenWrap.style.display = 'none';
       }
 
-      if (item.children && item.children.length > 0) {
+      if (!isCollapsed && item.children && item.children.length > 0) {
         renderFileTree(item.children, childrenWrap, depth + 1);
       }
       folderWrap.appendChild(childrenWrap);
@@ -4074,19 +4140,29 @@ function updateActiveLanguageBadge() {
   }
 }
 
+let highlightedSource = null;
+let highlightedLanguage = null;
 function updateSyntaxHighlighting() {
   if (!DOM.highlightingContent || !DOM.codeTextarea) return;
   const code = DOM.codeTextarea.value;
   const lang = getActiveLanguage();
-  DOM.highlightingContent.innerHTML = highlightCode(code, lang) + (code.endsWith('\n') ? ' ' : '');
+  if (code === highlightedSource && lang === highlightedLanguage) { syncEditorScroll(); return; }
+  highlightedSource = code;
+  highlightedLanguage = lang;
+  DOM.highlightingContent.innerHTML = (code.length > 200000 ? escapeHtml(code) : highlightCode(code, lang)) + (code.endsWith('\n') ? ' ' : '');
   updateIndentGuides();
   scheduleSyntaxDiagnostic();
   syncEditorScroll();
 }
 
+let indentGuideKey = null;
 function updateIndentGuides() {
   if (!DOM.editorIndentGuides || !DOM.codeTextarea) return;
   const cursorLine = DOM.codeTextarea.value.slice(0, DOM.codeTextarea.selectionStart).split('\n').length - 1;
+  const key = `${cursorLine}:${DOM.codeTextarea.value}`;
+  if (indentGuideKey === key) return;
+  indentGuideKey = key;
+  if (DOM.codeTextarea.value.length > 200000) { DOM.editorIndentGuides.replaceChildren(); return; }
   const lines = DOM.codeTextarea.value.split('\n');
   const indentation = lines.map(line => {
     const leading = (line.match(/^[ \t]*/) || [''])[0];
@@ -4101,18 +4177,14 @@ function updateIndentGuides() {
   });
   // Continue a guide through blank lines only when the surrounding code stays
   // inside the same block. This makes the block structure readable at a glance.
-  indentation.forEach((info, index) => {
-    if (!info.blank || info.levels) return;
-    let previous = 0;
-    let next = 0;
-    for (let i = index - 1; i >= 0; i -= 1) {
-      if (!indentation[i].blank) { previous = indentation[i].levels; break; }
-    }
-    for (let i = index + 1; i < indentation.length; i += 1) {
-      if (!indentation[i].blank) { next = indentation[i].levels; break; }
-    }
-    info.levels = Math.min(previous, next);
-  });
+  let previous = 0;
+  const previousLevels = indentation.map(info => { const level = previous; if (!info.blank) previous = info.levels; return level; });
+  let next = 0;
+  for (let index = indentation.length - 1; index >= 0; index--) {
+    const info = indentation[index];
+    if (!info.blank) next = info.levels;
+    else if (!info.levels) info.levels = Math.min(previousLevels[index], next);
+  }
   const cursorLevel = indentation[cursorLine]?.levels || 0;
   DOM.editorIndentGuides.innerHTML = indentation.map((info, index) => {
     const guides = Array.from({ length: Math.min(info.levels, 40) }, (_, levelIndex) => {
@@ -4189,7 +4261,7 @@ function handleEditorInput() {
   if (currentTab) {
     currentTab.content = DOM.codeTextarea.value;
     currentTab.isDirty = true;
-    renderTabs();
+    DOM.editorTabsBar.querySelector('.editor-tab.active .tab-unsaved-dot')?.classList.add('visible');
   }
 
   updateLineNumbers();
@@ -4390,8 +4462,12 @@ function handleEditorKeydown(e) {
   }
 }
 
+let lineNumberKey = '';
 function updateLineNumbers() {
   const lines = DOM.codeTextarea.value.split('\n').length;
+  const key = `${lines}:${state.editorErrorLine}`;
+  if (key === lineNumberKey) return;
+  lineNumberKey = key;
   let numbersHtml = '';
   for (let i = 1; i <= lines; i++) {
     numbersHtml += `<div${state.editorErrorLine === i ? ' class="has-error" title="Python encontró el problema en esta línea"' : ''}>${i}</div>`;
@@ -4652,9 +4728,10 @@ function renderRuntimeErrorGuide(guide, location, raw) {
   if (DOM.runtimeErrorExampleWrap && DOM.runtimeErrorExample) {
     DOM.runtimeErrorExampleWrap.classList.toggle('hidden', !guide.example);
     DOM.runtimeErrorExample.textContent = guide.example || '';
+    DOM.runtimeErrorExampleWrap.open = false;
   }
   DOM.modalRuntimeError.classList.remove('hidden');
-  DOM.btnCloseRuntimeError.focus();
+  (location?.line ? DOM.btnRuntimeErrorLine : DOM.btnCloseRuntimeError).focus();
 }
 
 function showSyntaxDiagnosticHelp() {
@@ -4750,6 +4827,7 @@ function clearTerminal() {
 }
 
 async function copyTerminalOutput() {
+  if (state.appMode !== 'activity' && state.workspaceSessionActive) { showToast('La copia está deshabilitada en esta modalidad.', 'info'); return; }
   try {
     await navigator.clipboard.writeText(DOM.terminalTranscript.innerText);
     DOM.btnCopyTerm.textContent = 'Copiado';
@@ -5424,7 +5502,7 @@ async function handleManualCheckUpdates() {
         state.availableUpdate = res;
         displayUpdateBanner(res);
       } else {
-        showNotice(`✓ codeGO está actualizado.\n\nLa versión instalada (v${res.currentVersion}) es la más reciente.`);
+        showNotice(`Tienes la última versión publicada: v${res.currentVersion}.`, { title: 'Sin actualizaciones pendientes', confirmLabel: 'Entendido' });
       }
     } else {
       showNotice(`No se pudo verificar actualizaciones:\n${res?.error || 'Verifica tu conexión a internet.'}`);
@@ -5440,6 +5518,7 @@ async function handleManualCheckUpdates() {
 }
 
 function handleShowReleaseNotes() {
+  document.getElementById('session-setup-dialog')?.close();
   if (!state.availableUpdate) return;
   if (DOM.modalReleaseNotesTitle) {
     DOM.modalReleaseNotesTitle.textContent = state.availableUpdate.releaseName || `Novedades de v${state.availableUpdate.latestVersion}`;

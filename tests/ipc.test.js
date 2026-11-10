@@ -28,9 +28,10 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   const sender = vm.runInContext('mainWindow.webContents',context);
   const event = {sender,senderFrame:sender.mainFrame};
   const call = (name,data) => handlers.get(name)(event,data);
-  const workspace = path.join(dir, 'exam_workspace');
   const initialWorkspace = await call('workspace:get-current');
-  assert.equal(initialWorkspace.selected, false);
+  const workspace = initialWorkspace.workspacePath;
+  assert.equal(initialWorkspace.selected, true);
+  assert.equal(workspace, path.join(dir, 'projects', 'Mi proyecto'));
   assert.deepEqual(JSON.parse(JSON.stringify((await call('fs:list-workspace')).tree)), []);
   assert.equal((await handlers.get('fs:read-file')({}, 'main.py')).success, false);
   assert.equal((await call('fs:create-file','main.py')).success,true);

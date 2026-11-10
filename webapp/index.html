@@ -1,549 +1,136 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es-MX">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>codeGO Web — Entorno de Aprendizaje y Certificación Académica</title>
-  <meta name="description" content="Entorno web de programación para Python, C/C++, Java, JavaScript y R con telemetría anti-plagio, sellado criptográfico y compatibilidad con Cognago.">
-  <link rel="icon" type="image/png" href="icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#0f131d">
+  <meta name="description" content="Aprende Python, recupera tus proyectos y practica con ejercicios guiados en CodeGO.">
+  <title>codeGO · Tu espacio de Python</title>
+  <link rel="icon" href="icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="site.css">
 </head>
 <body>
-
-  <!-- ============================================================== -->
-  <!-- 1. NAVBAR PRINCIPAL                                           -->
-  <!-- ============================================================== -->
-  <header class="web-navbar">
-    <div class="nav-brand-group">
-      <a href="../index.html" class="brand-badge" title="Volver a la página principal de CodeGO">
-        <img src="icon.png" alt="codeGO" class="brand-logo">
-        <span class="brand-title">code<span class="brand-accent">GO</span> Web</span>
-      </a>
-      <span class="brand-tag">Cognago Core v1.2</span>
+  <section id="welcome" class="welcome">
+    <div class="welcome-card">
+      <img src="codego-mark.svg" width="96" height="96" alt="">
+      <h1>code<span>GO</span></h1>
+      <p class="welcome-title">Tu espacio para aprender Python con claridad.</p>
+      <p class="muted">Practica a tu ritmo, continúa tus proyectos o resuelve una actividad de tu profesor.</p>
+      <button id="google-signin" class="primary" disabled>Preparando acceso con Google…</button>
+      <p id="auth-status" role="status">Comprobando tu sesión.</p>
+      <small>Tu trabajo se guarda en este navegador y esta cuenta. Descarga una copia para llevarlo a otro equipo.</small>
     </div>
+  </section>
 
-    <!-- Selector de Lenguajes Académicos -->
-    <div class="lang-pills-bar" role="radiogroup" aria-label="Seleccionar Lenguaje de Programación">
-      <button type="button" class="lang-pill-btn active" data-lang="python">
-        <span>🐍</span><span>Python</span>
-      </button>
-      <button type="button" class="lang-pill-btn" data-lang="cpp">
-        <span>⚙️</span><span>C / C++</span>
-      </button>
-      <button type="button" class="lang-pill-btn" data-lang="java">
-        <span>☕</span><span>Java</span>
-      </button>
-      <button type="button" class="lang-pill-btn" data-lang="javascript">
-        <span>🟨</span><span>JavaScript</span>
-      </button>
-      <button type="button" class="lang-pill-btn" data-lang="r">
-        <span>📊</span><span>R</span>
-      </button>
+  <section id="home-screen" class="home-screen" hidden aria-label="Inicio de CodeGO">
+    <div class="home-card">
+      <div class="home-brand"><img src="codego-mark.svg" width="96" height="96" alt=""><h1>code<span>GO</span></h1><p>Tu espacio para aprender Python con claridad.</p></div>
+      <div class="home-modes" role="group" aria-label="Modalidad">
+        <button data-home-mode="activity" aria-pressed="true"><span class="mode-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22V5.5Z"/><path d="M4 5.5V22"/></svg></span><span><strong>Modo libre</strong><small>Practica y continúa tus proyectos</small></span></button>
+        <button data-home-mode="task" aria-pressed="false"><span class="mode-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10l-8 4-8-4V7Z"/><path d="m4 7 8 4 8-4M12 11v10"/></svg></span><span><strong>Tarea</strong><small>Escritura directa y entrega</small></span></button>
+        <button data-home-mode="exam" aria-pressed="false"><span class="mode-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.8 2.8 8 7 10 4.2-2 7-5.2 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-5"/></svg></span><span><strong>Examen web</strong><small>Evaluación con registro de actividad</small></span></button>
+      </div>
+      <div class="home-launch"><p class="eyebrow">TU ESPACIO DE TRABAJO</p><h2>Continúa desde donde lo dejaste.</h2><p id="home-project-name"></p><button id="home-start" class="primary">Abrir modo libre</button><button id="home-course" class="course-link">Aprender Python · curso y evaluaciones →</button><p class="small muted">Los proyectos se guardan en este navegador. Descarga una copia para cambiar de equipo.</p></div>
+      <footer class="home-footer"><span id="home-account"></span><span>codeGO <span data-web-version></span> · Web</span><button id="home-signout">Cerrar sesión</button></footer>
     </div>
+  </section>
 
-    <!-- Botones de Acción -->
-    <div class="nav-actions">
-      <button type="button" id="btn-run-code" class="btn-nav-primary" title="Ejecutar Código (F5)">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        <span>Ejecutar</span>
-      </button>
-      <button type="button" id="btn-submit-task" class="btn-nav-secondary" title="Sellar y Entregar con Certificado">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span>Entregar Tarea</span>
-      </button>
-      <button type="button" id="btn-open-verifier" class="btn-nav-ghost" title="Auditar una entrega .codego">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        <span>Verificar .codego</span>
-      </button>
-      <button type="button" id="btn-open-cognago-info" class="btn-nav-ghost" title="Integración en Cognago y LMS">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span>Integrar en Cognago</span>
-      </button>
-    </div>
-  </header>
-
-  <!-- ============================================================== -->
-  <!-- 2. CONTENEDOR PRINCIPAL: SIDEBAR + EDITOR + TERMINAL           -->
-  <!-- ============================================================== -->
-  <main class="web-main-container">
-    
-    <!-- Panel Lateral: Telemetría y Guía Forense -->
-    <aside class="side-panel">
-      <div class="side-header">
-        <span>Auditoría de Autoría</span>
-        <span class="hud-badge-clean" id="badge-authenticity">100% Genuino</span>
+  <div id="app" hidden>
+    <header class="app-header">
+      <button id="go-home" class="wordmark" aria-label="Volver al inicio"><img src="codego-mark.svg" width="30" height="30" alt="">code<span>GO</span></button>
+      <button id="open-session" class="mode-switch">Modo libre</button>
+      <span id="connection" role="status">En línea</span><span id="workspace-student" class="workspace-student"></span>
+      <div class="header-actions">
+        <button id="run" class="primary" title="Ejecutar (F5)">▶ Ejecutar</button>
+        <button id="stop" hidden>Detener</button>
+        <button id="submit" hidden disabled>Entregar</button>
+        <details class="account-menu"><summary aria-label="Cuenta y herramientas">Cuenta</summary><div>
+          <span id="account-email"></span>
+          <button id="backup">Descargar proyecto</button>
+          <button id="teacher">Crear actividad</button>
+          <button id="import-activity">Abrir actividad</button>
+          <button id="signout">Cerrar sesión</button>
+        </div></details>
       </div>
-
-      <div class="side-content">
-        <!-- Identificación del Estudiante -->
-        <div class="student-card">
-          <div class="student-card-title" id="display-student-name">Estudiante Activo</div>
-          <div class="student-card-sub" id="display-subject">Lógica de Programación & Algoritmos</div>
+    </header>
+    <div class="workspace-context"><span id="workspace-project-label">Mi proyecto</span><span class="small muted">Python · <span data-web-version></span></span></div>
+    <main class="workspace" data-pane="editor">
+      <aside id="files-pane" class="files-pane" aria-label="Archivos del proyecto">
+        <div class="pane-heading"><h2>Archivos</h2><button id="new-file" aria-label="Crear archivo">+</button></div>
+        <label class="project-select">Proyecto<select id="project-select"></select></label>
+        <div class="file-actions"><button id="new-project">Nuevo proyecto</button><button id="import-project">Abrir archivos</button></div>
+        <p id="storage-location" class="small muted">Carpeta del navegador</p>
+        <nav id="file-list" aria-label="Explorador"></nav>
+        <button id="open-course" class="course-link">Curso express de Python →</button>
+      </aside>
+      <section id="editor-pane" class="editor-pane" aria-label="Editor de código">
+        <div class="pane-heading editor-tabs"><span class="active-file-tab"><span class="file-type">PY</span><span id="filename">main.py</span></span><span id="save-status" role="status">Guardado</span></div>
+        <div id="assignment-summary" class="assignment-summary" hidden><strong id="assignment-title"></strong><p id="assignment-prompt"></p></div>
+        <div class="editor-surface">
+          <pre id="line-numbers" aria-hidden="true">1</pre>
+          <div class="editor-code"><pre id="code-highlighting" aria-hidden="true"><code></code></pre><textarea id="code-editor" aria-label="Código Python" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div>
         </div>
-
-        <!-- HUD de Métricas en Tiempo Real -->
-        <div class="forensic-hud">
-          <div class="hud-title-row">
-            <span class="hud-title">⚡ Telemetría de Tipeo</span>
-          </div>
-          <div class="hud-grid">
-            <div class="hud-stat-box">
-              <div class="hud-stat-label">Velocidad</div>
-              <div class="hud-stat-value ok" id="stat-wpm">0 PPM</div>
-            </div>
-            <div class="hud-stat-box">
-              <div class="hud-stat-label">Caracteres</div>
-              <div class="hud-stat-value" id="stat-chars">0</div>
-            </div>
-            <div class="hud-stat-box">
-              <div class="hud-stat-label">Pulsaciones</div>
-              <div class="hud-stat-value" id="stat-keystrokes">0</div>
-            </div>
-            <div class="hud-stat-box">
-              <div class="hud-stat-label">Pegados Ext.</div>
-              <div class="hud-stat-value ok" id="stat-pastes">0</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Enunciado o Consigna del Ejercicio -->
-        <div class="task-prompt-box">
-          <div class="task-prompt-title">Práctica Activa:</div>
-          <p>Escribe la solución al problema propuesto utilizando la lógica computacional del lenguaje seleccionado. Para certificar la autoría, digita directamente en el editor sin copiar de fuentes externas.</p>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Área de Trabajo Central -->
-    <section class="workspace-area">
-      <!-- Pestaña de Archivo Activo -->
-      <div class="editor-tabs-strip">
-        <div class="editor-tab">
-          <span class="editor-tab-badge" id="tab-lang-label">PYTHON</span>
-          <span id="tab-filename">main.py</span>
-        </div>
-      </div>
-
-      <!-- Editor de Código -->
-      <div class="editor-container">
-        <div class="line-numbers-col" id="editor-line-numbers">1</div>
-        <textarea id="code-editor" class="code-textarea" spellcheck="false" placeholder="Escribe tu código aquí..."></textarea>
-      </div>
-
-      <!-- Terminal Interactiva -->
-      <div class="terminal-panel">
-        <div class="terminal-header">
-          <div class="terminal-title">
-            <span class="terminal-status-dot"></span>
-            <span>Terminal Interactiva</span>
-            <span style="font-size:10px; color:var(--text-dim);" id="term-engine-indicator">(Motor Sandbox Web)</span>
-          </div>
-          <div class="terminal-actions">
-            <button type="button" id="btn-clear-term" class="terminal-btn-sm">Limpiar</button>
-          </div>
-        </div>
-
-        <div class="terminal-output" id="terminal-transcript"></div>
-
-        <form id="terminal-input-form" class="terminal-input-bar">
-          <span class="term-prompt-symbol">&gt;</span>
-          <input type="text" id="terminal-stdin-field" class="term-input-field" placeholder="Entrada para input() / scanf() / readline... [Presiona Enter]" autocomplete="off">
-        </form>
-      </div>
-    </section>
-  </main>
-
-  <!-- ============================================================== -->
-  <!-- 3. MODALES                                                     -->
-  <!-- ============================================================== -->
-
-  <!-- Modal: Entrega de Tarea Certificada -->
-  <div class="modal-overlay" id="modal-submit">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="modal-title">🔏 Sellar y Entregar Tarea Certificada</div>
-        <button type="button" class="modal-close-btn" data-close="modal-submit">✕</button>
-      </div>
-      <div class="modal-body">
-        <p>Esta entrega generará un contenedor criptográfico <strong>.codego</strong> y un <strong>CERTIFICADO_DOCENTE.html</strong> firmado con HMAC-SHA256 para acreditar la autoría de tu código ante el profesor.</p>
-        
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <label style="font-size:12px; font-weight:600; color:var(--text-main);">Nombre Completo del Alumno:</label>
-          <input type="text" id="input-student-name" value="Estudiante" style="background:#06090f; border:1px solid var(--border-subtle); color:#fff; padding:8px 12px; border-radius:6px; outline:none;">
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <label style="font-size:12px; font-weight:600; color:var(--text-main);">Matrícula / ID Institucional <span style="color:var(--text-muted); font-size:11px;">(opcional)</span>:</label>
-          <input type="text" id="input-student-id" placeholder="No. de control (opcional)" value="" style="background:#06090f; border:1px solid var(--border-subtle); color:#fff; padding:8px 12px; border-radius:6px; outline:none;">
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <label style="font-size:12px; font-weight:600; color:var(--text-main);">Materia / Curso:</label>
-          <input type="text" id="input-subject" value="Lógica de Programación y Algoritmos" style="background:#06090f; border:1px solid var(--border-subtle); color:#fff; padding:8px 12px; border-radius:6px; outline:none;">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-ghost" data-close="modal-submit">Cancelar</button>
-        <button type="button" id="btn-confirm-submit" class="btn-primary">Generar Certificado y Descargar</button>
-      </div>
-    </div>
+        <div class="code-keys" aria-label="Teclas para programar"><button data-key="    " aria-label="Sangrar cuatro espacios">Tab ⇥</button><button data-key=":">:</button><button data-key="()">( )</button><button data-key="[]">[ ]</button><button data-key="&quot;&quot;">" "</button><button data-key="=">=</button><button data-key="#">#</button><button id="undo" aria-label="Deshacer">↶</button></div>
+        <footer class="editor-footer"><span id="cursor">Lín 1 · Col 1</span><span>Python · 4 espacios</span></footer>
+      </section>
+      <div id="pane-splitter" role="separator" aria-label="Ancho del editor" aria-orientation="vertical" tabindex="0"></div>
+      <section id="terminal-pane" class="terminal-pane" aria-label="Consola">
+        <div class="pane-heading"><h2>Consola Python</h2><button id="clear-terminal">Limpiar</button></div>
+        <details class="stdin-options"><summary>Entradas para input()</summary><label for="stdin">Escribe cada respuesta en una línea antes de ejecutar.</label><textarea id="stdin" rows="3" placeholder="Ana&#10;18" aria-label="Respuestas del programa" autocapitalize="off"></textarea></details>
+        <div id="terminal-output" class="terminal-output" tabindex="0" aria-label="Salida del programa"><span id="terminal-transcript">Tu resultado aparecerá aquí.
+</span></div>
+        <section id="error-guide" class="error-guide" hidden aria-label="Ayuda para corregir"><strong id="error-title"></strong><p id="error-message"></p><pre id="error-example"></pre><button id="goto-error">Ir a la línea</button></section>
+        <div id="evaluation" class="evaluation" hidden role="status"></div>
+      </section>
+      <section id="course-pane" class="course-pane" hidden aria-label="Curso express de Python">
+        <div class="pane-heading"><h2>Aprender Python</h2><button id="close-course">Volver al editor</button></div>
+        <div class="learning-overview"><div><p class="eyebrow">DE LA PRIMERA LÍNEA A TU PROYECTO</p><h2>Comprende. Practica. Compruébalo.</h2><p>20 lecciones · 40 ejemplos · 40 ejercicios · 4 evaluaciones</p></div><div class="learning-progress"><strong id="course-progress-label">0 de 20 lecciones</strong><progress id="course-progress" max="20" value="0" aria-label="Lecciones dominadas"></progress><small>Una lección requiere comprensión y práctica.</small></div></div>
+        <nav class="learning-navigation" aria-label="Área de aprendizaje"><button id="learning-lessons" aria-pressed="true">Lecciones</button><button id="learning-assessments" aria-pressed="false">Evaluaciones</button><button id="learning-report">Descargar mi progreso</button></nav>
+        <label class="mobile-lesson-picker" for="mobile-lesson-select">Ir a la lección<select id="mobile-lesson-select"></select></label>
+        <div class="course-layout"><nav id="lesson-list" aria-label="Lecciones"></nav><article id="lesson-content"></article></div>
+        <small>Ejercicios de CodeGO basados en temas del <a href="https://github.com/freeCodeCamp/freeCodeCamp" target="_blank" rel="noopener">currículo de freeCodeCamp</a>. Sin afiliación ni certificación de freeCodeCamp. <a href="licenses/freeCodeCamp.txt">Licencia de referencia</a>.</small>
+      </section>
+    </main>
+    <nav class="mobile-tabs" aria-label="Panel de trabajo"><button data-pane="editor" aria-current="page">Editor</button><button data-pane="terminal">Consola</button><button data-pane="files">Archivos</button><button data-pane="course">Curso</button></nav>
   </div>
 
-  <!-- Modal: Verificador Forense de Entregas -->
-  <div class="modal-overlay" id="modal-verifier">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="modal-title">🔍 Auditor Forense de Entregas (.codego)</div>
-        <button type="button" class="modal-close-btn" data-close="modal-verifier">✕</button>
-      </div>
-      <div class="modal-body">
-        <p>Arrastra aquí el archivo <strong>.codego</strong> entregado por el estudiante para auditar su integridad matemática, sello HMAC-SHA256 y métricas de digitación.</p>
-        
-        <div class="drop-zone" id="verifier-dropzone">
-          <div class="drop-zone-icon">📦</div>
-          <div class="drop-zone-text">Arrastra tu archivo .codego aquí</div>
-          <div class="drop-zone-hint">o haz clic para examinar desde tu equipo</div>
-          <input type="file" id="verifier-file-input" accept=".codego,.json" style="display:none;">
-        </div>
-
-        <div id="verifier-result-box" style="display:none; background:#06090f; border:1px solid var(--border-subtle); border-radius:8px; padding:14px; font-size:12px;"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-ghost" data-close="modal-verifier">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Integración en Cognago y LMS -->
-  <div class="modal-overlay" id="modal-cognago">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="modal-title">🧩 Integración en Cognago y Cursos a Distancia</div>
-        <button type="button" class="modal-close-btn" data-close="modal-cognago">✕</button>
-      </div>
-      <div class="modal-body">
-        <p>Puedes integrar el entorno de programación y certificación de CodeGO en cualquier plataforma web (Cognago, Moodle, Canvas, o tu propio LMS) utilizando el SDK autónomo <code>codego-sdk.js</code>:</p>
-        
-        <pre class="code-snippet">&lt;!-- 1. Incluir el SDK en tu plataforma --&gt;
-&lt;script src="codego-sdk.js"&gt;&lt;/script&gt;
-
-&lt;!-- 2. Contenedor HTML --&gt;
-&lt;div id="mi-editor-cognago" style="height: 520px;"&gt;&lt;/div&gt;
-
-&lt;!-- 3. Inicializar entorno --&gt;
-&lt;script&gt;
-  const env = CodeGOSDK.createCodeGOEnvironment({
-    container: '#mi-editor-cognago',
-    language: 'python', // 'cpp' | 'java' | 'javascript' | 'r'
-    mode: 'task',       // 'task' | 'exam' | 'activity'
-    student: { name: 'Alumno Cognago', id: 'CG-8821' },
-    subject: 'Programación para Cursos a Distancia',
-    onSubmission: (entrega) => {
-      console.log('Sello HMAC:', entrega.hmacSignature);
-      console.log('Reporte forense:', entrega.telemetry);
-      // Enviar a la API de Cognago para calificar automáticamente
-    }
-  });
-&lt;/script&gt;</pre>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-primary" data-close="modal-cognago">Entendido</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Carga del SDK de CodeGO -->
+  <dialog id="session-dialog" aria-labelledby="session-title">
+    <form id="session-form">
+      <div class="dialog-heading"><h2 id="session-title">Tu espacio de trabajo</h2><button type="button" data-close="session-dialog" aria-label="Cerrar">×</button></div>
+      <fieldset class="mode-options"><legend>Modalidad</legend><label><input type="radio" name="mode" value="activity" checked>Libre</label><label><input type="radio" name="mode" value="task">Tarea</label><label><input type="radio" name="mode" value="exam">Examen web</label></fieldset>
+      <label>Nombre del alumno<input id="student-name" required maxlength="120" autocomplete="name"></label>
+      <label>Matrícula / ID <span class="muted">(opcional)</span><input id="student-id" maxlength="80"></label>
+      <label>Carpeta de trabajo<select id="session-project"></select></label>
+      <p id="mode-description" class="notice">Práctica libre. Puedes copiar, pegar y cambiar de aplicación.</p>
+      <p id="session-error" role="alert"></p>
+      <button class="primary" type="submit">Abrir espacio de trabajo</button>
+    </form>
+  </dialog>
+  <dialog id="text-dialog" aria-labelledby="text-dialog-title"><form id="text-form"><h2 id="text-dialog-title"></h2><label id="text-label" for="text-input">Nombre</label><input id="text-input" required maxlength="180"><p id="text-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close="text-dialog">Cancelar</button><button type="submit" class="primary">Aceptar</button></div></form></dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><form method="dialog"><h2 id="confirm-title"></h2><p id="confirm-message"></p><div class="dialog-actions"><button value="cancel">Cancelar</button><button value="confirm" class="primary">Continuar</button></div></form></dialog>
+  <dialog id="focus-dialog" aria-labelledby="focus-title"><h2 id="focus-title">Vuelve a tu actividad</h2><p>Se registró una salida de la ventana.</p><button id="resume" class="primary" disabled>Espera 12 s</button></dialog>
+  <dialog id="teacher-dialog" aria-labelledby="teacher-title"><form id="teacher-form"><div class="dialog-heading"><h2 id="teacher-title">Crear una actividad</h2><button type="button" data-close="teacher-dialog" aria-label="Cerrar">×</button></div>
+    <label>Partir de una evaluación<select id="teacher-template"><option value="">Actividad personalizada</option></select></label>
+    <label>Título<input id="teacher-name" required maxlength="120" value="Suma de dos números"></label>
+    <label>Modalidad<select id="teacher-mode"><option value="task">Tarea</option><option value="exam">Examen web</option></select></label>
+    <label>Enunciado<textarea id="teacher-prompt" required rows="2">Crea sumar(a, b) para devolver la suma de dos números.</textarea></label>
+    <label>Código inicial<textarea id="teacher-starter" rows="3" spellcheck="false">def sumar(a, b):
+    pass</textarea></label>
+    <label>Pruebas de Python (JSON)<textarea id="teacher-tests" rows="5" spellcheck="false">[{"check":"assert sumar(2, 3) == 5", "feedback":"Devuelve a + b usando return."}, {"check":"assert sumar(-1, 1) == 0", "feedback":"Comprueba también números negativos."}]</textarea></label>
+    <small>Las pruebas se incluyen en el archivo. El alumno descarga sus resultados; la calificación web es orientativa y debe revisarse.</small><p id="teacher-error" role="alert"></p><button class="primary" type="submit">Descargar actividad para compartir</button>
+  </form></dialog>
+  <input id="file-input" type="file" multiple accept=".py,.js,.txt,.csv,.json,.md" hidden>
+  <input id="folder-input" type="file" webkitdirectory multiple hidden>
+  <input id="activity-input" type="file" accept=".json" hidden>
+  <div id="toast" role="status" hidden></div>
   <script src="codego-sdk.js"></script>
-
-  <!-- Lógica de la WebApp -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const SDK = window.CodeGOSDK;
-      if (!SDK) {
-        console.error('CodeGOSDK no cargó correctamente.');
-        return;
-      }
-
-      // Estado
-      let currentLanguage = 'python';
-      let telemetry = new SDK.ForensicTelemetry();
-      let inputPendingResolve = null;
-
-      // Elementos DOM
-      const codeEditor = document.getElementById('code-editor');
-      const lineNumbers = document.getElementById('editor-line-numbers');
-      const tabLangLabel = document.getElementById('tab-lang-label');
-      const tabFilename = document.getElementById('tab-filename');
-      const termOutput = document.getElementById('terminal-transcript');
-      const termInputForm = document.getElementById('terminal-input-form');
-      const termInputField = document.getElementById('terminal-stdin-field');
-      const btnClearTerm = document.getElementById('btn-clear-term');
-      const btnRunCode = document.getElementById('btn-run-code');
-      const btnSubmitTask = document.getElementById('btn-submit-task');
-      const btnOpenVerifier = document.getElementById('btn-open-verifier');
-      const btnOpenCognago = document.getElementById('btn-open-cognago-info');
-      
-      // HUD
-      const statWpm = document.getElementById('stat-wpm');
-      const statChars = document.getElementById('stat-chars');
-      const statKeystrokes = document.getElementById('stat-keystrokes');
-      const statPastes = document.getElementById('stat-pastes');
-
-      // Modales
-      const modalSubmit = document.getElementById('modal-submit');
-      const modalVerifier = document.getElementById('modal-verifier');
-      const modalCognago = document.getElementById('modal-cognago');
-      const btnConfirmSubmit = document.getElementById('btn-confirm-submit');
-
-      // Motor de Ejecución Web
-      const engine = new SDK.WebExecutionEngine({
-        onOutput: (text, type = 'stdout') => {
-          const span = document.createElement('span');
-          span.className = `out-${type}`;
-          span.textContent = text;
-          termOutput.appendChild(span);
-          termOutput.scrollTop = termOutput.scrollHeight;
-        },
-        onFinished: (res) => {
-          const span = document.createElement('span');
-          span.className = 'out-system';
-          span.textContent = `\n[Ejecución finalizada con código ${res.exitCode} (${res.duration}s)]\n`;
-          termOutput.appendChild(span);
-          termOutput.scrollTop = termOutput.scrollHeight;
-        }
-      });
-
-      // Inicializar Código Starter
-      function setLanguage(langKey) {
-        const langDef = SDK.SUPPORTED_LANGUAGES[langKey];
-        if (!langDef) return;
-        currentLanguage = langKey;
-        codeEditor.value = langDef.starter;
-        tabLangLabel.textContent = langDef.name.toUpperCase();
-        tabFilename.textContent = langDef.defaultFile;
-        updateLineNumbers();
-        document.querySelectorAll('.lang-pill-btn').forEach(b => {
-          b.classList.toggle('active', b.dataset.lang === langKey);
-        });
-        telemetry.reset();
-        updateHUD();
-      }
-
-      function updateLineNumbers() {
-        const lines = codeEditor.value.split('\n').length;
-        lineNumbers.textContent = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
-      }
-
-      function updateHUD() {
-        const rep = telemetry.getReport();
-        statChars.textContent = rep.charactersWritten;
-        statKeystrokes.textContent = rep.keystrokes;
-        statPastes.textContent = rep.externalPasteAttempts;
-        statWpm.textContent = `${rep.wordsPerMinute} PPM`;
-        if (rep.externalPasteAttempts > 0) {
-          statPastes.classList.remove('ok');
-          statPastes.classList.add('alert');
-          document.getElementById('badge-authenticity').textContent = 'Auditado';
-          document.getElementById('badge-authenticity').className = 'hud-badge-clean' + ' alert';
-        }
-      }
-
-      // Eventos del Editor
-      codeEditor.addEventListener('input', (e) => {
-        telemetry.recordKeystroke(e.data ? e.data.length : 1);
-        updateLineNumbers();
-        updateHUD();
-      });
-
-      codeEditor.addEventListener('scroll', () => {
-        lineNumbers.scrollTop = codeEditor.scrollTop;
-      });
-
-      // Tab key support & auto-indent
-      codeEditor.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          const start = codeEditor.selectionStart;
-          const end = codeEditor.selectionEnd;
-          codeEditor.value = codeEditor.value.substring(0, start) + '    ' + codeEditor.value.substring(end);
-          codeEditor.selectionStart = codeEditor.selectionEnd = start + 4;
-          updateLineNumbers();
-        } else if (e.key === 'F5') {
-          e.preventDefault();
-          btnRunCode.click();
-        }
-      });
-
-      // Bloqueo de Pegado en Modo Tarea
-      codeEditor.addEventListener('paste', (e) => {
-        e.preventDefault();
-        telemetry.recordPasteAttempt();
-        updateHUD();
-        alert('🔒 Modo Tarea Certificada: Pegado externo deshabilitado para garantizar autoría legítima.');
-      });
-
-      // Selector de Lenguajes
-      document.querySelectorAll('.lang-pill-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const isModified = telemetry.charactersWritten > 0;
-          if (isModified && codeEditor.value.trim().length > 20) {
-            if (!confirm('¿Cambiar de lenguaje? Se reemplazará el código actual por la plantilla seleccionada.')) return;
-          }
-          setLanguage(btn.dataset.lang);
-        });
-      });
-
-      // Terminal
-      btnClearTerm.addEventListener('click', () => {
-        termOutput.textContent = '';
-      });
-
-      termInputForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const text = termInputField.value;
-        termInputField.value = '';
-        const span = document.createElement('span');
-        span.className = 'out-stdout';
-        span.textContent = text + '\n';
-        termOutput.appendChild(span);
-        termOutput.scrollTop = termOutput.scrollHeight;
-        if (inputPendingResolve) {
-          inputPendingResolve(text);
-          inputPendingResolve = null;
-        }
-      });
-
-      // Ejecución
-      btnRunCode.addEventListener('click', () => {
-        telemetry.recordRun();
-        termOutput.textContent = '';
-        engine.run(codeEditor.value, currentLanguage);
-      });
-
-      // Modales Triggers
-      btnSubmitTask.addEventListener('click', () => modalSubmit.classList.add('active'));
-      btnOpenVerifier.addEventListener('click', () => modalVerifier.classList.add('active'));
-      btnOpenCognago.addEventListener('click', () => modalCognago.classList.add('active'));
-
-      document.querySelectorAll('[data-close]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const target = document.getElementById(btn.dataset.close);
-          if (target) target.classList.remove('active');
-        });
-      });
-
-      // Confirmar Entrega
-      btnConfirmSubmit.addEventListener('click', async () => {
-        const student = {
-          name: document.getElementById('input-student-name').value.trim() || 'Estudiante',
-          id: document.getElementById('input-student-id').value.trim() || '0001'
-        };
-        const subject = document.getElementById('input-subject').value.trim() || 'Lógica de Programación';
-        const report = telemetry.getReport();
-        const code = codeEditor.value;
-
-        const payloadToSign = `${code}|${JSON.stringify(report)}|${student.name}|${student.id}`;
-        const hmacSignature = await SDK.computeHMACSHA256(payloadToSign);
-        const codeHash = await SDK.computeSHA256(code);
-
-        // 1. Descargar archivo .codego
-        const codegoData = {
-          version: '1.2.0',
-          type: 'codego-certified-task',
-          created: new Date().toISOString(),
-          student,
-          subject,
-          language: currentLanguage,
-          code,
-          codeHash,
-          telemetry: report,
-          hmacSignature
-        };
-
-        const blobCodego = new Blob([JSON.stringify(codegoData, null, 2)], { type: 'application/json' });
-        const aCodego = document.createElement('a');
-        aCodego.href = URL.createObjectURL(blobCodego);
-        aCodego.download = `ENTREGA_${student.name.replace(/\s+/g, '_')}_${currentLanguage.toUpperCase()}.codego`;
-        aCodego.click();
-
-        // 2. Descargar CERTIFICADO_DOCENTE.html
-        const certHtml = await SDK.generateCertificateHTML({
-          student,
-          subject,
-          language: currentLanguage,
-          code,
-          telemetry: report,
-          hmacSignature
-        });
-
-        const blobCert = new Blob([certHtml], { type: 'text/html' });
-        const aCert = document.createElement('a');
-        aCert.href = URL.createObjectURL(blobCert);
-        aCert.download = `CERTIFICADO_${student.name.replace(/\s+/g, '_')}.html`;
-        aCert.click();
-
-        modalSubmit.classList.remove('active');
-        alert(`✓ ¡Tarea entregada y firmada con éxito!\n\nSello Criptográfico:\n${hmacSignature}\n\nSe han descargado tu archivo .codego y tu Certificado Docente.`);
-      });
-
-      // Verificador Forense Drag and Drop
-      const dropzone = document.getElementById('verifier-dropzone');
-      const fileInput = document.getElementById('verifier-file-input');
-      const resultBox = document.getElementById('verifier-result-box');
-
-      dropzone.addEventListener('click', () => fileInput.click());
-      dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
-      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-      dropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropzone.classList.remove('dragover');
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-          processCodegoFile(e.dataTransfer.files[0]);
-        }
-      });
-
-      fileInput.addEventListener('change', () => {
-        if (fileInput.files && fileInput.files[0]) {
-          processCodegoFile(fileInput.files[0]);
-        }
-      });
-
-      async function processCodegoFile(file) {
-        try {
-          const text = await file.text();
-          const data = JSON.parse(text);
-
-          const expectedPayload = `${data.code}|${JSON.stringify(data.telemetry)}|${data.student.name}|${data.student.id}`;
-          const recalculatedHmac = await SDK.computeHMACSHA256(expectedPayload);
-          const recalculatedHash = await SDK.computeSHA256(data.code);
-
-          const isHmacValid = (recalculatedHmac === data.hmacSignature);
-          const isHashValid = (recalculatedHash === data.codeHash);
-
-          resultBox.style.display = 'block';
-          resultBox.innerHTML = `
-            <div style="font-weight:700; font-size:14px; color:${isHmacValid ? '#3fb950' : '#f85149'}; margin-bottom:8px;">
-              ${isHmacValid ? '✓ SELLO CRIPTOGRÁFICO VÁLIDO (AUTÉNTICO)' : '✕ ALERTA: EL SELLO HA SIDO ALTERADO'}
-            </div>
-            <div><strong>Estudiante:</strong> ${data.student.name} (${data.student.id})</div>
-            <div><strong>Lenguaje:</strong> ${data.language.toUpperCase()}</div>
-            <div><strong>Fecha:</strong> ${new Date(data.created).toLocaleString()}</div>
-            <div><strong>Caracteres Digitados:</strong> ${data.telemetry.charactersWritten}</div>
-            <div><strong>Pulsaciones de Tecla:</strong> ${data.telemetry.keystrokes}</div>
-            <div><strong>Pegados Externos:</strong> ${data.telemetry.externalPasteAttempts}</div>
-            <div style="margin-top:6px; word-break:break-all; font-family:monospace; color:#8b949e;">
-              SHA-256: ${data.codeHash}
-            </div>
-          `;
-        } catch (err) {
-          resultBox.style.display = 'block';
-          resultBox.innerHTML = `<span style="color:#f85149;">Error al leer el archivo: Formato no válido.</span>`;
-        }
-      }
-
-      // Inicializar
-      setLanguage('python');
-    });
-  </script>
+  <script src="store.js"></script>
+  <script src="course-content.js"></script>
+  <script src="course.js"></script>
+  <script src="editor.js"></script>
+  <script src="learning.js"></script>
+  <script src="firebase-config.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

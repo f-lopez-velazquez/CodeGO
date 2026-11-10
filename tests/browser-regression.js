@@ -49,36 +49,14 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   });
   for (const size of [{ width: 1600, height: 900 }, { width: 1280, height: 720 }, { width: 1280, height: 600 }, { width: 850, height: 700 }]) {
     await page.setViewportSize(size);
-    const lobbyGeometry = await page.evaluate(() => {
-      const rect = selector => {
-        const value = document.querySelector(selector).getBoundingClientRect();
-        return { left: value.left, right: value.right, top: value.top, bottom: value.bottom, width: value.width };
-      };
-      return {
-        card: rect('.lobby-card'),
-        form: rect('.lobby-form'),
-        recents: rect('#recent-projects'),
-        language: rect('.language-inline'),
-        modes: [...document.querySelectorAll('.mode-segment-btn')].map(element => {
-          const value = element.getBoundingClientRect();
-          return { left: value.left, right: value.right, top: value.top, bottom: value.bottom };
-        }),
-        start: rect('#btn-start-exam'),
-        version: document.querySelector('#lobby-app-version')?.textContent,
-        viewport: { width: innerWidth, height: innerHeight }
-      };
-    });
-    assert(lobbyGeometry.card.left >= 0 && lobbyGeometry.card.right <= size.width + 1, `Lobby overflow: ${JSON.stringify({ size, lobbyGeometry })}`);
-    assert(lobbyGeometry.card.top >= 0 && lobbyGeometry.card.bottom <= size.height + 1, `Lobby vertical overflow: ${JSON.stringify({ size, lobbyGeometry })}`);
-    assert(lobbyGeometry.recents.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.recents.right <= lobbyGeometry.form.right + 1, `Recent projects escaped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
-    assert(lobbyGeometry.start.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.start.right <= lobbyGeometry.form.right + 1, `Primary action escaped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
-    assert(lobbyGeometry.language.left >= lobbyGeometry.form.left - 1 && lobbyGeometry.language.right <= lobbyGeometry.form.right + 1, `Language selector escaped or overlapped the form: ${JSON.stringify({ size, lobbyGeometry })}`);
-    assert(/^v\d+\.\d+\.\d+$/.test(lobbyGeometry.version || ''), `Lobby version is missing: ${JSON.stringify({ size, lobbyGeometry })}`);
-    if (size.width > 900) {
-      assert(lobbyGeometry.modes.every((mode, index, all) => index === 0 || mode.top >= all[index - 1].bottom - 1), `Desktop modes overlap: ${JSON.stringify({ size, lobbyGeometry })}`);
-      assert(lobbyGeometry.modes.every(mode => mode.right < lobbyGeometry.form.left), `Desktop mode rail overlaps the form: ${JSON.stringify({ size, lobbyGeometry })}`);
-    }
+    const geometry = await page.locator('.lobby-card').boundingBox();
+    assert(geometry.x >= 0 && geometry.x + geometry.width <= size.width + 1 && geometry.y + geometry.height <= size.height + 1, `Lobby overflow at ${JSON.stringify(size)}`);
+    assert(await page.locator('#student-name').isHidden(), 'Identity form should open only after choosing a mode');
+    assert(await page.locator('#btn-start-exam').isVisible(), 'Entry action is missing');
+    assert(/^v\d+\.\d+\.\d+$/.test(await page.locator('#lobby-app-version').textContent()), 'Version missing');
   }
+  await page.locator('#btn-start-exam').click();
+  assert(await page.locator('#session-setup-dialog').isVisible(), 'Session setup must open in a centered dialog');
   assert(await page.locator('.recent-project-btn').count() === 2, 'Recent projects are not visible in the lobby');
   await page.locator('.recent-project-btn').first().click();
   await page.waitForFunction(() => window.resumeCalls.length === 1);
@@ -91,6 +69,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     state.workspacePath = '';
     checkAndDisplayLastSession();
   });
+  await page.locator('#btn-start-exam').click();
   await page.locator('#btn-continue-last-session').click();
   await page.waitForFunction(() => window.resumeCalls.length === 2);
   const resumeResult = await page.evaluate(() => ({ calls: window.resumeCalls, dialogs: window.folderDialogCalls, workspacePath: state.workspacePath }));
@@ -340,7 +319,9 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.locator('#btn-close-runtime-error').click();
   await page.locator('#btn-editor-diagnostic-line').click();
   assert(await page.locator('.editor-line-numbers .has-error').count() === 1, 'Live syntax issue does not navigate to its line');
+  await page.locator('.editor-options-menu > summary').click();
   await page.locator('#btn-toggle-term-view').click();
+  await page.locator('.editor-options-menu > summary').click();
   assert(await page.locator('#terminal-panel').isHidden(), 'Collapse failed');
   await page.locator('#btn-run-code').click();
   assert(await page.locator('#terminal-stdin-input').isVisible(), 'Run did not reopen terminal');
@@ -409,6 +390,14 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   assert((await page.locator('#app-dialog-title').innerText()).includes('Nuevo archivo'), 'Dialog does not explain the requested action');
   await page.keyboard.press('Escape');
   assert(await page.locator('#app-dialog').isHidden(), 'Dialog Escape failed');
+  await page.evaluate(() => { window.confirmationResult = null; askConfirmation('Guardar el proyecto', { title: 'Confirmación de prueba' }).then(value => { window.confirmationResult = value; }); });
+  await page.locator('#app-dialog').waitFor();
+  const centeredDialog = await page.locator('#app-dialog').boundingBox();
+  const currentViewport = page.viewportSize();
+  assert(Math.abs(centeredDialog.x + centeredDialog.width / 2 - currentViewport.width / 2) < 2, 'Native dialog is not centered');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => window.confirmationResult === true);
+
   await page.evaluate(() => { setTheme('theme-paper'); clearTerminal(); appendTerminalOutput('Nombre: José\n'); });
   const colors = await page.evaluate(() => ({output:getComputedStyle(DOM.terminalOutput).backgroundColor,text:getComputedStyle(DOM.terminalOutput.querySelector('.stdout')).color}));
   assert(colors.output === 'rgb(248, 250, 252)' && colors.text === 'rgb(15, 23, 42)', 'Light terminal theme broken');
@@ -431,7 +420,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   });
   assert(modeSupervision.taskWarningVisible, 'Task/activity mode must supervise application exits');
   assert(modeSupervision.freeWarningHidden, 'Free mode must not show a focus warning');
-  assert(modeSupervision.clipboardAllowed, 'Task/activity mode must allow normal copy and paste');
+  assert(!modeSupervision.clipboardAllowed, 'Task mode must block paste including beforeinput');
   await page.evaluate(() => {
     setTheme('theme-obsidian');
     setSessionMode('exam');

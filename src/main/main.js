@@ -6,6 +6,8 @@ const os = require('os');
 const { spawn, execSync, execFileSync, execFile } = require('child_process');
 const executeFile = require('node:util').promisify(execFile);
 const crypto = require('crypto');
+const { writeFileAtomic } = require('./atomic-file');
+const { listWorkspaceTree } = require('./workspace-tree');
 const { resolveWorkspacePath } = require('./workspace-path');
 const { PythonRunner } = require('./python-runner');
 const {
@@ -379,12 +381,25 @@ const managedTeacherPin = String(process.env.CODEGO_TEACHER_PIN || '').trim();
 let activeTeacherPin = managedTeacherPin || null;
 
 // Dynamic student workspace directory (supports opening & creating projects)
-let currentWorkspace = path.join(app.getPath('userData'), 'exam_workspace');
-if (!fs.existsSync(currentWorkspace)) {
-  fs.mkdirSync(currentWorkspace, { recursive: true });
+const workspacePreferencePath = path.join(app.getPath('userData'), 'workspace-preference.json');
+let currentWorkspace = path.join(app.getPath('userData'), diagnosticMode ? 'exam_workspace' : 'projects', 'Mi proyecto');
+if (!diagnosticMode) {
+  try {
+    const saved = JSON.parse(fs.readFileSync(workspacePreferencePath, 'utf8')).path;
+    if (typeof saved === 'string' && path.isAbsolute(saved) && fs.statSync(saved).isDirectory()) currentWorkspace = saved;
+  } catch (_) { /* Missing or disconnected folders fall back to the private local project. */ }
 }
+fs.mkdirSync(currentWorkspace, { recursive: true });
 const defaultWorkspace = currentWorkspace;
-let workspaceExplicitlySelected = diagnosticMode;
+let workspaceExplicitlySelected = true;
+let workspacePreferenceQueue = Promise.resolve();
+function rememberWorkspace() {
+  const selected = currentWorkspace;
+  const write = () => writeFileAtomic(workspacePreferencePath, JSON.stringify({ path: selected }));
+  workspacePreferenceQueue = workspacePreferenceQueue.then(write, write);
+  return workspacePreferenceQueue;
+}
+
 let workspaceSealed = false;
 const activeExamMarkerPath = path.join(app.getPath('userData'), 'active-exam-session.json');
 
@@ -1521,6 +1536,11 @@ function setupIpcHandlers() {
     if (isKioskActive || activeProcess) return { success: false, checks: [{ name: 'Disponibilidad', success: false, detail: 'Detén Python y termina el examen antes de comprobar el equipo.' }] };
     return runSelfTest({ command: resolvePythonBinary().command, directory: app.getPath('userData'), version: currentAppVersion() });
   });
+  handle('system:open-learning-course', async () => {
+    if (isKioskActive || (activeSessionMode && activeSessionMode !== 'activity')) return { success: false, error: 'El curso está disponible fuera de una evaluación.' };
+    await shell.openExternal('https://codego-python.web.app/');
+    return { success: true };
+  });
   handle('system:open-support-page', async () => {
     if (isKioskActive || activeSessionMode) return { success: false, error: 'Disponible desde la pantalla de inicio.' };
     await shell.openExternal('https://paypal.me/FranciscoLopezVzqz');
@@ -2232,6 +2252,7 @@ except Exception:
     currentWorkspace = res.filePaths[0];
     workspaceExplicitlySelected = true;
     workspaceSealed = false;
+    await rememberWorkspace().catch(() => {});
     return { success: true, workspacePath: currentWorkspace, workspaceName: path.basename(currentWorkspace) };
   });
 
@@ -2252,6 +2273,7 @@ except Exception:
     currentWorkspace = restoredPath;
     workspaceExplicitlySelected = true;
     workspaceSealed = false;
+    await rememberWorkspace().catch(() => {});
     return { success: true, workspacePath: currentWorkspace, workspaceName: path.basename(currentWorkspace) };
   });
 
@@ -2276,6 +2298,7 @@ except Exception:
     currentWorkspace = projectDir;
     workspaceExplicitlySelected = true;
     workspaceSealed = false;
+    await rememberWorkspace().catch(() => {});
     return { success: true, workspacePath: currentWorkspace, workspaceName: path.basename(currentWorkspace), empty: fs.readdirSync(currentWorkspace).length === 0 };
   });
 
@@ -2347,45 +2370,11 @@ except Exception:
 
   // File System Operations (Dynamic currentWorkspace with enhanced cross-platform subfolder support)
   handle('fs:list-workspace', async () => {
-    function scanDir(dir, relative = '') {
-      const items = fs.readdirSync(dir, { withFileTypes: true });
-      items.sort((a, b) => {
-        if (a.isDirectory() && !b.isDirectory()) return -1;
-        if (!a.isDirectory() && b.isDirectory()) return 1;
-        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-      });
-      const result = [];
-
-      for (const item of items) {
-        const itemRelative = (relative ? relative + '/' : '') + item.name;
-        const itemFull = path.join(dir, item.name);
-
-        if (item.isDirectory()) {
-          result.push({
-            name: item.name,
-            path: itemRelative,
-            type: 'directory',
-            children: scanDir(itemFull, itemRelative)
-          });
-        } else {
-          const fileType = classifyWorkspaceFile(item.name);
-          result.push({
-            name: item.name,
-            path: itemRelative,
-            type: 'file',
-            size: fs.statSync(itemFull).size,
-            ...fileType
-          });
-        }
-      }
-      return result;
-    }
-
+    const root = currentWorkspace;
     try {
-      const tree = scanDir(currentWorkspace);
-      return { success: true, tree, rootPath: currentWorkspace };
-    } catch (e) {
-      return { success: false, error: e.message };
+      return { success: true, ...await listWorkspaceTree(root), rootPath: root };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
   });
 
@@ -2490,8 +2479,8 @@ except Exception:
     if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
-      fs.mkdirSync(path.dirname(safePath), { recursive: true });
-      fs.writeFileSync(safePath, content, 'utf-8');
+      if (typeof content !== 'string' || Buffer.byteLength(content, 'utf8') > 5 * 1024 * 1024) throw new Error('El archivo supera el límite de 5 MB.');
+      await writeFileAtomic(safePath, content);
       return { success: true, path: relativePath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };

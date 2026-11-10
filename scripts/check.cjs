@@ -6,10 +6,13 @@ function walk(dir) {
     const file = path.join(dir,item.name);
     if (item.isDirectory()) walk(file);
     else if (/\.(js|cjs)$/.test(item.name)) {
-      const result = spawnSync(process.execPath,['--check',file],{stdio:'inherit'});
+      const moduleScript = file === path.join('webapp', 'app.js');
+      const result = moduleScript
+        ? spawnSync(process.execPath, ['--input-type=module', '--check'], { input: fs.readFileSync(file), stdio: ['pipe', 'inherit', 'inherit'] })
+        : spawnSync(process.execPath, ['--check', file], { stdio: 'inherit' });
       if (result.status !== 0) process.exit(result.status || 1);
     }
   }
 }
-for (const dir of ['src','scripts','tests']) walk(dir);
+for (const dir of ['src','scripts','tests','webapp']) walk(dir);
 console.log('Sintaxis verificada.');

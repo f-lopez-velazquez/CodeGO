@@ -27,3 +27,7 @@ build/offline/*
 CodeGO.AppImage
 docs/verification/
 docs/MEJORAS.md
+
+.playwright-cli/
+output/playwright/
+firebase-debug.log

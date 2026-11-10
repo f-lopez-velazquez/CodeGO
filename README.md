@@ -20,7 +20,7 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Instalador base autónomo (recibe v1.6.14) | Alternativa |
+| Sistema | Instalador base autónomo (recibe v1.6.15) | Alternativa |
 | --- | --- | --- |
 | Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-portable-x64.exe) |
 | Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.tar.gz) |
@@ -41,7 +41,7 @@ La ayuda y el diagnóstico `CG-SETUP-108` muestran el mismo comando para copiarl
 
 1. **🛡️ Modo Examen Blindado**: espacio nuevo sin archivos previos, ID dictado en el aula, kiosk a pantalla completa, Wi-Fi deshabilitado y alerta visible y sonora al cambiar de ventana. El sonido continúa hasta regresar; después comienza la espera de 12 segundos. La entrega queda sellada en un ZIP auditado con SHA-256.
 2. **📦 Tarea / Actividad Supervisada**:
-   - **Edición flexible**: permite copiar, cortar y pegar, abrir proyectos anteriores e importar PDF, imágenes, audio y datos como recursos.
+   - **Escritura directa**: copiar, cortar y pegar están bloqueados durante la tarea; permite abrir proyectos anteriores y utilizar recursos locales.
    - **Supervisión repetible**: cada cambio de aplicación activa el aviso; al regresar comienza una espera de 12 segundos que se reinicia si el alumno vuelve a salir.
    - **Registro de trabajo**: conserva pulsaciones, caracteres redactados, tiempo activo y ejecuciones de prueba como contexto para la revisión docente.
    - **Contenedor `.codego` con sello Ed25519**: cada instalación mantiene una identidad criptográfica local; cualquier cambio posterior en el certificado o el código invalida la firma y los hashes.
@@ -103,3 +103,7 @@ La distribución pública actual no tiene firma comercial ni notarización. Conf
 ## Licencia y colaboración
 
 [MIT](LICENSE) · [Contribuir](CONTRIBUTING.md) · [Seguridad](SECURITY.md) · [Cambios](CHANGELOG.md). Las dependencias conservan sus propias licencias.
+
+### Aplicación web y curso de Python
+
+La web está publicada en [codego-python.web.app](https://codego-python.web.app), con acceso Google, proyectos locales por cuenta, edición móvil y un curso express con evaluación por pruebas. La fuente está en `webapp/`; ejecutar `node scripts/sync-webapp.cjs` para actualizar su copia en el sitio corporativo. Ver [plataformas, recuperación y límites](docs/PLATAFORMAS-Y-RECUPERACION.md). Los cambios de escritorio requieren distribuir una actualización; no se publican con el hosting web.

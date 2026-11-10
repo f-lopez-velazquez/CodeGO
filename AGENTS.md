@@ -22,7 +22,7 @@ La aplicación opera bajo **tres modalidades especializadas**:
 
 2. **📦 MODO TAREA CERTIFICADA**:
    - **Objetivo**: Garantizar fehacientemente al docente que las tareas para casa o entregables fueron escritas a mano por el alumno dentro de CodeGO, sin copia/pega externo y sin alternar con ChatGPT u otras apps.
-   - **Edición Flexible**: Copiar, cortar y pegar permanecen disponibles durante la tarea para permitir un flujo de trabajo normal.
+   - **Escritura directa**: Copiar, cortar y pegar están deshabilitados durante la tarea, incluidos el pegado móvil y el arrastre de texto, por solicitud expresa del usuario de noviembre de 2026.
    - **Supervisión**: No usa kiosk ni desconecta la red, pero vigila la pérdida de foco y aplica el aviso y la espera de 12 segundos en cada salida.
    - **Conectividad**: Wi-Fi habilitado para consultas o recursos permitidos según la actividad.
    - **Registro de Actividad**: Mide pulsaciones de teclas, caracteres digitados, tiempo activo y ejecuciones nativas de prueba como contexto informativo para el docente.
@@ -154,3 +154,12 @@ Cualquier CLI o agente debe verificar estrictamente las siguientes reglas antes 
   ```bash
   ./CodeGO.AppImage
   ```
+
+
+## 7. Web y publicación de cambios
+
+La fuente web es `webapp/`, publicada en `https://codego-python.web.app` con Firebase Auth Google del proyecto `zolvek-mx`. `scripts/sync-webapp.cjs` sincroniza su copia en `website/codego/webapp/`. El navegador no tiene los controles de kiosk, audio y red del escritorio; los reportes locales no equivalen al sello Ed25519.
+
+El currículo está en `webapp/course-content.js`, la lógica de aprendizaje en `course.js` y su presentación en `learning.js`. Las soluciones de referencia de pruebas están en `tests/fixtures/`, fuera de la distribución web. Comprobar ejemplos y retos con Python real antes de publicar contenido.
+
+Cambiar el código local o publicar Firebase no actualiza la aplicación instalada. Para una actualización compatible se incrementa la versión, se valida `npm run build:patch` y se publica el paquete ASAR con su SHA-256 en una nueva GitHub Release. Verificar que `checkForUpdates` desde la versión anterior detecta el paquete publicado. Los instaladores base mantienen su versión real.

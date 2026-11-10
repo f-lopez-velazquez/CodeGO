@@ -2237,6 +2237,11 @@ body.mode-exam-active .sidebar-reveal-button { display: none; }
 
 /* Branded application dialogs replace Chromium alert/confirm/prompt windows. */
 .app-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
   width: min(470px, calc(100vw - 32px));
   padding: 0;
   border: 1px solid var(--border-medium);
@@ -2248,7 +2253,6 @@ body.mode-exam-active .sidebar-reveal-button { display: none; }
 
 .app-dialog::backdrop {
   background: rgba(3, 7, 18, .68);
-  backdrop-filter: blur(5px);
 }
 
 .app-dialog form { padding: 22px; }
@@ -5345,6 +5349,9 @@ body.theme-obsidian {
 .file-context-menu .menu-icon { display: inline-grid; width: 17px; place-items: center; color: #91abc0; font-size: .84rem; }
 
 .media-preview-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(820px, calc(100vw - 36px));
   max-height: calc(100vh - 36px);
   box-sizing: border-box;
@@ -6784,3 +6791,51 @@ body.indent-guides-off .editor-indent-guides { display: none !important; }
   .lobby-form { grid-column: 1; grid-row: 3 !important; }
   .app-credits { grid-column: 1; grid-row: 4 !important; }
 }
+
+/* Entry asks one decision at a time; enrollment is a centered native dialog. */
+.lobby-card { grid-template-columns: minmax(220px, .8fr) minmax(280px, 1fr); width: min(880px, calc(100vw - 32px)); }
+.lobby-header { grid-column: 1; grid-row: 1; }
+.lobby-official-symbol { width: 96px; }
+.mode-segment-container { grid-column: 1; grid-row: 2; }
+.lobby-launch { grid-column: 2; grid-row: 1 / 3; align-self: center; padding: 24px; min-width: 0; }
+.lobby-launch h2 { font-size: 1.6rem; line-height: 1.2; letter-spacing: -.035em; }
+.lobby-launch > p { margin: 16px 0 28px; color: var(--text-secondary); line-height: 1.6; }
+.lobby-launch .start-action-container { margin: 0; }
+.session-setup-dialog { position: fixed; inset: 0; margin: auto; padding: 22px; width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; border: 1px solid var(--border-medium); border-radius: 14px; background: var(--bg-secondary); color: var(--text-primary); }
+.session-setup-dialog::backdrop { background: rgba(3, 7, 18, .8); }
+.session-setup-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.session-setup-heading h2 { font-size: 1.2rem; }
+.session-setup-heading button { width: 40px; height: 40px; border: 0; border-radius: 6px; color: var(--text-primary); background: var(--bg-tertiary); font-size: 24px; cursor: pointer; }
+.session-setup-dialog .lobby-form { display: flex; flex-direction: column; gap: 12px; padding: 0; }
+.session-setup-dialog .project-picker { display: flex; flex-direction: column; align-items: stretch; }
+.session-setup-dialog .project-picker-actions { display: flex; gap: 8px; }
+.session-setup-dialog .btn-project-choice { flex: 1; min-height: 52px; }
+.session-setup-dialog .btn-project-choice small, .session-setup-dialog .project-picker-kicker { display: none; }
+.session-setup-dialog .continue-session-card { gap: 12px; }
+.session-setup-dialog .session-confirm { padding: 14px; border-radius: 8px; cursor: pointer; font-weight: 650; }
+.session-setup-dialog .recent-project-list { display: flex; flex-wrap: wrap; }
+.session-setup-dialog .recent-project-btn { flex: 1; }
+@media (max-width: 900px) {
+  .lobby-card { max-width: 600px; grid-template-columns: minmax(0, 1fr); }
+  .lobby-header { grid-column: 1; grid-row: 1; }
+  .mode-segment-container { grid-column: 1; grid-row: 2; }
+  .lobby-launch { grid-column: 1; grid-row: 3; padding: 8px 0; }
+  .lobby-launch h2 { font-size: 1.2rem; }
+  .lobby-launch > p { margin: 8px 0 16px; }
+  .app-credits { grid-row: 4; }
+}
+@media (prefers-reduced-motion: reduce) { .lobby-card, .dialog-card, .modal-overlay { animation: none; transition: none; } }
+.editor-options-menu { position: relative; flex-shrink: 0; padding: 0 8px; z-index: 15; }
+.editor-options-menu > summary { cursor: pointer; color: var(--text-secondary); font-size: .75rem; padding: 8px; list-style: none; }
+.editor-options-menu .editor-quick-options { position: absolute; right: 0; top: calc(100% + 8px); display: grid; min-width: 180px; gap: 6px; padding: 10px; border: 1px solid var(--border-medium); border-radius: 8px; background: var(--bg-secondary); box-shadow: 0 12px 32px #0005; }
+.editor-options-menu .btn-tool-option { width: 100%; min-height: 34px; text-align: left; }
+.status-right > #sb-pkg-status, .status-right > #sb-zoom-badge { display: none; }
+.status-right > .sb-sep { display: none; }
+.status-right { gap: 12px; }
+.runtime-error-card { border-color: var(--border-medium); box-shadow: 0 20px 50px #0005; }
+.runtime-error-card .runtime-error-example { padding: 10px 12px; }
+.runtime-error-card .runtime-error-example > summary { color: var(--accent-cyan); cursor: pointer; }
+.runtime-error-location { background: transparent; border-color: var(--border-medium); }
+
+.lobby-launch > .lobby-tools-menu { display: inline-block; margin-top: 14px; }
+.lobby-launch > .lobby-tools-menu .status-tools { bottom: auto; top: calc(100% + 6px); left: 0; right: auto; }

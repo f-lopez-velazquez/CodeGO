@@ -62,132 +62,16 @@
       </div>
 
       <!-- Formulario de Identificación del Estudiante -->
-      <div class="lobby-form">
-        <!-- Banner de Validación no bloqueante -->
-        <div id="lobby-validation-banner" class="lobby-validation-banner hidden">
-          <span class="val-icon">⚠️</span>
-          <span id="lobby-validation-text">Por favor, completa los campos requeridos.</span>
-        </div>
-
-        <!-- Banner de Actualización Disponible -->
-        <div id="lobby-update-banner" class="lobby-update-banner hidden">
-          <div class="update-banner-header">
-            <div class="update-banner-left">
-              <span class="update-badge-icon">✨</span>
-              <div class="update-text-col">
-                <div class="update-title-row">
-                  <strong id="update-banner-title">Nueva versión disponible</strong>
-                  <span class="update-tag-pill">Oficial</span>
-                </div>
-                <p id="update-banner-desc" class="update-desc">Hay mejoras y correcciones listas para instalar.</p>
-              </div>
-            </div>
-            <div class="update-banner-actions">
-              <button type="button" id="btn-update-view-notes" class="btn-update-notes">Novedades</button>
-              <button type="button" id="btn-update-now" class="btn-update-action">⬇ Actualizar</button>
-              <button type="button" id="btn-update-dismiss" class="btn-update-close" title="Descartar por ahora" aria-label="Cerrar aviso">✕</button>
-            </div>
-          </div>
-          <!-- Barra de progreso durante descarga -->
-          <div id="update-progress-container" class="update-progress-wrap hidden">
-            <div class="update-progress-bar-bg">
-              <div id="update-progress-fill" class="update-progress-fill" style="width: 0%;"></div>
-            </div>
-            <div class="update-progress-status">
-              <span id="update-progress-text">Descargando actualización (0%)...</span>
-              <span id="update-progress-detail">Conectando...</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Continuar Última Sesión / Trabajo en Curso -->
-        <div id="lobby-continue-card" class="continue-session-card hidden">
-          <div class="continue-card-content">
-            <div class="continue-badge-row">
-              <span class="continue-badge" id="continue-mode-badge">Actividad en curso</span>
-              <span class="continue-time" id="continue-time-label">Guardado recientemente</span>
-            </div>
-            <div class="continue-meta-text">
-              <strong id="continue-subject-title">Materia: Programación en Python</strong>
-              <span id="continue-file-label" class="continue-file">Carpeta de proyecto guardada</span>
-            </div>
-          </div>
-          <button type="button" id="btn-continue-last-session" class="btn-continue-session">
-            <span>Continuar</span>
+      <div class="lobby-launch">
+        <h2>Un espacio para concentrarte.</h2>
+        <p>Elige la modalidad. Después confirma tus datos y continúa en tu carpeta habitual.</p>
+        <!-- Botón de Inicio Minimalista -->
+        <div class="start-action-container">
+          <button id="btn-start-exam" class="btn-minimal-start">
+            <span class="btn-text" id="start-btn-title">INICIAR SESIÓN</span>
+            <span class="btn-subtext" id="start-btn-subtitle" style="display:none;"></span>
           </button>
         </div>
-
-        <div class="form-row">
-          <div class="input-group">
-            <label for="student-name">Nombre del Alumno <span class="required">*</span></label>
-            <input type="text" id="student-name" placeholder="Tu nombre" autocomplete="off" required>
-          </div>
-          <div class="input-group">
-            <label for="student-id">Matrícula / ID <small class="text-muted">(opcional)</small></label>
-            <input type="text" id="student-id" placeholder="No. de control (opcional)" autocomplete="off">
-          </div>
-        </div>
-
-        <div class="input-group">
-          <label for="exam-subject">Materia / Actividad <span class="required">*</span></label>
-          <input type="text" id="exam-subject" placeholder="Nombre de la materia" value="Examen de Programación en Python" required>
-        </div>
-
-        <div class="input-group exam-only-field">
-          <label for="exam-id">ID del examen <span class="required">*</span></label>
-          <input type="text" id="exam-id" placeholder="El ID dictado por tu profesor" autocomplete="off" maxlength="60">
-          <small>Todos los alumnos deben escribir exactamente el mismo ID.</small>
-        </div>
-
-        <div class="form-row exam-only-field exam-pin-setup" id="exam-pin-setup" style="display: none !important;">
-          <div class="input-group">
-            <label for="exam-teacher-pin">PIN del profesor</label>
-            <input type="password" id="exam-teacher-pin" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="4 a 12 dígitos" autocomplete="new-password">
-          </div>
-          <div class="input-group">
-            <label for="exam-teacher-pin-confirm">Confirmar PIN</label>
-            <input type="password" id="exam-teacher-pin-confirm" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="Repite el PIN" autocomplete="new-password">
-          </div>
-          <small class="exam-pin-help" id="exam-pin-help">PIN opcional para salida autorizada.</small>
-        </div>
-
-        <section class="project-picker" id="project-picker" aria-labelledby="project-picker-title">
-          <div class="project-picker-copy">
-            <span class="project-picker-kicker">CARPETA DE TRABAJO</span>
-            <strong id="project-picker-title">Elige dónde vas a trabajar</strong>
-            <span id="workspace-selection-status" class="project-picker-status" role="status" aria-live="polite">Ninguna carpeta seleccionada</span>
-            <button type="button" id="btn-reveal-selected-workspace" class="btn-reveal-workspace hidden">Mostrar en Archivos</button>
-          </div>
-          <div class="project-picker-actions">
-            <button type="button" id="btn-lobby-open-folder" class="btn-project-choice">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-              <span><strong>Abrir carpeta</strong><small>Continuar un proyecto</small></span>
-            </button>
-            <button type="button" id="btn-lobby-new-project" class="btn-project-choice">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-              <span><strong>Proyecto nuevo</strong><small>Comenzar en blanco</small></span>
-            </button>
-          </div>
-          <div id="recent-projects" class="recent-projects hidden" aria-labelledby="recent-projects-title">
-            <span id="recent-projects-title" class="recent-projects-title">Recientes</span>
-            <div id="recent-project-list" class="recent-project-list"></div>
-          </div>
-        </section>
-
-        <!-- Status & Tools Bar -->
-        <div class="system-status-bar">
-          <div class="language-inline" aria-labelledby="lang-selector-title">
-            <label id="lang-selector-title" for="language-select">Lenguaje</label>
-            <select id="language-select" aria-describedby="language-selection-help">
-              <option value="python">Python</option>
-              <option value="cpp">C / C++</option>
-              <option value="java">Java</option>
-              <option value="javascript">JavaScript</option>
-              <option value="r">R</option>
-            </select>
-            <span id="language-selection-help" class="sr-only">Python está listo para trabajar sin conexión.</span>
-          </div>
-          <span id="system-status-indicator" class="status-pill ok">● Sistema preparado</span>
           <details class="lobby-tools-menu">
             <summary>Herramientas</summary>
             <div class="status-tools">
@@ -200,69 +84,10 @@
               <output role="status" aria-live="polite" class="self-test-output hidden"></output>
             </div>
           </details>
-        </div>
-
-        <!-- Compact collapsible diagnostics drawer to preserve all DOM nodes for app.js -->
-        <details class="diag-details-collapsible">
-          <summary class="diag-summary-trigger">Ver detalles del sistema</summary>
-          <div id="lobby-prereq-alert" class="lobby-alert-banner hidden">
-            <div class="alert-content">
-              <span class="alert-icon">ℹ️</span>
-              <div class="alert-text">
-                <span id="lobby-alert-missing-text">Componentes pendientes</span>
-              </div>
-            </div>
-            <button type="button" id="btn-auto-repair-all" class="btn-alert-action">Instalar</button>
-          </div>
-          <div class="diag-compact-grid">
-            <div class="diag-item" id="diag-python">
-              <span class="diag-label">Python:</span>
-              <span class="diag-val" id="python-ver-label">Detectando...</span>
-              <span class="diag-status ok" id="python-status-icon">✓</span>
-            </div>
-            <div class="diag-item" id="diag-vcredist">
-              <span class="diag-label">VC++:</span>
-              <span class="diag-val" id="vcredist-status-label">OK</span>
-              <span class="diag-status ok" id="vcredist-status-icon">✓</span>
-            </div>
-            <div class="diag-item" id="diag-packages">
-              <span class="diag-label">Librerías:</span>
-              <span class="diag-val" id="packages-count-label">--</span>
-              <span class="diag-status ok" id="packages-status-icon">✓</span>
-              <button type="button" id="btn-quick-install-all" class="btn-sm-action hidden">Instalar</button>
-            </div>
-            <div class="diag-item" id="diag-monitors">
-              <span class="diag-label">Monitores:</span>
-              <span class="diag-val" id="monitors-label">1</span>
-              <span class="diag-status ok" id="monitors-status-icon">✓</span>
-            </div>
-            <div class="diag-item" id="diag-sound">
-              <span class="diag-label">Audio:</span>
-              <button type="button" id="btn-test-sound" class="btn-sm-ghost">Probar</button>
-            </div>
-            <div class="diag-item" id="diag-wifi">
-              <span class="diag-label">Red:</span>
-              <span class="diag-val" id="lobby-wifi-label">Supervisión</span>
-              <span class="diag-status ok" id="lobby-wifi-icon">✓</span>
-            </div>
-          </div>
-        </details>
-
-        <!-- Preserved Rules Box (hidden from view for true minimalism, updatable by app.js) -->
-        <div class="security-rules-box hidden" id="lobby-rules-box" style="display: none !important;">
-          <div class="rules-title" id="lobby-rules-title"></div>
-          <ul class="rules-list" id="lobby-rules-list"></ul>
-        </div>
-
-        <!-- Botón de Inicio Minimalista -->
-        <div class="start-action-container">
-          <button id="btn-start-exam" class="btn-minimal-start">
-            <span class="btn-text" id="start-btn-title">INICIAR SESIÓN</span>
-            <span class="btn-subtext" id="start-btn-subtitle" style="display:none;"></span>
-          </button>
-        </div>
+        <button type="button" id="btn-online-course" class="btn-text-action">Curso express de Python ↗</button>
+        <button type="button" id="btn-resume-project" class="btn-text-action hidden">Continuar trabajo anterior</button>
       </div>
-      <div class="app-credits"><span>codeGO <strong id="lobby-app-version" class="app-version">v1.6.14</strong> · Programado por <strong>Francisco López Velázquez</strong> · <strong>zolvek.com.mx</strong></span><span class="automatic-update-note">Actualizaciones automáticas verificadas</span><button type="button" class="support-link" data-support-link>Apoyar el desarrollo</button></div>
+      <div class="app-credits"><span>codeGO <strong id="lobby-app-version" class="app-version">v1.6.15</strong> · Programado por <strong>Francisco López Velázquez</strong> · <strong>zolvek.com.mx</strong></span><span class="automatic-update-note">Actualizaciones automáticas verificadas</span><button type="button" class="support-link" data-support-link>Apoyar el desarrollo</button></div>
     </div>
   </section>
 
@@ -575,7 +400,7 @@
             <div class="editor-tabs-bar" id="editor-tabs-bar">
               <!-- Renderizado dinámicamente -->
             </div>
-            <div class="editor-quick-options">
+            <details class="editor-options-menu"><summary>Opciones</summary><div class="editor-quick-options">
               <button id="btn-toggle-wrap" class="btn-tool-option" title="Ajuste automático de línea">
                 Ajuste
               </button>
@@ -589,7 +414,7 @@
               <button id="btn-toggle-term-view" class="btn-tool-option" title="Alternar Terminal">
                 Consola
               </button>
-            </div>
+            </div></details>
           </div>
 
           <!-- Contenedor del Editor de Código con Resaltado de Sintaxis -->
@@ -1314,7 +1139,7 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
         <button type="button" id="btn-runtime-error-line" class="btn-ghost">Ir a la línea</button>
       </div>
       <div class="runtime-error-solution"><strong>Cómo resolverlo</strong><ol id="runtime-error-actions"></ol></div>
-      <div id="runtime-error-example-wrap" class="runtime-error-example hidden"><strong>Ejemplo de referencia</strong><pre id="runtime-error-example"></pre></div>
+      <details id="runtime-error-example-wrap" class="runtime-error-example hidden"><summary>Ver un ejemplo de referencia</summary><pre id="runtime-error-example"></pre></details>
       <details><summary>Ver mensaje original de Python</summary><pre id="runtime-error-raw"></pre></details>
       <div class="dialog-buttons">
         <button type="button" id="btn-runtime-error-help" class="btn-ghost">Abrir ayuda</button>
@@ -1322,6 +1147,193 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
       </div>
     </div>
   </div>
+
+  <dialog id="session-setup-dialog" class="session-setup-dialog" aria-labelledby="session-setup-title">
+    <div class="session-setup-heading"><h2 id="session-setup-title">Tu espacio de trabajo</h2><button type="button" id="btn-close-session-setup" aria-label="Cerrar">×</button></div>
+      <form class="lobby-form" id="session-setup-form">
+        <!-- Banner de Validación no bloqueante -->
+        <div id="lobby-validation-banner" class="lobby-validation-banner hidden">
+          <span class="val-icon">⚠️</span>
+          <span id="lobby-validation-text">Por favor, completa los campos requeridos.</span>
+        </div>
+
+        <!-- Banner de Actualización Disponible -->
+        <div id="lobby-update-banner" class="lobby-update-banner hidden">
+          <div class="update-banner-header">
+            <div class="update-banner-left">
+              <span class="update-badge-icon">✨</span>
+              <div class="update-text-col">
+                <div class="update-title-row">
+                  <strong id="update-banner-title">Nueva versión disponible</strong>
+                  <span class="update-tag-pill">Oficial</span>
+                </div>
+                <p id="update-banner-desc" class="update-desc">Hay mejoras y correcciones listas para instalar.</p>
+              </div>
+            </div>
+            <div class="update-banner-actions">
+              <button type="button" id="btn-update-view-notes" class="btn-update-notes">Novedades</button>
+              <button type="button" id="btn-update-now" class="btn-update-action">⬇ Actualizar</button>
+              <button type="button" id="btn-update-dismiss" class="btn-update-close" title="Descartar por ahora" aria-label="Cerrar aviso">✕</button>
+            </div>
+          </div>
+          <!-- Barra de progreso durante descarga -->
+          <div id="update-progress-container" class="update-progress-wrap hidden">
+            <div class="update-progress-bar-bg">
+              <div id="update-progress-fill" class="update-progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="update-progress-status">
+              <span id="update-progress-text">Descargando actualización (0%)...</span>
+              <span id="update-progress-detail">Conectando...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Continuar Última Sesión / Trabajo en Curso -->
+        <div id="lobby-continue-card" class="continue-session-card hidden">
+          <div class="continue-card-content">
+            <div class="continue-badge-row">
+              <span class="continue-badge" id="continue-mode-badge">Actividad en curso</span>
+              <span class="continue-time" id="continue-time-label">Guardado recientemente</span>
+            </div>
+            <div class="continue-meta-text">
+              <strong id="continue-subject-title">Materia: Programación en Python</strong>
+              <span id="continue-file-label" class="continue-file">Carpeta de proyecto guardada</span>
+            </div>
+          </div>
+          <button type="button" id="btn-continue-last-session" class="btn-continue-session">
+            <span>Continuar</span>
+          </button>
+        </div>
+
+        <div class="form-row">
+          <div class="input-group">
+            <label for="student-name">Nombre del Alumno <span class="required">*</span></label>
+            <input type="text" id="student-name" placeholder="Tu nombre" autocomplete="off" required>
+          </div>
+          <div class="input-group">
+            <label for="student-id">Matrícula / ID <small class="text-muted">(opcional)</small></label>
+            <input type="text" id="student-id" placeholder="No. de control (opcional)" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="exam-subject">Materia / Actividad <span class="required">*</span></label>
+          <input type="text" id="exam-subject" placeholder="Nombre de la materia" value="Programación en Python" required>
+        </div>
+
+        <div class="input-group exam-only-field">
+          <label for="exam-id">ID del examen <span class="required">*</span></label>
+          <input type="text" id="exam-id" placeholder="El ID dictado por tu profesor" autocomplete="off" maxlength="60">
+          <small>Todos los alumnos deben escribir exactamente el mismo ID.</small>
+        </div>
+
+        <div class="form-row exam-only-field exam-pin-setup" id="exam-pin-setup" style="display: none !important;">
+          <div class="input-group">
+            <label for="exam-teacher-pin">PIN del profesor</label>
+            <input type="password" id="exam-teacher-pin" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="4 a 12 dígitos" autocomplete="new-password">
+          </div>
+          <div class="input-group">
+            <label for="exam-teacher-pin-confirm">Confirmar PIN</label>
+            <input type="password" id="exam-teacher-pin-confirm" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="Repite el PIN" autocomplete="new-password">
+          </div>
+          <small class="exam-pin-help" id="exam-pin-help">PIN opcional para salida autorizada.</small>
+        </div>
+
+        <section class="project-picker" id="project-picker" aria-labelledby="project-picker-title">
+          <div class="project-picker-copy">
+            <span class="project-picker-kicker">CARPETA DE TRABAJO</span>
+            <strong id="project-picker-title">Continúa en tu carpeta habitual</strong>
+            <span id="workspace-selection-status" class="project-picker-status" role="status" aria-live="polite">Ninguna carpeta seleccionada</span>
+            <button type="button" id="btn-reveal-selected-workspace" class="btn-reveal-workspace hidden">Mostrar en Archivos</button>
+          </div>
+          <div class="project-picker-actions">
+            <button type="button" id="btn-lobby-open-folder" class="btn-project-choice">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span><strong>Abrir carpeta</strong><small>Continuar un proyecto</small></span>
+            </button>
+            <button type="button" id="btn-lobby-new-project" class="btn-project-choice">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              <span><strong>Proyecto nuevo</strong><small>Comenzar en blanco</small></span>
+            </button>
+          </div>
+          <div id="recent-projects" class="recent-projects hidden" aria-labelledby="recent-projects-title">
+            <span id="recent-projects-title" class="recent-projects-title">Recientes</span>
+            <div id="recent-project-list" class="recent-project-list"></div>
+          </div>
+        </section>
+
+        <!-- Status & Tools Bar -->
+        <div class="system-status-bar">
+          <div class="language-inline" aria-labelledby="lang-selector-title">
+            <label id="lang-selector-title" for="language-select">Lenguaje</label>
+            <select id="language-select" aria-describedby="language-selection-help">
+              <option value="python">Python</option>
+              <option value="cpp">C / C++</option>
+              <option value="java">Java</option>
+              <option value="javascript">JavaScript</option>
+              <option value="r">R</option>
+            </select>
+            <span id="language-selection-help" class="sr-only">Python está listo para trabajar sin conexión.</span>
+          </div>
+          <span id="system-status-indicator" class="status-pill ok">● Sistema preparado</span>
+
+        </div>
+
+        <!-- Compact collapsible diagnostics drawer to preserve all DOM nodes for app.js -->
+        <details class="diag-details-collapsible">
+          <summary class="diag-summary-trigger">Ver detalles del sistema</summary>
+          <div id="lobby-prereq-alert" class="lobby-alert-banner hidden">
+            <div class="alert-content">
+              <span class="alert-icon">ℹ️</span>
+              <div class="alert-text">
+                <span id="lobby-alert-missing-text">Componentes pendientes</span>
+              </div>
+            </div>
+            <button type="button" id="btn-auto-repair-all" class="btn-alert-action">Instalar</button>
+          </div>
+          <div class="diag-compact-grid">
+            <div class="diag-item" id="diag-python">
+              <span class="diag-label">Python:</span>
+              <span class="diag-val" id="python-ver-label">Detectando...</span>
+              <span class="diag-status ok" id="python-status-icon">✓</span>
+            </div>
+            <div class="diag-item" id="diag-vcredist">
+              <span class="diag-label">VC++:</span>
+              <span class="diag-val" id="vcredist-status-label">OK</span>
+              <span class="diag-status ok" id="vcredist-status-icon">✓</span>
+            </div>
+            <div class="diag-item" id="diag-packages">
+              <span class="diag-label">Librerías:</span>
+              <span class="diag-val" id="packages-count-label">--</span>
+              <span class="diag-status ok" id="packages-status-icon">✓</span>
+              <button type="button" id="btn-quick-install-all" class="btn-sm-action hidden">Instalar</button>
+            </div>
+            <div class="diag-item" id="diag-monitors">
+              <span class="diag-label">Monitores:</span>
+              <span class="diag-val" id="monitors-label">1</span>
+              <span class="diag-status ok" id="monitors-status-icon">✓</span>
+            </div>
+            <div class="diag-item" id="diag-sound">
+              <span class="diag-label">Audio:</span>
+              <button type="button" id="btn-test-sound" class="btn-sm-ghost">Probar</button>
+            </div>
+            <div class="diag-item" id="diag-wifi">
+              <span class="diag-label">Red:</span>
+              <span class="diag-val" id="lobby-wifi-label">Supervisión</span>
+              <span class="diag-status ok" id="lobby-wifi-icon">✓</span>
+            </div>
+          </div>
+        </details>
+
+        <!-- Preserved Rules Box (hidden from view for true minimalism, updatable by app.js) -->
+        <div class="security-rules-box hidden" id="lobby-rules-box" style="display: none !important;">
+          <div class="rules-title" id="lobby-rules-title"></div>
+          <ul class="rules-list" id="lobby-rules-list"></ul>
+        </div>
+
+        <button type="submit" class="app-dialog-confirm session-confirm">Entrar al espacio de trabajo</button>
+      </form>
+  </dialog>
 
   <dialog id="app-dialog" class="app-dialog" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
     <form method="dialog">

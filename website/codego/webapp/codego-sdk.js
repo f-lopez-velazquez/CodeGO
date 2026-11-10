@@ -100,7 +100,7 @@
   }
 
   /**
-   * Clase de telemetría forense para auditar autoría del estudiante.
+   * Clase de telemetría forense para auditar actividad del estudiante.
    */
   class ForensicTelemetry {
     constructor() {
@@ -140,6 +140,7 @@
     }
 
     recordBlur(durationSeconds = 0) {
+      if (this.blurIncidents.length >= 1000) this.blurIncidents.shift();
       this.blurIncidents.push({
         timestamp: new Date().toISOString(),
         duration: durationSeconds
@@ -165,124 +166,66 @@
    * Motor de ejecución en el navegador (WebAssembly & JS Sandbox).
    */
   class WebExecutionEngine {
-    constructor({ onOutput, onFinished, onInputRequest }) {
+    constructor({ onOutput, onFinished, workerURL, timeoutMs = 120000 } = {}) {
       this.onOutput = onOutput || (() => {});
       this.onFinished = onFinished || (() => {});
-      this.onInputRequest = onInputRequest || (() => Promise.resolve(''));
-      this.pyodideInstance = null;
-      this.isPyodideLoading = false;
+      const base = typeof document !== 'undefined' ? document.currentScript?.src || document.baseURI : undefined;
+      this.workerURL = workerURL || (base ? new URL('execution-worker.js', base).href : 'execution-worker.js');
+      this.timeoutMs = timeoutMs;
+      this.pending = null;
     }
-
-    async run(code, language = 'python') {
-      const started = Date.now();
-      this.onOutput(`>>> Ejecutando ${language.toUpperCase()} en navegador...\n`, 'system');
-
-      if (language === 'javascript') {
-        return this.runJavaScript(code, started);
-      } else if (language === 'python') {
-        return this.runPython(code, started);
-      } else if (language === 'cpp' || language === 'c') {
-        return this.runCppInterpreted(code, started);
-      } else {
-        this.onOutput(`[Modo Simulación Web para ${language}]\n`, 'system');
-        this.onOutput(`Código analizado y compilado sintácticamente.\n`, 'stdout');
-        this.onFinished({ exitCode: 0, duration: 0.1 });
-      }
-    }
-
-    async runJavaScript(code, started) {
-      const logs = [];
-      const customConsole = {
-        log: (...args) => {
-          const str = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-          logs.push(str);
-          this.onOutput(str + '\n', 'stdout');
-        },
-        error: (...args) => {
-          const str = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-          this.onOutput(str + '\n', 'stderr');
-        },
-        warn: (...args) => {
-          const str = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-          this.onOutput(str + '\n', 'system');
-        }
-      };
-
-      try {
-        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-        const wrapped = new AsyncFunction('console', 'prompt', code);
-        await wrapped(customConsole, window.prompt ? window.prompt.bind(window) : () => '');
-        const duration = Number(((Date.now() - started) / 1000).toFixed(2));
-        this.onFinished({ exitCode: 0, duration });
-      } catch (err) {
-        this.onOutput(`Error en JavaScript: ${err.message}\n`, 'stderr');
-        this.onFinished({ exitCode: 1, duration: 0 });
-      }
-    }
-
-    async runPython(code, started) {
-      try {
-        // Cargar Pyodide dinámicamente si no está presente
-        if (!this.pyodideInstance && !this.isPyodideLoading) {
-          this.isPyodideLoading = true;
-          this.onOutput('[Cargando entorno de Python WebAssembly (Pyodide)...]\n', 'system');
-          if (typeof loadPyodide === 'undefined') {
-            await this.loadScript('https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js');
-          }
-          this.pyodideInstance = await loadPyodide({
-            stdout: (text) => this.onOutput(text + '\n', 'stdout'),
-            stderr: (text) => this.onOutput(text + '\n', 'stderr')
-          });
-          this.isPyodideLoading = false;
-        }
-
-        if (this.pyodideInstance) {
-          await this.pyodideInstance.runPythonAsync(code);
-          const duration = Number(((Date.now() - started) / 1000).toFixed(2));
-          this.onFinished({ exitCode: 0, duration });
-        } else {
-          throw new Error('No se pudo inicializar Pyodide.');
-        }
-      } catch (err) {
-        this.onOutput(`Error de Python: ${err.message}\n`, 'stderr');
-        this.onFinished({ exitCode: 1, duration: 0 });
-      }
-    }
-
-    async runCppInterpreted(code, started) {
-      // Intérprete didáctico de C/C++ en navegador para lógica algorítmica
-      this.onOutput(`[Compilando C++ a WebAssembly Sandbox...]\n`, 'system');
-      try {
-        // Ejecución simulada de E/S de C++
-        const coutRegex = /std::cout\s*<<\s*([^;]+);/g;
-        let match;
-        while ((match = coutRegex.exec(code)) !== null) {
-          let expr = match[1].replace(/std::endl/g, '\n').replace(/"/g, '');
-          this.onOutput(expr, 'stdout');
-        }
-        const duration = Number(((Date.now() - started) / 1000).toFixed(2));
-        this.onFinished({ exitCode: 0, duration: duration || 0.05 });
-      } catch (err) {
-        this.onOutput(`Error de compilación C++: ${err.message}\n`, 'stderr');
-        this.onFinished({ exitCode: 1, duration: 0 });
-      }
-    }
-
-    loadScript(src) {
+    run(code, language = 'python', options = {}) {
+      if (this.pending) return Promise.reject(new Error('Ya hay un programa en ejecución.'));
       return new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = src;
-        s.onload = resolve;
-        s.onerror = reject;
-        document.head.appendChild(s);
+        try {
+          // Reuse the warm interpreter. Globals and mounted files reset on each run.
+          if (!this.worker) this.worker = new Worker(this.workerURL);
+          this.pending = { resolve, reject };
+          this.timer = setTimeout(() => this.stop('Tiempo máximo de ejecución alcanzado.'), this.timeoutMs);
+          this.worker.onmessage = ({ data }) => {
+            if (data.type === 'output') this.onOutput(data.text, data.stream);
+            else if (data.type === 'status') this.onOutput(data.text + '\n', 'system');
+            else if (data.type === 'finished') this.finish(data);
+          };
+          this.worker.onerror = () => {
+            this.onOutput('No se pudo cargar el motor. Comprueba la conexión y vuelve a ejecutar.\n', 'stderr');
+            this.finish({ exitCode: 1, duration: 0 });
+          };
+          this.worker.postMessage({ ...options, type: 'run', code, language });
+        } catch (error) {
+          this.worker?.terminate();
+          clearTimeout(this.timer);
+          this.pending = null;
+          reject(error);
+        }
       });
+    }
+    finish(result) {
+      if (!this.pending) return;
+      const { resolve } = this.pending;
+      this.pending = null;
+      clearTimeout(this.timer);
+      if (result.stopped || result.exitCode === 1) { this.worker?.terminate(); this.worker = null; }
+      this.onFinished(result);
+      resolve(result);
+    }
+    stop(message = 'Ejecución detenida.') {
+      if (!this.pending) return;
+      this.onOutput(message + '\n', 'system');
+      this.finish({ exitCode: 130, duration: 0, stopped: true });
     }
   }
 
   /**
-   * Generador de Certificados HTML de autoría irrefutable.
+   * Generador de Certificados HTML de actividad local.
    */
   async function generateCertificateHTML({ student, subject, language, code, telemetry, hmacSignature }) {
+    const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    student = { name: escape(student?.name), id: escape(student?.id) };
+    subject = escape(subject);
+    language = escape(language);
+    hmacSignature = escape(hmacSignature);
+    telemetry = Object.fromEntries(['charactersWritten', 'keystrokes', 'externalPasteAttempts', 'activeEditingSeconds', 'runsCount', 'wordsPerMinute'].map(key => [key, Math.max(0, Number(telemetry?.[key]) || 0)]));
     const codeHash = await computeSHA256(code);
     const dateFormatted = new Date().toLocaleString('es-MX', {
       dateStyle: 'full',
@@ -293,7 +236,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Certificado de Autoría — ${student.name || 'Estudiante'} | CodeGO ExamGuard</title>
+  <title>Reporte de actividad — ${student.name || 'Estudiante'} | CodeGO ExamGuard</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #080b12; color: #f0f6fc; margin: 0; padding: 40px 20px; }
     .cert-box { max-width: 840px; margin: 0 auto; background: #0d121c; border: 1px solid rgba(88,166,255,0.3); border-radius: 16px; padding: 36px; box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
@@ -310,7 +253,7 @@
 </head>
 <body>
   <div class="cert-box">
-    <div class="cert-badge">✓ CERTIFICADO DIGITAL DE AUTORÍA</div>
+    <div class="cert-badge">✓ REPORTE DE ACTIVIDAD WEB</div>
     <h1>${student.name || 'Estudiante'} (${student.id || 'N/A'})</h1>
     <p class="subtitle">Materia: <strong>${subject || 'Programación'}</strong> · Lenguaje: <strong>${language.toUpperCase()}</strong> · Emitido: ${dateFormatted}</p>
 
@@ -326,11 +269,12 @@
     <div class="signature-bar">
       <div><strong>Sello Criptográfico HMAC-SHA256:</strong></div>
       <div>${hmacSignature}</div>
+      <p>Reporte local: la clave HMAC es pública. Este archivo no acredita autoría ni equivale a una entrega Ed25519 de escritorio.</p>
       <div style="margin-top: 6px;"><strong>Hash SHA-256 del Código:</strong> ${codeHash}</div>
     </div>
 
     <h3 style="margin-top: 28px; font-size: 16px;">Código Fuente Auditado:</h3>
-    <div class="code-container">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+    <div class="code-container">${escape(code)}</div>
   </div>
 </body>
 </html>`;
@@ -348,13 +292,14 @@
       throw new Error(`Contenedor CodeGO no encontrado: ${config.container}`);
     }
 
-    const language = config.language || 'python';
-    const mode = config.mode || 'task'; // 'task' | 'exam' | 'activity'
+    const language = Object.hasOwn(SUPPORTED_LANGUAGES, config.language) ? config.language : 'python';
+    const mode = ['activity', 'task', 'exam'].includes(config.mode) ? config.mode : 'activity'; // 'task' | 'exam' | 'activity'
     const student = config.student || { name: 'Estudiante', id: '0001' };
     const subject = config.subject || 'Lógica de Programación';
     const onSubmission = config.onSubmission || (() => {});
 
     const telemetry = new ForensicTelemetry();
+    const html = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     let currentCode = config.initialCode || SUPPORTED_LANGUAGES[language]?.starter || '';
 
     // Renderizar interfaz
@@ -368,12 +313,12 @@
           </div>
           <div style="display:flex; gap:8px;">
             <button class="codego-btn-run" style="background:#3fb950; color:#080b12; border:none; padding:6px 14px; border-radius:6px; font-weight:700; cursor:pointer; font-size:12px;">▶ Ejecutar</button>
-            ${mode !== 'activity' ? '<button class="codego-btn-submit" style="background:#58a6ff; color:#080b12; border:none; padding:6px 14px; border-radius:6px; font-weight:700; cursor:pointer; font-size:12px;">🔏 Entregar Certificado</button>' : ''}
+            ${mode !== 'activity' ? '<button class="codego-btn-submit" style="background:#58a6ff; color:#080b12; border:none; padding:6px 14px; border-radius:6px; font-weight:700; cursor:pointer; font-size:12px;">Entregar reporte</button>' : ''}
           </div>
         </div>
         <div class="codego-embed-body" style="display:flex; flex:1; min-height:0;">
           <div style="flex:1; display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,0.08);">
-            <textarea class="codego-editor" style="flex:1; width:100%; border:none; background:#0a0e17; color:#e6edf3; font-family:monospace; font-size:13px; padding:14px; box-sizing:border-box; resize:none; outline:none;" spellcheck="false">${currentCode}</textarea>
+            <textarea class="codego-editor" style="flex:1; width:100%; border:none; background:#0a0e17; color:#e6edf3; font-family:monospace; font-size:13px; padding:14px; box-sizing:border-box; resize:none; outline:none;" spellcheck="false">${html(currentCode)}</textarea>
           </div>
           <div style="width:40%; display:flex; flex-direction:column; background:#05080f;">
             <div style="padding:6px 12px; background:rgba(255,255,255,0.03); font-size:11px; text-transform:uppercase; color:#8b949e; border-bottom:1px solid rgba(255,255,255,0.06);">Terminal Interactiva</div>
@@ -390,7 +335,7 @@
 
     const engine = new WebExecutionEngine({
       onOutput: (text, type) => {
-        termEl.textContent += text;
+        termEl.textContent = (termEl.textContent + text).slice(-200000);
         termEl.scrollTop = termEl.scrollHeight;
       },
       onFinished: (res) => {
@@ -405,23 +350,26 @@
       telemetry.recordKeystroke(e.data ? e.data.length : 1);
     });
 
-    if (mode === 'task') {
-      editorEl.addEventListener('paste', (e) => {
-        e.preventDefault();
-        telemetry.recordPasteAttempt();
-        alert('🔒 Modo Tarea Certificada: El pegado externo está bloqueado. Digita tu código para registrar autoría.');
+    if (mode !== 'activity') {
+      ['copy', 'cut', 'paste', 'drop'].forEach(type => editorEl.addEventListener(type, event => {
+        event.preventDefault();
+        if (type === 'paste') telemetry.recordPasteAttempt();
+      }));
+      editorEl.addEventListener('beforeinput', event => {
+        if (/insertFromPaste|insertFromDrop|deleteByCut/.test(event.inputType)) event.preventDefault();
       });
     }
 
     btnRun.addEventListener('click', () => {
       telemetry.recordRun();
       termEl.textContent = '';
-      engine.run(currentCode, language);
+      btnRun.disabled = true;
+      engine.run(currentCode, language).catch(error => { termEl.textContent += error.message; }).finally(() => { btnRun.disabled = false; });
     });
 
     if (btnSubmit) {
       btnSubmit.addEventListener('click', async () => {
-        if (!confirm('¿Deseas sellar y entregar esta tarea con certificado de autoría?')) return;
+        if (!confirm('¿Deseas sellar y entregar esta tarea con reporte de actividad?')) return;
         const report = telemetry.getReport();
         const seal = await computeHMACSHA256(currentCode + JSON.stringify(report));
         const certHtml = await generateCertificateHTML({
@@ -455,7 +403,9 @@
         editorEl.value = newCode;
       },
       getTelemetry: () => telemetry.getReport(),
-      run: () => btnRun.click()
+      run: () => btnRun.click(),
+      stop: () => engine.stop(),
+      destroy: () => { engine.stop(); engine.worker?.terminate(); container.replaceChildren(); }
     };
   }
 
