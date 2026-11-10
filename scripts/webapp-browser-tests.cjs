@@ -76,6 +76,27 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     await page.locator('#run').click();
     await page.locator('#evaluation').waitFor({ state: 'visible', timeout: 120000 });
     assert.match(await page.locator('#evaluation').textContent(), /2 de 2/);
+    await page.locator('#open-course').click();
+    await page.locator('[data-lesson-step=practice]').click();
+    await page.locator('[data-exercise-id=first-calculation]').click();
+    await page.locator('#code-editor').fill('resultado = (8 + 4) * 2\nprint(resultado)\n');
+    await page.locator('#run').click();
+    await page.locator('#evaluation').waitFor({ state: 'visible', timeout: 120000 });
+    assert.match(await page.locator('#evaluation').textContent(), /2 de 2/);
+    await page.locator('#file-list button', { hasText: 'first-card.py' }).click();
+    assert.equal(await page.locator('#assignment-title').textContent(), 'Tu tarjeta');
+    await page.locator('#run').click();
+    await page.locator('#evaluation').waitFor({ state: 'visible', timeout: 120000 });
+    assert.match(await page.locator('#evaluation').textContent(), /2 de 2/);
+    await page.locator('#open-course').click();
+    await page.locator('[data-lesson-step=quiz]').click();
+    for (const [index, choice] of [[1, 2], [2, 1]]) {
+      const field = page.locator('.quiz-question').nth(index);
+      await field.locator(`input[value="${choice}"]`).check();
+      await field.getByRole('button', { name: 'Comprobar respuesta' }).click();
+    }
+    assert.equal(await page.locator('#course-progress').getAttribute('value'), '1');
+    await page.locator('#close-course').click();
     fs.mkdirSync('output/playwright', { recursive: true });
     await page.screenshot({ path: 'output/playwright/webapp-desktop.png' });
     for (const width of [320, 390, 768, 1280]) {
@@ -111,6 +132,7 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     assert.equal(pasteAllowed, false, 'Task must block paste');
     // Deadline tests use controlled page time, independent of background browser throttling.
     await page.clock.install();
+    await page.clock.pauseAt(new Date(Date.now() + 1000));
     await page.evaluate(() => { window.dispatchEvent(new Event('blur')); window.dispatchEvent(new Event('focus')); });
     await page.locator('#focus-dialog').waitFor();
     await page.clock.runFor(11999);
