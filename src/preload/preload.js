@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File System & Workspaces
   listWorkspace: () => ipcRenderer.invoke('fs:list-workspace'),
   readFile: (relativePath) => ipcRenderer.invoke('fs:read-file', relativePath),
+  exportWorkspace: student => ipcRenderer.invoke('workspace:export', student),
+  recordWorkspaceEvent: data => ipcRenderer.invoke('workspace:record-event', data),
   saveFile: (data) => ipcRenderer.invoke('fs:save-file', data),
   createFile: (relativePath) => ipcRenderer.invoke('fs:create-file', relativePath),
   createFolder: (relativePath) => ipcRenderer.invoke('fs:create-folder', relativePath),

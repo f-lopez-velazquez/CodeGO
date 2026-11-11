@@ -7,7 +7,7 @@ HTML/CSS/JavaScript sin compilación. Registro Google con Firebase Auth; proyect
 - Copia para el sitio corporativo: `node scripts/sync-webapp.cjs`.
 - Publicación: `npx firebase-tools deploy --only hosting:codego-python --project zolvek-mx`.
 
-El modo libre permite copiar y pegar y oculta/deshabilita Entregar. Tarea y examen web bloquean el portapapeles del editor y registran salidas con espera de 12 s. La web no controla aplicaciones o red del sistema. Sus reportes SHA-256 no equivalen a las entregas Ed25519 nativas. Entradas para `input()` se preparan en consola antes de ejecutar.
+El modo libre permite copiar y pegar y oculta/deshabilita Entregar. Tarea y examen web bloquean copiar, cortar, pegar y arrastrar texto y registran salidas con espera de 12 s. La web no controla aplicaciones o red del sistema. Las entregas web v2 llevan SHA-256 y firma ECDSA P-256 con una clave privada no exportable conservada en IndexedDB; las nativas usan Ed25519. Ambas detectan cambios, sin demostrar autoría. Entradas para `input()` se preparan en consola antes de ejecutar.
 
 El curso incluye 20 lecciones, 40 ejemplos, 60 preguntas, 40 ejercicios con pruebas y pistas, y cuatro evaluaciones integradoras. Cuenta → Crear actividad permite al docente compartir ejercicios en JSON. Cuenta → Abrir actividad permite resolverlos. La evaluación es local y orientativa; no hay calificación institucional en servidor.
 
@@ -15,3 +15,11 @@ Ver `docs/PLATAFORMAS-Y-RECUPERACION.md` en el repositorio para recuperación, l
 
 
 Los 40 ejemplos incluyen escritura progresiva, línea actual, variables, referencias compartidas, llamadas y consola. Las trazas se generan desde Python real con `npm run build:examples`. Si cambia el código de un ejemplo, hay que regenerarlas; las pruebas comprueban el hash del código y la salida esperada. El reproductor permite pausar, avanzar, retroceder, ajustar velocidad y ver todo sin esperar. Respeta movimiento reducido y libera sus temporizadores al salir de la lección. No ejecuta código del alumno para generar las animaciones.
+
+En tarea, los archivos previos son de consulta y se crea una solución editable. La entrega definitiva bloquea todo el proyecto tras una advertencia explícita. Cuenta → Descargar proyecto genera una copia firmada; en examen esta acción pasa por Entregar. Descargar de nuevo una entrega conserva exactamente sus bytes. Cuenta → Revisar entrega firmada comprueba la firma y permite leer el código y el historial. El verificador de escritorio acepta también estos JSON.
+
+El curso tiene misiones consecutivas, XP por logros únicos, niveles y una zona de repaso. Los errores de ejecución incorporan ejemplos de referencia con escritura progresiva, controles por línea y movimiento reducido. Las prácticas no son exámenes certificados de freeCodeCamp.
+
+La evidencia contiene nombre registrado, correo de la cuenta, fecha local, modo, hashes de archivos, eventos de edición y acciones de portapapeles (permitidas o bloqueadas). Conserva hasta 500 eventos, indicando los omitidos. La identidad identifica esta instalación del navegador; borrar sus datos la reinicia. No identifica el número de serie del equipo ni la app desde la que se copió.
+
+Sin red funcionan proyectos, curso, Python previamente cargado, firma, verificación y entrega. La primera autenticación y descarga de Python necesitan internet. Las incidencias pendientes sobreviven una recarga y exigen 12 segundos completos al regresar. Las librerías fijadas se conservan al actualizar la interfaz. El navegador o el SO pueden eliminar caché por falta de espacio. Los archivos de texto generados por Python se añaden al proyecto dentro de sus límites; imágenes, audio y resultados de mayor tamaño requieren la app nativa.

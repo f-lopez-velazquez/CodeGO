@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
+const { WorkspaceEvidence } = require('./workspace-evidence');
 const { spawn, execSync, execFileSync, execFile } = require('child_process');
 const executeFile = require('node:util').promisify(execFile);
 const crypto = require('crypto');
@@ -401,6 +402,15 @@ function rememberWorkspace() {
 }
 
 let workspaceSealed = false;
+let workspaceEvidence;
+let lastSealedExport = null;
+function evidenceForWorkspace() {
+  if (!workspaceEvidence || workspaceEvidence.workspace !== currentWorkspace) workspaceEvidence = new WorkspaceEvidence(currentWorkspace, path.join(app.getPath('userData'), 'workspace-evidence'));
+  return workspaceEvidence;
+}
+function protectTaskReference(relative) {
+  if (activeSessionMode === 'task' && evidenceForWorkspace().protects(relative)) throw new Error('Archivo anterior en solo lectura. Crea un archivo nuevo para tu solución.');
+}
 const activeExamMarkerPath = path.join(app.getPath('userData'), 'active-exam-session.json');
 
 function writeActiveExamMarker(student = {}) {
@@ -2025,12 +2035,14 @@ except Exception:
     delete safeStudentData.teacherPin;
     if (requestedMode !== 'exam' && !workspaceExplicitlySelected && !diagnosticMode) return { success: false, error: 'Elige una carpeta de proyecto o crea un proyecto vacío antes de iniciar.' };
     workspaceSealed = false;
+    lastSealedExport = null;
     focusGuard.reset();
     clearSupervisedBlurTimer();
     supervisedAlertSent = false;
     const isActivity = studentData && studentData.mode === 'activity';
 
     if (isActivity) {
+      await evidenceForWorkspace().begin('activity', safeStudentData);
       isKioskActive = false;
       activeSessionMode = 'activity';
       securityAuditLog = [];
@@ -2050,6 +2062,7 @@ except Exception:
     }
 
     if (studentData && studentData.mode === 'task') {
+      try { await evidenceForWorkspace().begin('task', safeStudentData); } catch (error) { return { success: false, error: error.message }; }
       isKioskActive = false;
       activeSessionMode = 'task';
       securityAuditLog = [];
@@ -2070,7 +2083,12 @@ except Exception:
         restoreRendererKeyboardFocus();
       }
 
-      return { success: true, mode: 'task' };
+      let solutionFile = 'solucion.py', index = 2;
+      while (fs.existsSync(path.join(currentWorkspace, solutionFile))) solutionFile = `solucion_${index++}.py`;
+      await writeFileAtomic(path.join(currentWorkspace, solutionFile), '# Escribe aquí tu solución. Los archivos anteriores son de consulta.\n');
+      evidenceForWorkspace().record('create', { file: solutionFile });
+      await evidenceForWorkspace().persist();
+      return { success: true, mode: 'task', readOnlyFiles: [...evidenceForWorkspace().readOnly], solutionFile };
     }
 
     if (!studentData?.examId || !String(studentData.examId).trim()) return { success: false, error: 'Escribe el ID dictado por el profesor.' };
@@ -2083,6 +2101,7 @@ except Exception:
     // Each exam gets a new private directory. Previous projects are never
     // mounted into the exam session and the initial source file is blank.
     const examWorkspace = createFreshExamWorkspace(safeStudentData);
+    await evidenceForWorkspace().begin('exam', safeStudentData);
     const browserResult = await browserGuard.closeAll();
 
     const wifiResult = disableSystemWifi();
@@ -2372,7 +2391,7 @@ except Exception:
   handle('fs:list-workspace', async () => {
     const root = currentWorkspace;
     try {
-      return { success: true, ...await listWorkspaceTree(root), rootPath: root };
+      return { success: true, ...await listWorkspaceTree(root), rootPath: root, readOnlyFiles: activeSessionMode === 'task' ? [...evidenceForWorkspace().readOnly] : [] };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -2385,7 +2404,7 @@ except Exception:
       if (!fileType.editable) return { success: false, binary: true, kind: fileType.kind, error: 'Este recurso es binario. Python puede usarlo, pero el editor de texto no lo abrirá para evitar dañarlo.' };
       if (fs.statSync(safePath).size > 5 * 1024 * 1024) return { success: false, error: 'El archivo supera 5 MB y no se abrirá en el editor de texto.' };
       const content = fs.readFileSync(safePath, 'utf-8');
-      return { success: true, content, path: relativePath.replace(/\\/g, '/') };
+      return { success: true, content, readOnly: activeSessionMode === 'task' && evidenceForWorkspace().protects(relativePath), path: relativePath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };
     }
@@ -2478,9 +2497,13 @@ except Exception:
   handle('fs:save-file', async (event, { relativePath, content }) => {
     if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
+      protectTaskReference(relativePath);
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
       if (typeof content !== 'string' || Buffer.byteLength(content, 'utf8') > 5 * 1024 * 1024) throw new Error('El archivo supera el límite de 5 MB.');
+      const before = fs.existsSync(safePath) ? await fs.promises.readFile(safePath, 'utf8') : '';
       await writeFileAtomic(safePath, content);
+      evidenceForWorkspace().changed(relativePath, before, content);
+      await evidenceForWorkspace().persist();
       return { success: true, path: relativePath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };
@@ -2490,11 +2513,14 @@ except Exception:
   handle('fs:create-file', async (event, relativePath) => {
     if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
+      protectTaskReference(relativePath);
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
       fs.mkdirSync(path.dirname(safePath), { recursive: true });
       if (!fs.existsSync(safePath)) {
         fs.writeFileSync(safePath, '', 'utf-8');
       }
+      evidenceForWorkspace().record('fs:create-file', { file: relativePath });
+      await evidenceForWorkspace().persist();
       return { success: true, path: relativePath.replace(/\\/g, '/') };
     } catch (e) {
       return { success: false, error: e.message };
@@ -2517,10 +2543,13 @@ except Exception:
   handle('fs:delete', async (event, relativePath) => {
     if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
+      protectTaskReference(relativePath);
       const safePath = resolveWorkspacePath(currentWorkspace, relativePath);
       if (fs.existsSync(safePath)) {
         fs.rmSync(safePath, { recursive: true, force: true });
       }
+      evidenceForWorkspace().record('fs:delete', { file: relativePath });
+      await evidenceForWorkspace().persist();
       return { success: true };
     } catch (e) {
       return { success: false, error: e.message };
@@ -2530,6 +2559,7 @@ except Exception:
   handle('fs:rename', async (event, { oldPath, newPath }) => {
     if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
+      protectTaskReference(oldPath);
       const normalizedOld = String(oldPath || '').replace(/\\/g, '/');
       const normalizedNew = String(newPath || '').replace(/\\/g, '/');
       if (normalizedOld.split('/').slice(0, -1).join('/') !== normalizedNew.split('/').slice(0, -1).join('/')) {
@@ -2556,6 +2586,8 @@ except Exception:
       } else {
         fs.renameSync(safeOld, safeNew);
       }
+      evidenceForWorkspace().record('fs:rename', { file: oldPath });
+      await evidenceForWorkspace().persist();
       return { success: true, oldPath: normalizedOld, path: normalizedNew };
     } catch (e) {
       return { success: false, error: e.message };
@@ -2565,6 +2597,7 @@ except Exception:
   handle('fs:move', async (event, { sourcePath, targetDirectory = '' }) => {
     if (workspaceSealed) return { success: false, error: 'El espacio de trabajo entregado es de solo lectura.' };
     try {
+      protectTaskReference(sourcePath);
       const safeSource = resolveWorkspacePath(currentWorkspace, sourcePath);
       if (!fs.existsSync(safeSource)) throw new Error('El archivo o carpeta ya no existe.');
       const targetRoot = targetDirectory
@@ -2587,6 +2620,8 @@ except Exception:
         fs.rmSync(safeSource, { recursive: true, force: true });
       }
       const relativeDestination = path.relative(fs.realpathSync(currentWorkspace), safeDestination).split(path.sep).join('/');
+      evidenceForWorkspace().record('fs:move', { file: sourcePath });
+      await evidenceForWorkspace().persist();
       return { success: true, oldPath: sourcePath.replace(/\\/g, '/'), path: relativeDestination };
     } catch (e) {
       return { success: false, error: e.message };
@@ -2691,13 +2726,39 @@ except Exception:
     return diagnosePython(resolvePythonBinary().command, payload.source, payload.relativePath || 'archivo.py');
   });
 
+  handle('workspace:record-event', async (event, data) => {
+    if (!data || !['clipboard', 'run', 'import'].includes(data.type) || workspaceSealed) return { success: false };
+    evidenceForWorkspace().record(data.type, { action: String(data.action || '').slice(0, 40), file: String(data.file || '').slice(0, 200), blocked: data.blocked === true, length: Math.max(0, Math.min(5000000, Number(data.length) || 0)) });
+    await evidenceForWorkspace().persist();
+    return { success: true };
+  });
+  handle('workspace:export', async (event, student) => {
+    if (activeSessionMode === 'exam' || isKioskActive) return { success: false, error: 'En examen, usa Entregar para guardar y bloquear la entrega definitiva.' };
+    if (activeSessionMode === 'task' && !workspaceSealed) return { success: false, error: 'En tarea, usa Entregar para generar el contenedor final.' };
+    try {
+      if (workspaceSealed) {
+        if (!lastSealedExport || !fs.existsSync(lastSealedExport)) return { success: false, error: 'La entrega ya está sellada. Consulta la ruta indicada en el recibo.' };
+        const { canceled, filePath } = await withNativeDialog(() => dialog.showSaveDialog(mainWindow, { title: 'Guardar otra copia de la entrega sellada', defaultPath: path.join(app.getPath('downloads'), path.basename(lastSealedExport)) }));
+        if (canceled || !filePath) return { success: false, canceled: true };
+        if (path.resolve(filePath) !== path.resolve(lastSealedExport)) await fs.promises.copyFile(lastSealedExport, filePath);
+        if (fs.existsSync(lastSealedExport + '.sha256')) await fs.promises.copyFile(lastSealedExport + '.sha256', filePath + '.sha256').catch(error => { if (path.resolve(filePath) !== path.resolve(lastSealedExport)) throw error; });
+        return { success: true, filePath };
+      }
+      const { canceled, filePath } = await withNativeDialog(() => dialog.showSaveDialog(mainWindow, { title: 'Guardar copia con huella de instalación', defaultPath: path.join(app.getPath('downloads'), 'Practica-codego.codego'), filters: [{ name: 'Proyecto CodeGO', extensions: ['codego'] }] }));
+      if (canceled || !filePath) return { success: false, canceled: true };
+      const result = createCertifiedTaskSubmission({ workspace: currentWorkspace, customFilePath: filePath, student: { ...student, mode: 'activity', subject: student?.subject || 'Práctica libre' }, telemetry: { provenance: await evidenceForWorkspace().report() }, version: currentAppVersion(), signingIdentity: ensureSigningIdentity(path.join(app.getPath('userData'), 'identity')) });
+      return result;
+    } catch (error) { return { success: false, error: error.message }; }
+  });
+
   // Final Exam Submission & Package Creation
   handle('exam:submit', async (event, studentData) => {
     if (activeProcess) return { success: false, error: 'Detén Python antes de entregar.' };
     if (workspaceSealed) return { success: false, error: 'El examen ya fue entregado.' };
     try {
-      const result = createSubmission({ workspace: currentWorkspace, outputDirectory: path.join(app.getPath('userData'), 'exam_submissions'), student: studentData, auditLog: securityAuditLog, version: currentAppVersion() });
+      const result = createSubmission({ workspace: currentWorkspace, outputDirectory: path.join(app.getPath('userData'), 'exam_submissions'), student: studentData, auditLog: securityAuditLog, version: currentAppVersion(), provenance: await evidenceForWorkspace().report(), signingIdentity: ensureSigningIdentity(path.join(app.getPath('userData'), 'identity')) });
       workspaceSealed = true;
+      lastSealedExport = result.zipPath || result.filePath;
 
       // Release kiosk mode and re-enable Wi-Fi after submission
       isKioskActive = false;
@@ -2752,12 +2813,13 @@ except Exception:
         customFilePath: customPath,
         outputDirectory: app.getPath('downloads'),
         student: student || {},
-        telemetry: telemetry || {},
+        telemetry: { ...(telemetry || {}), incidents: securityAuditLog, incidentsCount: securityAuditLog.length, provenance: await evidenceForWorkspace().report() },
         version: currentAppVersion(),
         signingIdentity: ensureSigningIdentity(path.join(app.getPath('userData'), 'identity'))
       });
 
       workspaceSealed = true;
+      lastSealedExport = result.zipPath || result.filePath;
 
       // Release kiosk mode and unregister shortcuts after task submission
       isKioskActive = false;
@@ -2786,7 +2848,7 @@ except Exception:
       title: 'Seleccionar tarea o examen de codeGO (.codego / .zip)',
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'Archivos de codeGO (*.codego, *.zip)', extensions: ['codego', 'zip'] },
+        { name: 'Entregas de codeGO (*.codego, *.zip, *.json)', extensions: ['codego', 'zip', 'json'] },
         { name: 'Todos los archivos', extensions: ['*'] }
       ]
     }));

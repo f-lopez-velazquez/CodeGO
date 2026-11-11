@@ -15,6 +15,7 @@
     let area = 'lessons';
     let step = 'understand';
     let examplePlayers = [];
+    let reviewing = false;
     function clearExamples() { examplePlayers.forEach(player => player.destroy()); examplePlayers = []; }
     function learning() {
       const state = getState();
@@ -26,24 +27,35 @@
       const count = curriculum.lessons.filter(lesson => curriculum.lessonProgress(lesson, learning()).mastered).length;
       $('course-progress').value = count;
       $('course-progress-label').textContent = `${count} de ${curriculum.lessons.length} lecciones dominadas`;
+      const profile = curriculum.journey(learning());
+      $('journey-level').textContent = `Nivel ${profile.level}`;
+      $('journey-xp').textContent = `${profile.xp} XP`;
+      $('journey-meter').value = profile.levelXP;
+      $('journey-next').textContent = `${200 - profile.levelXP} XP para subir · sin perder lo que ya ganaste`;
+      $('learning-review').textContent = `Repasar${profile.missions.some(m => m.needsReview) ? ' · pendiente' : ''}`;
     }
     function renderNavigation() {
       const list = $('lesson-list'); list.replaceChildren();
       const picker = $('mobile-lesson-select'); picker.replaceChildren();
+      const profile = curriculum.journey(learning());
       const choices = area === 'lessons' ? curriculum.lessons : curriculum.assessments;
-      choices.forEach((item,index) => { const option = node('option', `${index + 1}. ${item.title}`); option.value = item.id; picker.append(option); });
+      choices.forEach((item,index) => { const option = node('option', `${index + 1}. ${item.title}`); option.value = item.id; option.disabled = area === 'lessons' && !profile.missions[index].unlocked; picker.append(option); });
       picker.value = area === 'lessons' ? activeLesson.id : activeAssessment.id;
-      picker.onchange = () => { if (area === 'lessons') { activeLesson = curriculum.lessons.find(item => item.id === picker.value); step = 'understand'; } else activeAssessment = curriculum.assessments.find(item => item.id === picker.value); render(); };
+      picker.onchange = () => { reviewing = false; if (area === 'lessons') { activeLesson = curriculum.lessons.find(item => item.id === picker.value); step = 'understand'; } else activeAssessment = curriculum.assessments.find(item => item.id === picker.value); render(); };
       if (area === 'lessons') {
         curriculum.modules.forEach((moduleTitle, moduleIndex) => {
-          list.append(node('p', moduleTitle, 'module-title'));
+          list.append(node('p', `Mundo ${moduleIndex + 1} · ${moduleTitle}`, 'module-title'));
           curriculum.lessons.filter(lesson => lesson.module === moduleIndex).forEach(lesson => {
             const progress = curriculum.lessonProgress(lesson, learning());
             const index = curriculum.lessons.indexOf(lesson) + 1;
             const button = node('button', `${progress.mastered ? '✓' : String(index).padStart(2, '0')} · ${lesson.title}`);
             button.setAttribute('aria-current', String(lesson.id === activeLesson.id));
             button.dataset.lessonId = lesson.id;
-            button.onclick = () => { activeLesson = lesson; step = 'understand'; render(); $('lesson-content').scrollIntoView({ block: 'start' }); };
+            const mission = profile.missions[index - 1];
+            button.disabled = !mission.unlocked;
+            button.classList.toggle('mission-complete', progress.mastered);
+            button.title = !mission.unlocked ? 'Completa las misiones anteriores para desbloquearla.' : progress.mastered ? 'Misión completada. Puedes volver a practicar.' : 'Tu siguiente misión';
+            button.onclick = () => { activeLesson = lesson; step = 'understand'; reviewing = false; render(); $('lesson-content').scrollIntoView({ block: 'start' }); };
             list.append(button);
           });
         });
@@ -83,7 +95,10 @@
       const lesson = activeLesson;
       const progress = curriculum.lessonProgress(lesson, learning());
       const container = $('lesson-content'); container.replaceChildren();
-      container.append(heading(lesson.title, `${curriculum.modules[lesson.module]} · ${lesson.minutes} min`, `${progress.quiz}/${lesson.quiz.length} respuestas comprendidas · ${progress.exercises}/${lesson.exercises.length} prácticas superadas`));
+      container.append(heading(lesson.title, `MISIÓN ${curriculum.lessons.indexOf(lesson) + 1} / 20 · ${lesson.minutes} MIN`, progress.mastered ? '¡Misión completa! Vuelve cuando quieras para afianzarla.' : 'Mira cómo funciona. Ponlo a prueba. Hazlo tú.'));
+      const milestones = node('div', undefined, 'mission-goals');
+      milestones.append(node('span', `${progress.quiz === lesson.quiz.length ? '✓' : '○'} Entender · ${progress.quiz}/${lesson.quiz.length}`), node('span', `${progress.exercises === lesson.exercises.length ? '✓' : '○'} Hacer · ${progress.exercises}/${lesson.exercises.length}`), node('span', '+140 XP por misión'));
+      container.append(milestones);
       const tabs = node('nav', undefined, 'lesson-tabs'); tabs.setAttribute('aria-label', 'Pasos de la lección');
       const steps = [['understand', 'Entender'], ['examples', 'Ejemplos'], ['quiz', 'Comprobar'], ['practice', 'Practicar']];
       steps.forEach(([id, text]) => {
@@ -95,8 +110,10 @@
       container.append(tabs);
       const section = node('section', undefined, 'lesson-section');
       if (step === 'understand') {
-        lesson.explanation.forEach(text => section.append(node('p', text)));
-        section.append(node('h4', 'Qué debes recordar'));
+        section.append(node('p', lesson.explanation[0], 'lesson-hook'));
+        const deeper = node('details'); deeper.append(node('summary', 'Cuéntame un poco más'));
+        lesson.explanation.slice(1).forEach(text => deeper.append(node('p', text))); section.append(deeper);
+        section.append(node('h4', 'Quédate con estas ideas'));
         const points = node('ul', undefined, 'lesson-keypoints'); lesson.keyPoints.forEach(text => points.append(node('li', text))); section.append(points);
         section.append(node('p', lesson.pitfall, 'pitfall'));
       } else if (step === 'examples') {
@@ -109,7 +126,7 @@
           examplePlayers.push(player); section.append(player.element);
         });
       } else if (step === 'quiz') {
-        section.append(node('h4', 'Comprueba lo que entendiste'));
+        section.append(node('h4', 'A ver qué tal: prueba sin miedo'));
         lesson.quiz.forEach((question, index) => {
           const key = `${lesson.id}:${index}`;
           const previous = learning().quiz[key];
@@ -121,12 +138,13 @@
             label.append(input, node('span', choice)); fieldset.append(label);
           });
           const feedback = node('p', undefined, 'quiz-feedback'); feedback.setAttribute('role', 'status'); feedback.hidden = !previous;
-          function showResult(result) { feedback.hidden = false; feedback.className = `quiz-feedback ${result.correct ? 'correct' : 'incorrect'}`; feedback.textContent = `${result.correct ? 'Correcto.' : 'Revisa tu respuesta.'} ${question.explanation}`; }
+          function showResult(result) { feedback.hidden = false; feedback.className = `quiz-feedback ${result.correct ? 'correct' : 'incorrect'}`; feedback.textContent = `${result.correct ? '¡Eso es! +10 XP la primera vez.' : 'Casi. Prueba otra vez:'} ${question.explanation}`; }
           if (previous) showResult(previous);
           const button = node('button', 'Comprobar respuesta');
           button.onclick = () => {
             if (selected === null) return toast('Selecciona una respuesta antes de comprobarla.');
-            const result = { choice: selected, correct: selected === question.answer, attempts: (learning().quiz[key]?.attempts || 0) + 1, at: new Date().toISOString() };
+            const previousResult = learning().quiz[key];
+            const result = { bestCorrect: previousResult?.correct || previousResult?.bestCorrect || selected === question.answer, choice: selected, correct: selected === question.answer, attempts: (learning().quiz[key]?.attempts || 0) + 1, at: new Date().toISOString() };
             learning().quiz[key] = result; changed(); showResult(result); renderProgress(); renderNavigation();
           };
           fieldset.append(button, feedback); section.append(fieldset);
@@ -142,7 +160,7 @@
         const next = node('button', `Continuar: ${steps[index + 1][1]}`, 'primary'); next.onclick = () => { step = steps[index + 1][0]; renderLesson(); }; actions.append(next);
       } else {
         const nextLesson = curriculum.lessons[curriculum.lessons.indexOf(lesson) + 1];
-        if (nextLesson) { const next = node('button', 'Siguiente lección →'); next.onclick = () => { activeLesson = nextLesson; step = 'understand'; render(); }; actions.append(next); }
+        if (nextLesson) { const next = node('button', progress.mastered ? '¡Siguiente misión! →' : 'Completa las pruebas para abrir la siguiente'); next.disabled = !progress.mastered; next.onclick = () => { activeLesson = nextLesson; step = 'understand'; render(); }; actions.append(next); }
       }
       const link = node('a', 'Tema de referencia en freeCodeCamp ↗'); link.href = lesson.source; link.target = '_blank'; link.rel = 'noopener'; actions.append(link); container.append(actions);
     }
@@ -184,15 +202,30 @@
         download(`${assessment.id}.codego-actividad.json`, JSON.stringify(activity, null, 2));
       }; container.append(exportButton);
     }
+    function renderReview() {
+      clearExamples();
+      const container = $('lesson-content'); container.replaceChildren(heading('Una vuelta rápida', 'ZONA DE REPASO', 'Vuelve a las ideas que se te complicaron. Tu XP se conserva.'));
+      const missions = curriculum.journey(learning()).missions;
+      const available = missions.filter(m => m.unlocked && (m.quiz || m.exercises));
+      if (!available.length) container.append(node('p', 'Completa tu primera prueba y aquí tendrás tus repasos.'));
+      available.sort((a,b) => Number(b.needsReview) - Number(a.needsReview)).forEach(mission => {
+        const lesson = curriculum.lessons.find(item => item.id === mission.id);
+        const card = node('section', undefined, 'review-mission');
+        card.append(node('strong', lesson.title), node('p', mission.needsReview ? 'Vamos a reforzar esta idea.' : 'Lo llevas bien. ¿Te sale otra vez?'));
+        const button = node('button', 'Repasar esta misión'); button.onclick = () => { activeLesson = lesson; area = 'lessons'; reviewing = false; step = 'quiz'; render(); }; card.append(button); container.append(card);
+      });
+    }
+    $('learning-review').onclick = () => { area = 'lessons'; reviewing = true; render(); };
     function render() {
       if (!getState()) return;
       renderProgress(); renderNavigation();
-      $('learning-lessons').setAttribute('aria-pressed', String(area === 'lessons'));
+      $('learning-lessons').setAttribute('aria-pressed', String(area === 'lessons' && !reviewing));
       $('learning-assessments').setAttribute('aria-pressed', String(area === 'assessments'));
-      if (area === 'lessons') renderLesson(); else renderAssessment();
+      if (reviewing) renderReview(); else if (area === 'lessons') renderLesson(); else renderAssessment();
+      $('learning-review').setAttribute('aria-pressed', String(reviewing));
     }
-    $('learning-lessons').onclick = () => { area = 'lessons'; render(); };
-    $('learning-assessments').onclick = () => { area = 'assessments'; render(); };
+    $('learning-lessons').onclick = () => { reviewing = false; area = 'lessons'; render(); };
+    $('learning-assessments').onclick = () => { reviewing = false; area = 'assessments'; render(); };
     $('learning-report').onclick = () => {
       const state = getState();
       const report = { format: 'codego-learning-report-v2', student: state.student, generatedAt: new Date().toISOString(), learning: learning(), masteredLessons: curriculum.lessons.filter(lesson => curriculum.lessonProgress(lesson, learning()).mastered).map(lesson => lesson.id), note: 'Progreso local de práctica. No acredita autoría ni calificación institucional.' };

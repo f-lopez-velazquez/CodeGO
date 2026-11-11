@@ -30,6 +30,7 @@ onmessage = async ({ data }) => {
   const inputs = [...(data.stdin || [])];
   let exitCode = 0;
   let result;
+  let generatedFiles = {}, readOnlyChanges = [], omittedFiles = 0;
   try {
     if (data.language === 'python') {
       if (!python) {
@@ -75,7 +76,33 @@ onmessage = async ({ data }) => {
       throw new Error('Este lenguaje necesita el motor nativo de CodeGO. Descarga la aplicación de escritorio.');
     }
   } catch (error) { exitCode = 1; output(String(error.message || error) + '\n', 'stderr'); }
+  if (data.language === 'python' && python && data.files) {
+    let total = 0, count = 0, entries = 0;
+    const seen = new Set();
+    const walk = (directory, prefix = '', depth = 0) => {
+      if (depth > 16) { omittedFiles++; return; }
+      for (const name of python.FS.readdir(directory)) {
+        if (name === '.' || name === '..' || name === '__pycache__') continue;
+        if (++entries > 2000) { omittedFiles++; return; }
+        const relative = prefix + name, absolute = directory + '/' + name;
+        if (name.includes('\\') || !name || name === '__proto__' || name === 'constructor' || name === 'prototype') { omittedFiles++; continue; }
+        const stat = python.FS.lstat(absolute);
+        if (python.FS.isDir(stat.mode)) walk(absolute, relative + '/', depth + 1);
+        else if (python.FS.isFile(stat.mode)) {
+          seen.add(relative); count++; total += stat.size;
+          if (count > 200 || total > 5000000 || stat.size > 1000000 || !/\.(py|txt|csv|json|js|md)$/i.test(name)) { omittedFiles++; continue; }
+          try {
+            const source = new TextDecoder('utf-8', { fatal: true }).decode(python.FS.readFile(absolute));
+            if (data.readOnlyFiles?.includes(relative) && source !== data.files[relative]) readOnlyChanges.push(relative);
+            else if (source !== data.files[relative]) generatedFiles[relative] = source;
+          } catch (_) { omittedFiles++; }
+        }
+      }
+    };
+    try { walk('/codego'); for (const name of data.readOnlyFiles || []) if (!seen.has(name)) readOnlyChanges.push(name); }
+    catch (_) { omittedFiles++; }
+  }
   flush();
   flushTimer = null;
-  postMessage({ type: 'finished', exitCode, duration: Number(((Date.now() - started) / 1000).toFixed(2)), result });
+  postMessage({ type: 'finished', exitCode, duration: Number(((Date.now() - started) / 1000).toFixed(2)), result, generatedFiles, readOnlyChanges, omittedFiles });
 };

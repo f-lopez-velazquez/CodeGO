@@ -316,6 +316,11 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   assert(await page.locator('#btn-editor-diagnostic-help').isVisible(), 'Detailed syntax help is not available');
   await page.locator('#btn-editor-diagnostic-help').click();
   assert(await page.locator('#runtime-error-example-wrap').isVisible(), 'Syntax help does not include a correction example');
+  const coach = page.locator('#runtime-error-example .error-coach');
+  assert(await coach.isVisible(), 'Native errors must include the animated reference coach');
+  await coach.getByRole('button', { name: 'Ver completo' }).click();
+  assert((await coach.locator('pre').textContent()).length > 10, 'The complete reference example is missing');
+  await page.screenshot({ path: 'output/playwright/native-error-coach.png' });
   await page.locator('#btn-close-runtime-error').click();
   await page.locator('#btn-editor-diagnostic-line').click();
   assert(await page.locator('.editor-line-numbers .has-error').count() === 1, 'Live syntax issue does not navigate to its line');
@@ -398,6 +403,8 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => window.confirmationResult === true);
 
+  await page.evaluate(() => showVerifiedSubmission({ authentic: true, officialSealValid: true, mode: 'task', student: { name: 'Ana' }, telemetry: { externalPasteAttempts: 2 }, fileList: [{ path: 'solucion.py', content: 'print(1)' }] }));
+  assert((await page.locator('#verif-pastes').textContent()).includes('2'), 'Verifier must show actual clipboard attempts');
   await page.evaluate(() => { setTheme('theme-paper'); clearTerminal(); appendTerminalOutput('Nombre: José\n'); });
   const colors = await page.evaluate(() => ({output:getComputedStyle(DOM.terminalOutput).backgroundColor,text:getComputedStyle(DOM.terminalOutput.querySelector('.stdout')).color}));
   assert(colors.output === 'rgb(248, 250, 252)' && colors.text === 'rgb(15, 23, 42)', 'Light terminal theme broken');

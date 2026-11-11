@@ -36,5 +36,17 @@
       tx.onerror = tx.onabort = () => reject(conflict || tx.error || new Error('No hay espacio para guardar. Descarga una copia.'));
     });
   }
-  root.CodeGOStore = { load: uid => transaction(uid), save: (uid, value) => transaction(uid, value, true) };
+  async function installationIdentity(value) {
+    const db = await database();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('snapshots', value ? 'readwrite' : 'readonly');
+      const store = tx.objectStore('snapshots');
+      const request = store.get('__codego_installation_identity_v1');
+      let result;
+      request.onsuccess = () => { result = request.result || value; if (!request.result && value) store.put(value, '__codego_installation_identity_v1'); };
+      tx.oncomplete = () => resolve(result);
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('No se pudo conservar la identidad de esta instalación.'));
+    });
+  }
+  root.CodeGOStore = { loadIdentity: () => installationIdentity(), saveIdentity: value => installationIdentity(value), load: uid => transaction(uid), save: (uid, value) => transaction(uid, value, true) };
 })(window);

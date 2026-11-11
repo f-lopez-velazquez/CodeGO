@@ -365,3 +365,50 @@ progress { width: 100%; height: 8px; accent-color: #35b7a1; }
 @media (prefers-reduced-motion:reduce) {
   .example-demo *, .demo-variable.just-changed, .demo-cell.changed-cell, .demo-console.output-changed { animation: none !important; transition: none !important; }
 }
+
+/* The mode is visible across the room, including narrow screens and dialogs. */
+body[data-mode]::after { content: ''; position: fixed; inset: 0; border: 4px solid var(--mode-color); z-index: 10000; pointer-events: none; }
+body[data-mode=activity] { --mode-color: #42dc91; }
+body[data-mode=task] { --mode-color: #f3cb48; }
+body[data-mode=exam] { --mode-color: #ff5866; }
+body.supervision-alert::after { border-width: 12px; animation: teacher-signal 1.2s steps(2, end) infinite; }
+.supervision-alert #focus-dialog { border: 3px solid #ff5866; background: #381b25; }
+.supervision-alert #focus-title { color: #ffbec4; }
+@keyframes teacher-signal { 0%,100% { border-color: #ff5866; } 50% { border-color: #ffb6be; } }
+.journey-score { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 0; border-block: 1px solid var(--line); margin-bottom: 16px; }
+.journey-score strong { background: #243a51; color: #c6e8ff; padding: 8px 12px; border-radius: 9px; }
+.journey-score > span { color: #f2d18d; font-weight: 750; font-variant-numeric: tabular-nums; }
+.journey-score progress { flex: 1 1 120px; accent-color: #f2d18d; height: 9px; }
+.journey-score small { flex: 1 1 100%; color: var(--muted); }
+.mission-goals { display: flex; gap: 10px 18px; flex-wrap: wrap; color: #a9ddc4; font-size: .8rem; margin-bottom: 22px; }
+#lesson-list { border-left: 2px solid #294358; padding-left: 14px; }
+#lesson-list .module-title { color: #b8cfe2; margin-top: 16px; font-size: .75rem; }
+#lesson-list button { position: relative; border-radius: 9px; min-height: 44px; }
+#lesson-list button::before { content: ''; position: absolute; left: -20px; top: 18px; border-radius: 50%; width: 9px; height: 9px; background: #47637b; border: 1px solid #101b29; }
+#lesson-list button[aria-current=true]::before { background: #76d3ea; box-shadow: 0 0 0 4px #76d3ea22; }
+#lesson-list .mission-complete::before { background: #68dba5; }
+#lesson-list button:disabled { opacity: .5; cursor: not-allowed; }
+#lesson-content .lesson-hook { font-size: 1.08rem; line-height: 1.75; color: #e1ecf8; }
+.lesson-section > details { color: var(--muted); margin: 14px 0; }
+.lesson-keypoints { display: grid; gap: 12px; padding-left: 20px; }
+.review-mission { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.lesson-heading small { color: #8cd8df; letter-spacing: .08em; font-weight: 700; }
+.learning-overview h2 { font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; max-width: 24ch; }
+@media (max-width: 720px) { .mission-goals { gap: 8px; } .journey-score { padding: 12px 0; } .learning-navigation { gap: 6px; } .learning-navigation button { padding: 8px 10px; } body[data-mode]::after { border-width: 3px; } body.supervision-alert::after { border-width: 8px; } }
+@media (prefers-reduced-motion: reduce) { body.supervision-alert::after { animation: none; border-color: #ff5866; } }
+body[data-mode] dialog::backdrop { box-shadow: inset 0 0 0 4px var(--mode-color); }
+body.supervision-alert dialog::backdrop { box-shadow: inset 0 0 0 10px #ff5866; }
+#verify-result { display: grid; gap: 12px; padding-top: 16px; font-size: .85rem; }
+#verify-result > strong { color: #89e1b7; }
+#verify-result pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #090f18; font: 12px/1.65 ui-monospace, Consolas, monospace; }
+@media (max-width: 720px) {
+  .course-pane .learning-overview { gap: 10px; padding: 16px 0 12px; }
+  .course-pane .learning-overview .eyebrow, .course-pane .learning-progress small { display: none; }
+  .course-pane .learning-overview h2 { margin: 0; font-size: 1.3rem; }
+  .course-pane .learning-overview p { margin-top: 6px; font-size: .78rem; }
+  .course-pane .learning-progress { gap: 4px; }
+  .course-pane .journey-score { margin-bottom: 10px; gap: 8px; }
+  .course-pane .journey-score strong { padding: 5px 9px; }
+  .course-pane .learning-navigation { margin-bottom: 12px; }
+  .course-pane .mobile-lesson-picker { margin-bottom: 14px; }
+}

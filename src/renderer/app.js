@@ -686,7 +686,7 @@ function openAppDialog(options = {}) {
       const value = selectOptions.length ? DOM.appDialogSelect.value : DOM.appDialogInput.value.trim();
       if (confirmed) sounds.playFeedback(kind === 'danger' ? 'warning' : kind);
       requestAnimationFrame(() => {
-        if (previousFocus instanceof HTMLElement && document.contains(previousFocus)) previousFocus.focus({ preventScroll: true });
+        if (!document.querySelector('dialog[open]') && previousFocus instanceof HTMLElement && document.contains(previousFocus)) previousFocus.focus({ preventScroll: true });
       });
       resolve({ confirmed, value });
     };
@@ -708,7 +708,7 @@ function openAppDialog(options = {}) {
     DOM.appDialogCancel.onclick = cancelHandler;
     dialog.querySelector('form').onsubmit = submitHandler;
     dialog.showModal();
-    requestAnimationFrame(() => (inputLabel ? DOM.appDialogInput : selectOptions.length ? DOM.appDialogSelect : DOM.appDialogConfirm).focus());
+    (inputLabel ? DOM.appDialogInput : selectOptions.length ? DOM.appDialogSelect : DOM.appDialogConfirm).focus({ preventScroll: true });
   });
   const pending = appDialogQueue.then(run, run);
   appDialogQueue = pending.catch(() => {});
@@ -1916,6 +1916,15 @@ function setupEventListeners() {
   });
   DOM.btnGoHome?.addEventListener('click', handleGoHome);
   DOM.btnUpdateIde?.addEventListener('click', handleStartUpdate);
+  document.getElementById('btn-export-workspace')?.addEventListener('click', async () => {
+    if (state.isSubmitting || state.isRunning || state.isStarting) return;
+    if (state.appMode === 'exam' && !state.isExamSubmitted) return openSubmitExamModal();
+    if (state.appMode === 'task' && !state.isTaskSubmitted) return openSubmitTaskModal();
+    if (!await saveAllFiles()) return;
+    const result = await window.electronAPI?.exportWorkspace?.(state.student);
+    if (result?.success) showNotice(`Copia con huella guardada: ${result.filePath}`);
+    else if (result && !result.canceled) showNotice(result.error);
+  });
   DOM.btnSaveGradeReceipt?.addEventListener('click', handleSaveGradeReceipt);
 
   // Activity toolbar actions (open folder, create project)
@@ -1967,7 +1976,10 @@ function setupEventListeners() {
     if (isWorkspaceLocked() || (state.workspaceSessionActive && state.appMode !== 'activity' && !event.target.closest('dialog, .modal-overlay'))) {
       event.preventDefault();
       if (event.type === 'paste') state.taskTelemetry.externalPasteAttempts = (state.taskTelemetry.externalPasteAttempts || 0) + 1;
+      window.electronAPI?.recordWorkspaceEvent?.({ type: 'clipboard', action: event.type, file: state.activeFilePath, blocked: true, length: event.clipboardData?.getData('text/plain')?.length || 0 });
       showToast('En esta modalidad escribe tu código sin copiar ni pegar.', 'info');
+    } else if (state.workspaceSessionActive && event.type === 'paste') {
+      window.electronAPI?.recordWorkspaceEvent?.({ type: 'clipboard', action: 'paste', file: state.activeFilePath, blocked: false, length: event.clipboardData?.getData('text/plain')?.length || 0 });
     }
   };
   ['copy', 'cut', 'paste'].forEach(type => document.addEventListener(type, blockClipboard));
@@ -2695,16 +2707,21 @@ function isWorkspaceLocked() {
     || (state.appMode === 'task' && state.isTaskSubmitted);
 }
 
+let taskReferenceFiles = new Set();
+function isTaskReference(path = state.activeFilePath) { return state.appMode === 'task' && taskReferenceFiles.has(path); }
 function applyEditorLockState(locked = isWorkspaceLocked()) {
   if (!DOM.codeTextarea) return;
-  DOM.codeTextarea.readOnly = locked;
-  DOM.codeTextarea.classList.toggle('code-locked', locked);
+  DOM.codeTextarea.readOnly = locked || isTaskReference() || Boolean(state.isSubmitting);
+  DOM.codeTextarea.classList.toggle('code-locked', locked || isTaskReference());
+  DOM.codeTextarea.parentElement.dataset.readOnly = String(DOM.codeTextarea.readOnly);
+  DOM.codeTextarea.title = isTaskReference() ? 'Archivo anterior en lectura. Crea un archivo nuevo para escribir tu solución.' : '';
   document.querySelector('.editor-wrapper')?.classList.toggle('locked', locked);
   if (DOM.btnNewFile) DOM.btnNewFile.disabled = locked;
   if (DOM.btnNewFolder) DOM.btnNewFolder.disabled = locked;
 }
 
 function prepareNewWorkspaceSession() {
+  taskReferenceFiles.clear();
   state.isExamSubmitted = false;
   state.isTaskSubmitted = false;
   state.isSubmitting = false;
@@ -2846,8 +2863,12 @@ async function handleStartExamClick() {
   } else if (state.appMode === 'task') {
     // Task Mode: regular desktop editing with a signed delivery and session metrics.
     if (window.electronAPI && window.electronAPI.startKiosk) {
+      if (!(await Promise.all(state.openTabs.filter(tab => tab.isDirty).map(tab => saveTab(tab)))).every(Boolean)) return;
       const result = await window.electronAPI.startKiosk({ ...state.student, mode: 'task' });
       if (!result.success) { showNotice(result.error); return; }
+      taskReferenceFiles = new Set(result.readOnlyFiles || []);
+      for (const tab of state.openTabs) tab.isDirty = false;
+      if (result.solutionFile) await openFileInEditor(result.solutionFile);
     }
     enterIdeWorkspace();
   } else {
@@ -3276,6 +3297,7 @@ async function loadWorkspaceFiles() {
       const res = window.electronAPI ? await window.electronAPI.listWorkspace() : { success: true, tree: [] };
       if (state.workspacePath !== root) return;
       if (!res.success) throw new Error(res.error || 'No se pudo leer la carpeta.');
+      if (state.appMode === 'task' && Array.isArray(res.readOnlyFiles)) taskReferenceFiles = new Set(res.readOnlyFiles);
       state.filesTree = res.tree;
       if (!state.workspaceTreeInitialized) {
         state.collapsedFolders = new Set(workspaceFolderPaths(res.tree));
@@ -4256,7 +4278,7 @@ function scheduleSyntaxDiagnostic() {
 }
 
 function handleEditorInput() {
-  if (isWorkspaceLocked() || state.isSubmitting) return;
+  if (isWorkspaceLocked() || isTaskReference() || state.isSubmitting) return;
   const currentTab = state.openTabs.find((t) => t.path === state.activeFilePath);
   if (currentTab) {
     currentTab.content = DOM.codeTextarea.value;
@@ -4282,7 +4304,7 @@ function handleEditorInput() {
 
 let saveQueue = Promise.resolve();
 function saveTab(tab, options = {}) {
-  if (!tab || isWorkspaceLocked()) return Promise.resolve(true);
+  if (!tab || isWorkspaceLocked() || isTaskReference(tab.path)) return Promise.resolve(true);
   const content = tab.content;
   const write = async () => {
     try {
@@ -4354,7 +4376,7 @@ function saveLastSession() {
 }
 
 function handleEditorKeydown(e) {
-  if (isWorkspaceLocked()) {
+  if (isWorkspaceLocked() || isTaskReference()) {
     const allowedNav = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];
     if (!allowedNav.includes(e.key)) {
       e.preventDefault();
@@ -4535,9 +4557,8 @@ async function runCurrentPythonCode() {
     state.runtimeErrorLocation = null;
     updateLineNumbers();
     state.isStopping = false;
-    if (state.appMode === 'task') {
-      state.taskTelemetry.runsCount++;
-    }
+    if (state.appMode === 'task') state.taskTelemetry.runsCount++;
+    window.electronAPI?.recordWorkspaceEvent?.({ type: 'run', file: state.activeFilePath });
     DOM.btnStopCode.disabled = false;
     DOM.btnStopCode.classList.add('active');
     DOM.termStatusBadge.className = 'term-badge running';
@@ -4707,7 +4728,9 @@ function goToEditorLine(lineNumber, columnNumber = null) {
   updateCursorStats();
 }
 
+let runtimeErrorCoach = null;
 function renderRuntimeErrorGuide(guide, location, raw) {
+  runtimeErrorCoach?.destroy();
   state.runtimeErrorLocation = location;
   state.editorErrorLine = location?.line || null;
   updateLineNumbers();
@@ -4727,10 +4750,11 @@ function renderRuntimeErrorGuide(guide, location, raw) {
   }));
   if (DOM.runtimeErrorExampleWrap && DOM.runtimeErrorExample) {
     DOM.runtimeErrorExampleWrap.classList.toggle('hidden', !guide.example);
-    DOM.runtimeErrorExample.textContent = guide.example || '';
-    DOM.runtimeErrorExampleWrap.open = false;
+    DOM.runtimeErrorExample.replaceChildren();
+    if (guide.example) { runtimeErrorCoach = window.createCodeGOErrorCoach({ code: guide.example, hint: guide.actions[0] }); DOM.runtimeErrorExample.append(runtimeErrorCoach.element); }
   }
   DOM.modalRuntimeError.classList.remove('hidden');
+  DOM.modalRuntimeError.querySelector('.dialog-card')?.scrollTo(0, 0);
   (location?.line ? DOM.btnRuntimeErrorLine : DOM.btnCloseRuntimeError).focus();
 }
 
@@ -4827,6 +4851,7 @@ function clearTerminal() {
 }
 
 async function copyTerminalOutput() {
+  if (state.workspaceSessionActive && state.appMode !== 'activity' || isWorkspaceLocked()) { showToast('Copiar está bloqueado en esta modalidad.', 'info'); return; }
   if (state.appMode !== 'activity' && state.workspaceSessionActive) { showToast('La copia está deshabilitada en esta modalidad.', 'info'); return; }
   try {
     await navigator.clipboard.writeText(DOM.terminalTranscript.innerText);
@@ -5001,7 +5026,7 @@ function openSubmitTaskModal() {
   DOM.taskSubmitKeystrokes.textContent = (state.taskTelemetry.keystrokes || 0).toLocaleString();
   DOM.taskSubmitCharacters.textContent = (DOM.codeTextarea.value.length || 0).toLocaleString();
 
-  DOM.taskSubmitPastes.textContent = 'Permitido';
+  DOM.taskSubmitPastes.textContent = `${state.taskTelemetry.externalPasteAttempts || 0} intentos bloqueados`;
   DOM.taskSubmitPastes.className = 'clean';
 
   DOM.taskSubmitRuns.textContent = `${state.taskTelemetry.runsCount || 0} pruebas`;
@@ -5204,7 +5229,7 @@ function showVerifiedSubmission(res) {
         DOM.verifHmacBadge.style.color = '#34d399';
         DOM.verifHmacBadge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
       }
-      if (DOM.verifHmacText) DOM.verifHmacText.textContent = res.officialSealValid ? 'Sello de integridad Ed25519 verificado' : 'Sello compatible verificado';
+      if (DOM.verifHmacText) DOM.verifHmacText.textContent = res.officialSealValid ? 'Sello de integridad de instalación verificado' : 'Sello compatible verificado';
     } else {
       DOM.verifierStatusBadge.className = 'badge-status-tampered';
       DOM.verifierStatusBadge.textContent = '⚠️ ADULTERADO O SIN FIRMA';
@@ -5228,9 +5253,9 @@ function showVerifiedSubmission(res) {
   const tel = res.telemetry || {};
   if (DOM.verifKeystrokes) DOM.verifKeystrokes.textContent = (tel.keystrokesCount || tel.keystrokes || 0).toLocaleString();
   if (DOM.verifCharacters) DOM.verifCharacters.textContent = (tel.charactersTyped || tel.charactersWritten || 0).toLocaleString();
-  if (DOM.verifPastes) DOM.verifPastes.textContent = 'Permitido';
+  if (DOM.verifPastes) DOM.verifPastes.textContent = `${tel.externalPasteAttempts || 0} intentos registrados`;
   if (DOM.verifPastesSub) {
-    DOM.verifPastesSub.textContent = 'Edición libre durante la tarea';
+    DOM.verifPastesSub.textContent = 'Contexto de actividad; revisa la versión y el modo de la entrega.';
     DOM.verifPastesSub.style.color = '#8ea3b7';
   }
   if (DOM.verifEditingTime) DOM.verifEditingTime.textContent = formatTime(Math.round(tel.activeTypingSeconds || tel.activeEditingSeconds || 0));

@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const AdmZip = require('adm-zip');
+const { resolveWorkspacePath } = require('./workspace-path');
 
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const CODEGO_HMAC_SECRET = 'CodeGO-Certified-Academic-Integrity-v1.2-Zolvek-FranciscoLopezVelazquez';
@@ -123,7 +124,7 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Certificado de integridad de tarea codeGO — ${safeStr(student.name || 'Estudiante')}</title>
+  <title>Reporte de integridad del proyecto codeGO — ${safeStr(student.name || 'Estudiante')}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #080b12; color: #e2e8f0; margin: 0; padding: 24px; line-height: 1.5; }
     .card { max-width: 860px; margin: 0 auto; background: #0f1422; border: 1px solid #2b354f; border-radius: 14px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
@@ -141,7 +142,7 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
       <div>
-        <h1 style="margin:0;font-size:22px;color:#fff;">Certificado de integridad de tarea</h1>
+        <h1 style="margin:0;font-size:22px;color:#fff;">Reporte de integridad del proyecto</h1>
         <p style="margin:4px 0 0;font-size:13px;color:#a0aec0;">Entrega académica verificada por codeGO · zolvek.com.mx</p>
       </div>
       <div class="badge">✓ SELLO CRIPTOGRÁFICO CODEGO</div>
@@ -157,11 +158,11 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
     <h3 style="margin-top:24px;margin-bottom:12px;font-size:15px;color:#90cdf4;">Registro de actividad e integridad</h3>
     <div class="meta-grid">
       <div class="meta-box"><div class="meta-label">Pulsaciones de Tecla</div><div class="meta-val metric-ok">${tel.keystrokesCount || 0} pulsaciones</div></div>
-      <div class="meta-box"><div class="meta-label">Portapapeles</div><div class="meta-val metric-ok">Permitido durante la tarea</div></div>
+      <div class="meta-box"><div class="meta-label">Portapapeles</div><div class="meta-val metric-ok">${manifest.estudiante.mode === 'activity' ? 'Libre' : 'Copiar y pegar bloqueados'}</div></div>
       <div class="meta-box"><div class="meta-label">Tiempo Activo de Edición</div><div class="meta-val">${activeMinutes} min (${tel.activeTypingSeconds || 0}s)</div></div>
       <div class="meta-box"><div class="meta-label">Ejecuciones de Prueba</div><div class="meta-val">${tel.runsCount || 0} ejecuciones nativas</div></div>
       <div class="meta-box"><div class="meta-label">Alcance del certificado</div><div class="meta-val">Integridad de archivos y registro de sesión</div></div>
-      <div class="meta-box"><div class="meta-label">Identidad del equipo</div><div class="meta-val" style="font-family:monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;">${safeStr(manifest.officialSeal?.fingerprint || (manifest.signatureHMAC || '').substring(0, 24))}</div></div>
+      <div class="meta-box"><div class="meta-label">Identidad de instalación</div><div class="meta-val" style="font-family:monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;">${safeStr(manifest.officialSeal?.fingerprint || (manifest.signatureHMAC || '').substring(0, 24))}</div></div>
     </div>
 
     <h3 style="margin-top:28px;margin-bottom:8px;font-size:15px;color:#fff;">Archivos de Código Entregados (${files.length})</h3>
@@ -175,7 +176,7 @@ function generateTeacherHtmlCertificate({ student, manifest, files }) {
 </html>`;
 }
 
-function createSubmission({ workspace, outputDirectory, student, auditLog, version }) {
+function createSubmission({ workspace, outputDirectory, student, auditLog, version, provenance, signingIdentity }) {
   const zip = new AdmZip();
   const files = [];
   let total = 0;
@@ -197,13 +198,14 @@ function createSubmission({ workspace, outputDirectory, student, auditLog, versi
   }
   collect(workspace);
   const manifest = {
-    schemaVersion: 1, tipoEntrega: 'examen', sistema: `codeGO ${version}`,
+    schemaVersion: signingIdentity ? 2 : 1, tipoEntrega: 'examen', sistema: `codeGO ${version}`,
     autor: 'Francisco López Velázquez', by: 'zolvek.com.mx',
     estudiante: student, fechaEntrega: new Date().toISOString(),
-    totalIncidencias: auditLog.length, registroDeSeguridad: auditLog, files
+    totalIncidencias: auditLog.length, registroDeSeguridad: auditLog, provenance: provenance || null, files
   };
   manifest.checksum = sha256(Buffer.from(JSON.stringify(manifest)));
   manifest.signatureHMAC = signManifest(manifest.checksum);
+  if (signingIdentity) manifest.officialSeal = signWithIdentity(manifest.checksum, signingIdentity);
   zip.addFile('REPORTE_SEGURIDAD_EXAMEN.json', Buffer.from(JSON.stringify(manifest, null, 2)));
   const safeId = String(student.id || 'alumno').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
   const fileName = `EXAMEN_${safeId}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.zip`;
@@ -255,14 +257,15 @@ function createCertifiedTaskSubmission({ workspace, outputDirectory, customFileP
   const manifest = {
     schemaVersion: 3,
     submissionId: crypto.randomUUID(),
-    tipoEntrega: 'tarea_certificada',
+    tipoEntrega: student.mode === 'activity' ? 'practica_libre' : 'tarea_certificada',
     sistema: `codeGO ${version}`,
     plataforma: process.platform,
     autorSoftware: 'Francisco López Velázquez · zolvek.com.mx',
     estudiante: {
       name: student.name || 'Estudiante',
       id: student.id || '',
-      subject: student.subject || 'Tarea Python'
+      subject: student.subject || 'Tarea Python',
+      mode: student.mode === 'activity' ? 'activity' : 'task'
     },
     fechaEntrega: new Date().toISOString(),
     telemetria: {
@@ -275,7 +278,8 @@ function createCertifiedTaskSubmission({ workspace, outputDirectory, customFileP
       runsCount: Number(telemetry.runsCount || 0),
       runsHistory: Array.isArray(telemetry.runsHistory) ? telemetry.runsHistory : [],
       incidentsCount: Number(telemetry.incidentsCount || 0),
-      incidents: Array.isArray(telemetry.incidents) ? telemetry.incidents : []
+      incidents: Array.isArray(telemetry.incidents) ? telemetry.incidents : [],
+      provenance: telemetry.provenance || null
     },
     files
   };
@@ -323,8 +327,24 @@ function createCertifiedTaskSubmission({ workspace, outputDirectory, customFileP
   };
 }
 
+function verifyWebSubmission(bytes, fileName) {
+  const envelope = JSON.parse(bytes.toString('utf8'));
+  const { payload, seal } = envelope;
+  if (!['codego-web-submission-v2', 'codego-project-v2'].includes(payload?.format) || seal?.algorithm !== 'ECDSA-P256-SHA256') throw new Error('No es una entrega web firmada de CodeGO.');
+  const canonical = JSON.stringify(payload);
+  const fingerprint = sha256(Buffer.from(seal.publicKey)).slice(0, 24).toUpperCase();
+  if (sha256(Buffer.from(canonical)) !== envelope.sha256 || seal.fingerprint !== fingerprint || payload.installation?.fingerprint !== fingerprint) throw new Error('La huella de la entrega web no coincide.');
+  const key = crypto.createPublicKey({ key: Buffer.from(seal.publicKey, 'base64'), type: 'spki', format: 'der' });
+  if (key.asymmetricKeyType !== 'ec' || key.asymmetricKeyDetails?.namedCurve !== 'prime256v1' || !crypto.verify('sha256', Buffer.from(canonical), { key, dsaEncoding: 'ieee-p1363' }, Buffer.from(seal.signature, 'base64'))) throw new Error('La firma de la entrega web no coincide.');
+  const files = Object.entries(payload.project?.files || {});
+  if (!files.length || files.length > 200 || files.some(([name, source]) => typeof source !== 'string' || source.length > 1000000 || name.startsWith('/') || name.split(/[\\/]/).some(part => !part || part === '.' || part === '..'))) throw new Error('La entrega contiene archivos no válidos.');
+  const fileList = files.map(([filePath, content]) => ({ path: filePath, content, size: Buffer.byteLength(content), sha256: sha256(Buffer.from(content)) }));
+  return { success: true, authentic: true, mode: payload.project.mode, fileName: path.basename(fileName), zipChecksum: sha256(bytes), files: files.length, fileList, student: payload.student, date: payload.createdAt, officialSealValid: true, sealFingerprint: fingerprint, telemetry: payload.telemetry, auditLog: payload.project.evidence?.events || [], manifest: payload, limitations: payload.note };
+}
 function verifySubmission(zipPath) {
+  if (fs.statSync(zipPath).size > 150 * 1024 * 1024) throw new Error('La entrega supera 150 MB.');
   const bytes = fs.readFileSync(zipPath);
+  if (String(zipPath).toLowerCase().endsWith('.json')) return verifyWebSubmission(bytes, zipPath);
   const shaFile = zipPath + '.sha256';
   let zipChecksum = null;
   if (fs.existsSync(shaFile)) {
@@ -380,7 +400,7 @@ function verifySubmission(zipPath) {
       authentic: true,
       officialSealValid,
       sealFingerprint: manifest.officialSeal?.fingerprint || null,
-      mode: 'task',
+      mode: manifest.estudiante.mode === 'activity' ? 'activity' : 'task',
       fileName: path.basename(zipPath),
       zipChecksum,
       manifest,
@@ -399,12 +419,13 @@ function verifySubmission(zipPath) {
   }
 
   const manifest = JSON.parse(zip.readAsText(examManifestEntry));
-  const { checksum, signatureHMAC, ...metadata } = manifest;
+  const { checksum, signatureHMAC, officialSeal, ...metadata } = manifest;
   const expectedManifestChecksum = sha256(Buffer.from(JSON.stringify(metadata)));
   if (manifest.checksum !== expectedManifestChecksum) {
     throw new Error('El manifiesto del examen fue modificado.');
   }
 
+  if ((manifest.schemaVersion >= 2 || officialSeal) && !verifyIdentitySignature(manifest.checksum, officialSeal)) throw new Error('La firma de instalación del examen no coincide.');
   const files = [];
   for (const file of manifest.files) {
     const data = zip.readFile('codigo_estudiante/' + file.path);
@@ -423,6 +444,8 @@ function verifySubmission(zipPath) {
     success: true,
     authentic: true,
     mode: 'exam',
+    officialSealValid: Boolean(officialSeal),
+    sealFingerprint: officialSeal?.fingerprint || null,
     fileName: path.basename(zipPath),
     zipChecksum,
     files: manifest.files.length,
@@ -503,22 +526,17 @@ function analyzeSubmissionBatch(filePaths) {
 }
 
 function extractSubmissionFiles(zipPath, targetDirectory) {
-  const bytes = fs.readFileSync(zipPath);
-  const zip = new AdmZip(bytes);
-  const entries = zip.getEntries();
+  const verified = verifySubmission(zipPath);
+  const web = String(zipPath).toLowerCase().endsWith('.json');
+  const zip = web ? null : new AdmZip(fs.readFileSync(zipPath));
   fs.mkdirSync(targetDirectory, { recursive: true });
-
-  let extractedCount = 0;
-  for (const entry of entries) {
-    if (entry.entryName.startsWith('codigo_estudiante/') && !entry.isDirectory) {
-      const rel = entry.entryName.slice('codigo_estudiante/'.length);
-      const dest = path.join(targetDirectory, rel);
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.writeFileSync(dest, entry.getData());
-      extractedCount++;
-    }
+  const entries = verified.fileList.map(file => ({ file, dest: resolveWorkspacePath(targetDirectory, file.path) }));
+  for (const { file, dest } of entries) {
+    const bytes = web ? Buffer.from(file.content, 'utf8') : zip.readFile('codigo_estudiante/' + file.path);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, bytes);
   }
-  return { success: true, extractedCount, targetDirectory };
+  return { success: true, extractedCount: entries.length, targetDirectory };
 }
 
 function createGradeReceipt({ submissionPath, outputPath, teacher, grade, feedback = '', signingIdentity }) {

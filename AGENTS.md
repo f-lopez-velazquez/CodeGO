@@ -163,3 +163,16 @@ La fuente web es `webapp/`, publicada en `https://codego-python.web.app` con Fir
 El currículo está en `webapp/course-content.js`, la lógica de aprendizaje en `course.js` y su presentación en `learning.js`. Las soluciones de referencia de pruebas están en `tests/fixtures/`, fuera de la distribución web. Comprobar ejemplos y retos con Python real antes de publicar contenido.
 
 Cambiar el código local o publicar Firebase no actualiza la aplicación instalada. Para una actualización compatible se incrementa la versión, se valida `npm run build:patch` y se publica el paquete ASAR con su SHA-256 en una nueva GitHub Release. Verificar que `checkForUpdates` desde la versión anterior detecta el paquete publicado. Los instaladores base mantienen su versión real.
+
+## 7. Curso, web y evidencias (1.6.16)
+
+- `webapp/course.js` calcula XP por logros únicos y desbloquea cada misión tras completar la anterior. Los repasos conservan el mejor resultado; no generan XP adicional. Las evaluaciones son prácticas locales.
+- `src/renderer/error-coach.js` y su CSS se comparten con la web. Muestran ejemplos de referencia, no una ejecución ni una corrección automática del código del alumno. Respetan movimiento reducido y pausan al ocultarse. Mantener ambas copias idénticas.
+- Marco permanente: verde libre, amarillo tarea, rojo examen. En libre no activar supervisión de foco, red o audio.
+- `src/main/workspace-evidence.js` conserva hasta 500 eventos por carpeta fuera del workspace. Registra hashes al guardar y detecta cambios externos en archivos de consulta. Explicitar los eventos omitidos; no presentar un historial acotado como registro completo de teclas.
+- Las entregas nuevas de examen incluyen firma Ed25519 de la instalación además del SHA-256. Las copias de práctica y tarea incluyen procedencia en la telemetría firmada.
+- `webapp/evidence.js` firma con ECDSA P-256; la clave privada no exportable persiste en IndexedDB. El identificador corresponde al perfil del navegador, no al hardware físico. El verificador de escritorio acepta estas entregas JSON y comprueba firma y contenido. Una firma válida acredita integridad y continuidad de instalación, nunca autoría ni identidad escolar por sí sola.
+- Una entrega sellada se vuelve a descargar con los mismos bytes. Nunca regenerarla como práctica ni reabrirla para editar. En examen, «Guardar copia» pasa por la advertencia y entrega definitiva. En la web, las copias de tarea conservan sus archivos de consulta en lectura al recuperarlas.
+- La web conserva avisos pendientes tras recargar. Usa alarmas con Web Audio, indicador de pestaña, pantalla completa cuando se permite y espera real de 12 s al regresar. El navegador no puede controlar volumen del SO, cerrar apps ni desconectar la red. El parpadeo web es lento y se desactiva con movimiento reducido.
+- Sin conexión: se requiere una primera autenticación con Google y una primera carga de Python con red. El SW conserva los runtimes fijados al actualizar el shell; no cachear respuestas de autenticación. Probar edición, ejecución, recarga con aviso pendiente y entrega firmada sin red.
+- `npm run test:webapp`, `npm run test:webapp:offline` y `npm run test:examples` complementan las pruebas nativas. `CODEGO_BROWSER_BINARY=/usr/bin/chromium` permite usar Chromium del sistema.

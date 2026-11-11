@@ -64,6 +64,20 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   assert.equal((await call('python:run',{relativePath:'../../escape.py',code:'print("bad")'})).success,false);
   assert.equal((await call('fs:save-file',{relativePath:'../outside.py',content:'bad'})).success,false);
   assert.equal(fs.existsSync(path.join(dir,'outside.py')),false);
+  await vm.runInContext("evidenceForWorkspace().begin('task', { name: 'Ana' })", context);
+  vm.runInContext("activeSessionMode = 'task';", context);
+  assert.equal((await call('fs:read-file', 'main.py')).readOnly, true);
+  for (const [name,data] of [
+    ['fs:save-file',{relativePath:'main.py',content:'forged'}], ['fs:delete','main.py'],
+    ['fs:rename',{oldPath:'main.py',newPath:'other.py'}], ['fs:move',{sourcePath:'main.py',targetDirectory:'ejercicios'}],
+    ['fs:create-file','main.py']
+  ]) assert.equal((await call(name,data)).success, false, 'Task references: ' + name);
+  assert.equal((await call('fs:create-file','solucion.py')).success, true);
+  assert.equal((await call('fs:save-file',{relativePath:'solucion.py',content:'print(2)'})).success, true);
+  assert.equal((await call('fs:read-file', 'solucion.py')).readOnly, false);
+  await vm.runInContext("evidenceForWorkspace().begin('activity', {});", context);
+  vm.runInContext("activeSessionMode = 'activity';", context);
+  assert.equal((await call('fs:read-file','main.py')).readOnly, false);
   vm.runInContext('workspaceSealed = true;',context);
   for (const [name,data] of [
     ['fs:save-file',{relativePath:'main.py',content:'modified'}],

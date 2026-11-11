@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.6.16 · Misiones, ayudas animadas y entregas con procedencia
+
+- Curso con XP por logros únicos, niveles, desbloqueo de misiones y repaso sin perder el progreso.
+- Ejemplos de error con escritura progresiva y controles por línea, compartidos entre escritorio y web.
+- Marco verde, amarillo o rojo según modalidad. En tarea, archivos previos en lectura y solución nueva editable, sin copiar ni pegar.
+- Avisos web con sonido, señal visual lenta, pestaña destacada y pantalla completa cuando el navegador la permite. Los avisos sobreviven a una recarga y conservan la espera de 12 segundos.
+- Confirmación explícita al entregar; proyecto bloqueado y repetición de descarga sin modificar la entrega.
+- Evidencia acotada de cambios, importaciones y portapapeles. Identidad de instalación Ed25519 en escritorio y ECDSA P-256 en web; verificación de entregas web desde ambas versiones. No acredita autoría exclusiva ni identifica físicamente al alumno.
+- Recuperación, ejecución y firma sin red tras la primera carga; caché de Python conservada al actualizar. Los resultados de texto creados por Python se recuperan en el explorador web.
+- Evita una carrera de foco entre diálogos consecutivos que podía hacer que Enter activara Cancelar.
+
 ## 1.6.7 · Modo libre realmente libre
 
 - Libera pantalla completa, kiosk, primer plano, atajos globales y vigilancia de audio al entrar en modo libre.

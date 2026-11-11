@@ -12,10 +12,15 @@ let saveQueue = Promise.resolve(true);
 let homeMode = 'activity';
 let running = false;
 let warning = false;
+let sealing = false;
+const evidence = window.CodeGOEvidence.create(window.CodeGOStore);
+const record = (type, detail) => { if (project() && !project().locked) window.CodeGOEvidence.record(project(), type, detail); };
+const fileReadOnly = () => project()?.locked || sealing || warning || project()?.mode === 'task' && project()?.readOnlyFiles?.includes(project()?.activeFile);
 let returnDeadline = 0;
 let warningTimer;
 let textResolver;
 let errorLine = 1;
+let errorCoach;
 let telemetry = new SDK.ForensicTelemetry();
 let telemetryProject = null;
 let toastTimer;
@@ -53,7 +58,7 @@ $('go-home').onclick = async () => {
   state.lastView = 'home'; markChanged(); showHome();
 };
 $('home-signout').onclick = () => $('signout').click();
-document.querySelectorAll('[data-web-version]').forEach(element => { element.textContent = 'v1.6.15'; });
+document.querySelectorAll('[data-web-version]').forEach(element => { element.textContent = 'v1.6.16'; });
 function freshProject(name = 'Mi proyecto') {
   return { id: uuid(), name, files: { 'main.py': '# Tu primer programa\nprint("Hola, Python")\n' }, activeFile: 'main.py', mode: 'activity', stdin: '', locked: false };
 }
@@ -73,9 +78,10 @@ async function save() {
     if (change === savedChange) return true;
     const version = change;
     project().telemetry = { ...telemetry, lastKeystrokeTime: null };
-    const snapshot = structuredClone(state);
-    snapshot.revision = revision;
     try {
+      await evidence.checkpoint(project());
+      const snapshot = structuredClone(state);
+      snapshot.revision = revision;
       revision = await window.CodeGOStore.save(owner, snapshot);
       savedChange = version;
       $('save-status').classList.remove('error');
@@ -99,9 +105,18 @@ function download(name, text, mime = 'application/json') {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
-function backup() {
-  if (!state) return;
-  download(project().name + '.codego-web.json', JSON.stringify({ format: 'codego-project-v1', project: project() }, null, 2));
+async function backup() {
+  if (!state || sealing || running || warning) return;
+  if (project().locked && project().sealedExport) return download(project().name + '.entrega-web.json', project().sealedExport);
+  if (project().mode === 'exam') { $('submit').click(); return; }
+  try {
+    const current = project(), student = structuredClone(state.student), report = telemetry.getReport();
+    await evidence.checkpoint(current);
+    const snapshot = structuredClone(current);
+    delete snapshot.sealedExport;
+    const envelope = await evidence.seal({ format: 'codego-project-v2', student, email: user.email, createdAt: new Date().toISOString(), project: snapshot, telemetry: report });
+    download(snapshot.name + '.codego-web.json', JSON.stringify(envelope, null, 2));
+  } catch (error) { toast('No se pudo firmar la copia: ' + error.message); }
 }
 function askText(title, initial = '') {
   $('text-dialog-title').textContent = title;
@@ -187,7 +202,7 @@ function renderFiles() {
     }
     for (const { name, path } of node.files) {
       const button = document.createElement('button');
-      button.textContent = name; button.title = path; button.classList.toggle('active', path === current.activeFile);
+      button.textContent = name + (current.mode === 'task' && current.readOnlyFiles?.includes(path) ? ' · lectura' : ''); button.title = path; button.classList.toggle('active', path === current.activeFile);
       button.onclick = () => { current.activeFile = path; markChanged(); renderWorkspace(); setPane('editor'); editor.focus(); };
       parent.append(button);
     }
@@ -210,28 +225,33 @@ function renderWorkspace() {
   if (!current.files[current.activeFile] && !(current.activeFile in current.files)) current.activeFile = Object.keys(current.files)[0];
   const source = current.files[current.activeFile] || '';
   if (editor.value !== source) editor.value = source;
-  editor.readOnly = current.locked || warning;
+  editor.readOnly = Boolean(fileReadOnly());
+  document.body.dataset.mode = current.mode;
+  $('filename').textContent = current.activeFile + (current.mode === 'task' && current.readOnlyFiles?.includes(current.activeFile) ? ' · Solo lectura' : '');
   $('stdin').value = current.stdin || '';
-  $('filename').textContent = current.activeFile;
+
   $('workspace-project-label').textContent = current.name;
   $('workspace-student').textContent = state.student.name;
   $('open-session').textContent = modeLabels[current.mode];
   $('submit').hidden = current.mode === 'activity';
-  $('submit').disabled = current.mode === 'activity' || current.locked || running || warning;
-  $('run').disabled = running || current.locked || warning;
-  $('new-file').disabled = current.locked || running || warning;
-  $('new-project').disabled = (current.mode !== 'activity' && !current.locked) || running || warning;
-  $('import-project').disabled = (current.mode !== 'activity' && !current.locked) || running || warning;
-  $('project-select').disabled = (current.mode !== 'activity' && !current.locked) || running || warning;
+  $('submit').disabled = current.mode === 'activity' || current.locked || running || warning || sealing;
+  $('run').disabled = running || current.locked || warning || sealing;
+  $('new-file').disabled = current.locked || running || warning || sealing;
+  $('new-project').disabled = (current.mode !== 'activity' && !current.locked) || running || warning || sealing;
+  $('import-project').disabled = (current.mode !== 'activity' && !current.locked) || running || warning || sealing;
+  $('project-select').disabled = (current.mode !== 'activity' && !current.locked) || running || warning || sealing;
   $('assignment-summary').hidden = !current.assignment;
   $('assignment-title').textContent = current.assignment?.title || '';
   $('assignment-prompt').textContent = current.assignment?.prompt || '';
   $('storage-location').textContent = `${Object.keys(current.files).length} archivos · en este navegador`;
   renderProjects(); renderFiles(); updateEditor();
+  if (current.pendingIncident && !current.locked && !warning && !$('session-dialog').open) {
+    warning = true; editor.readOnly = true; startAlarm(); $('focus-dialog').showModal(); resumeCountdown();
+  }
 }
 function recordEditorChange(event) {
   const current = project();
-  if (!current || current.locked || warning) return;
+  if (!current || fileReadOnly()) { if (current) editor.value = current.files[current.activeFile]; return; }
   if (editor.value.length > 1000000) {
     editor.value = current.files[current.activeFile]; toast('El editor admite hasta 1 MB por archivo. Divide el proyecto en archivos más pequeños.'); return;
   }
@@ -239,8 +259,9 @@ function recordEditorChange(event) {
   if (otherSize + editor.value.length > 5000000) {
     editor.value = current.files[current.activeFile]; toast('El proyecto alcanzó 5 MB. Divide el trabajo en proyectos más pequeños.'); return;
   }
+  record('edit', { file: current.activeFile, inputType: event?.inputType || 'typing', previousLength: current.files[current.activeFile]?.length || 0, length: editor.value.length, cursorUTF16: editor.selectionStart, insertedText: String(event?.data || '').slice(0, 512), textTruncated: (event?.data?.length || 0) > 512 });
   current.files[current.activeFile] = editor.value;
-  if (current.mode !== 'activity') telemetry.recordKeystroke(event?.data?.length || 0);
+  telemetry.recordKeystroke(event?.data?.length || 0);
   updateEditor(); markChanged();
 }
 editor.addEventListener('input', recordEditorChange);
@@ -273,11 +294,22 @@ document.querySelectorAll('[data-key]').forEach(button => {
   button.onclick = () => insertCode(button.dataset.key);
 });
 $('undo').onclick = () => { if (!editor.readOnly) { editor.focus(); document.execCommand('undo'); } };
+for (const type of ['copy', 'cut', 'paste', 'drop']) document.addEventListener(type, event => {
+  if (!state || project().mode === 'activity' || $('session-dialog').open) return;
+  event.preventDefault();
+  if (type === 'paste') telemetry.recordPasteAttempt();
+  record('clipboard', { action: type, blocked: true, file: project().activeFile }); markChanged();
+  toast('En esta modalidad escribe sin copiar ni pegar.');
+}, true);
 for (const type of ['copy', 'cut', 'paste', 'drop']) editor.addEventListener(type, event => {
+  if (event.defaultPrevented) return;
   if (project()?.locked || (project()?.mode !== 'activity')) {
     event.preventDefault();
     if (type === 'paste') telemetry.recordPasteAttempt();
+    record('clipboard', { action: type, blocked: true, file: project().activeFile });
     toast('En esta modalidad escribe tu código sin copiar ni pegar.');
+  } else if (type === 'paste' || type === 'drop') {
+    record('clipboard', { action: type, blocked: false, file: project().activeFile, length: (event.clipboardData?.getData('text/plain') || event.dataTransfer?.getData('text/plain') || '').length, origin: 'No se puede identificar la aplicación de origen.' }); markChanged();
   }
 });
 editor.addEventListener('beforeinput', event => {
@@ -291,7 +323,7 @@ $('new-file').onclick = async () => {
   if (!safePath(path) || !/\.(py|txt|csv|json|js|md)$/i.test(path)) return toast('Usa una ruta relativa y una extensión .py, .js, .txt, .csv, .json o .md.');
   if (Object.keys(project().files).length >= 200) return toast('El proyecto admite hasta 200 archivos.');
   if (Object.hasOwn(project().files, path)) return toast('Ya existe un archivo con ese nombre.');
-  project().files[path] = ''; project().activeFile = path; markChanged(); renderWorkspace();
+  record('create', { file: path }); project().files[path] = ''; project().activeFile = path; markChanged(); renderWorkspace();
 };
 $('new-project').onclick = async () => {
   if (project().mode !== 'activity' && !project().locked || running) return;
@@ -306,8 +338,15 @@ $('project-select').onchange = async () => {
   if (!await save()) { $('project-select').value = state.currentProject; return; }
   state.currentProject = $('project-select').value; markChanged(); renderWorkspace();
 };
+function beginTaskReferences(current) {
+  if (Object.keys(current.files).length >= 200) throw new Error('Descarga una copia y reduce el proyecto a menos de 200 archivos antes de iniciar una tarea.');
+  current.readOnlyFiles = Object.keys(current.files);
+  let path = 'solucion.py', index = 2;
+  while (Object.hasOwn(current.files, path)) path = `solucion_${index++}.py`;
+  current.files[path] = '# Escribe aquí tu solución. Los archivos anteriores son de consulta.\n'; current.activeFile = path;
+}
 function openSession(requestedMode = null) {
-  if (running || warning) return toast('Termina la ejecución o el aviso antes de cambiar de modalidad.');
+  if (running || warning || sealing) return toast('Termina la ejecución o el aviso antes de cambiar de modalidad.');
   if (project().mode !== 'activity' && !project().locked) return toast('Entrega la actividad antes de cambiar de modalidad.');
   $('student-name').value = state.student.name || user.displayName || '';
   $('student-id').value = state.student.id || '';
@@ -319,7 +358,7 @@ function openSession(requestedMode = null) {
 $('open-session').onclick = openSession;
 function updateModeDescription() {
   const mode = document.querySelector('input[name=mode]:checked').value;
-  $('mode-description').textContent = mode === 'activity' ? 'Práctica libre. Puedes copiar, pegar y cambiar de aplicación.' : `${mode === 'exam' ? 'Examen' : 'Tarea'}: sin copiar ni pegar. Salir de la ventana registra una incidencia y exige 12 segundos al volver. La web no bloquea otras apps ni la red.`;
+  $('mode-description').textContent = mode === 'activity' ? 'Práctica libre. Puedes copiar, pegar y cambiar de aplicación.' : mode === 'task' ? 'Archivos anteriores en lectura; escribe en una solución nueva. Sin copiar ni pegar. Salir activa un aviso y una espera de 12 s.' : 'Empiezas en blanco. Sin copiar ni pegar; salir activa un aviso y una espera de 12 s. La web no bloquea otras apps ni la red.';
 }
 document.querySelectorAll('input[name=mode]').forEach(input => input.addEventListener('change', updateModeDescription));
 $('session-form').addEventListener('submit', async event => {
@@ -328,6 +367,8 @@ $('session-form').addEventListener('submit', async event => {
   if (!state.student.name) return;
   const selected = state.projects.find(item => item.id === $('session-project').value);
   const mode = document.querySelector('input[name=mode]:checked').value;
+  if (mode === 'task' && Object.keys(selected.files).length >= 200) return void ($('session-error').textContent = 'Reduce el proyecto a menos de 200 archivos para crear tu solución.');
+  if (mode === 'exam' && state.projects.filter(item => !item.learningGroup).length >= 20) return void ($('session-error').textContent = 'Descarga tus proyectos y elimina copias antiguas antes de crear más exámenes.');
   if (selected.locked) return void ($('session-error').textContent = 'Este proyecto ya se entregó. Crea uno nuevo o elige otro proyecto.');
   state.profileConfirmed = true;
   state.lastView = 'workspace';
@@ -338,6 +379,10 @@ $('session-form').addEventListener('submit', async event => {
     clean.files = { 'main.py': '' }; state.projects.push(clean); state.currentProject = clean.id;
   }
   project().mode = mode;
+  if (mode === 'task') beginTaskReferences(project());
+  else project().readOnlyFiles = [];
+  record('session-start', { mode, readOnlyFiles: project().readOnlyFiles });
+  if (mode !== 'activity') prepareSupervision(mode);
   telemetry.reset(); telemetryProject = state.currentProject; project().telemetry = { ...telemetry };
   $('session-dialog').close(); markChanged(); renderWorkspace(); setPane('editor'); editor.focus();
 });
@@ -364,7 +409,7 @@ function explainError(raw) {
     [/NameError/, 'Python no reconoce ese nombre', 'Define la variable antes de usarla. Revisa mayúsculas y errores de escritura.', 'nombre = "Ana"\nprint(nombre)'],
     [/TypeError/, 'Los tipos de datos no coinciden', 'input() devuelve texto. Convierte con int() o float() antes de calcular.', 'edad = int("18")\nprint(edad + 1)'],
     [/ValueError/, 'No se pudo convertir el valor', 'Comprueba que el texto representa el dato que necesitas.', 'try:\n    numero = int("18")\nexcept ValueError:\n    print("Escribe un entero")'],
-    [/ZeroDivisionError/, 'El divisor es cero', 'Comprueba el divisor antes de dividir.', 'if divisor != 0:\n    resultado = total / divisor'],
+    [/ZeroDivisionError/, 'El divisor es cero', 'Comprueba el divisor antes de dividir.', 'total, divisor = 10, 2\nif divisor != 0:\n    print(total / divisor)'],
     [/IndexError/, 'Esa posición no existe', 'Los índices empiezan en 0 y llegan hasta len(lista) - 1.', 'datos = [10, 20]\nprint(datos[0])  # 10'],
     [/KeyError/, 'No existe esa clave', 'Comprueba la clave o usa get() con un valor alternativo.', 'datos = {"nombre": "Ana"}\nprint(datos.get("edad", 0))'],
     [/EOFError/, 'Falta una respuesta para input()', 'Abre Entradas para input(), escribe una respuesta por línea y vuelve a ejecutar.', 'nombre = input("Nombre: ")\n# En Entradas escribe: Ana'],
@@ -375,7 +420,7 @@ function explainError(raw) {
   errorLine = Number(lines.at(-1)?.[1]) || 1;
   $('error-title').textContent = title;
   $('error-message').textContent = message;
-  $('error-example').textContent = example;
+  errorCoach?.destroy(); errorCoach = window.createCodeGOErrorCoach({ code: example }); $('error-example').replaceChildren(errorCoach.element);
   $('error-guide').hidden = false;
   $('goto-error').hidden = !lines.length;
 }
@@ -385,11 +430,12 @@ $('goto-error').onclick = () => {
   editor.setSelectionRange(offset, offset); editor.scrollTop = Math.max(0, (errorLine - 4) * 24); updateEditor();
 };
 async function run(tests = null) {
-  if (running || project().locked || warning) return;
+  if (running || project().locked || warning || sealing) return;
   if (!await save()) return;
   const current = project();
   const filename = current.activeFile;
   const executedSource = current.files[filename];
+  const executedFiles = { ...current.files };
   const executedExerciseId = current.exerciseId;
   const executedLessonId = current.lessonId;
   const language = /\.js$/i.test(filename) ? 'javascript' : /\.py$/i.test(filename) ? 'python' : null;
@@ -399,7 +445,20 @@ async function run(tests = null) {
   $('terminal-transcript').replaceChildren(); errorOutput = '';
   setPane('terminal'); telemetry.recordRun();
   try {
-    const result = await engine.run(executedSource, language, { filename, files: current.files, stdin: current.stdin ? current.stdin.split('\n') : [], tests });
+    const result = await engine.run(executedSource, language, { filename, files: executedFiles, readOnlyFiles: current.mode === 'task' ? current.readOnlyFiles : [], stdin: current.stdin ? current.stdin.split('\n') : [], tests });
+    for (const [file, source] of Object.entries(result.generatedFiles || {})) {
+      if (!safePath(file) || typeof source !== 'string' || source.length > 1000000) continue;
+      if (current.files[file] !== executedFiles[file]) { appendOutput(`No se reemplazó ${file}: lo editaste durante la ejecución.\n`, 'system'); continue; }
+      if (!(file in current.files) && Object.keys(current.files).length >= 200 || Object.entries(current.files).reduce((n,[name,text]) => n + (name === file ? 0 : text.length), 0) + source.length > 5000000) { appendOutput('Un archivo generado supera el espacio disponible.\n', 'stderr'); continue; }
+      current.files[file] = source;
+      window.CodeGOEvidence.record(current, 'python-output-file', { file, length: source.length });
+      appendOutput(`Archivo guardado: ${file}\n`, 'system'); markChanged();
+    }
+    if (result.readOnlyChanges?.length) {
+      window.CodeGOEvidence.record(current, 'reference-write-attempt', { files: result.readOnlyChanges });
+      appendOutput('Tu programa intentó cambiar archivos de consulta. Se conservaron sus versiones originales. Escribe los resultados en archivos nuevos.\n', 'stderr'); markChanged();
+    }
+    if (result.omittedFiles) appendOutput('Algunos resultados no se guardaron: se admiten archivos de texto de hasta 1 MB, 200 archivos y 5 MB por proyecto. Para imágenes o archivos mayores usa la app instalable.\n', 'system');
     if (errorOutput) explainError(errorOutput);
     if (result.result) {
       const grade = result.result;
@@ -418,7 +477,7 @@ async function run(tests = null) {
       if (executedExerciseId) {
         state.learning ||= { version: 2, quiz: {}, exercises: {}, assessments: {} };
         const previous = state.learning.exercises[executedExerciseId];
-        state.learning.exercises[executedExerciseId] = { ...current.lastEvaluation, passed: grade.passed === grade.total, attempts: (previous?.attempts || 0) + 1 };
+        state.learning.exercises[executedExerciseId] = { ...current.lastEvaluation, passed: grade.passed === grade.total, bestPassed: previous?.bestPassed || previous?.passed || grade.passed === grade.total, attempts: (previous?.attempts || 0) + 1 };
       }
       $('evaluation').hidden = false; markChanged();
     }
@@ -434,23 +493,74 @@ window.addEventListener('keydown', event => {
 });
 $('backup').onclick = backup;
 $('submit').onclick = async () => {
-  if (project().mode === 'activity' || project().locked || running || warning) return;
-  if (!await confirmAction('Entregar actividad', 'Se descargará tu trabajo y el proyecto quedará sellado en este navegador.')) return;
-  if (!await save()) return;
+  if (project().mode === 'activity' || project().locked || running || warning || sealing) return;
+  if (!await confirmAction('Entregar y bloquear', 'Esta es tu entrega definitiva. Ya no podrás editar ningún archivo de este proyecto en CodeGO. Se generará una copia firmada para enviarla al profesor. ¿Confirmas la entrega?')) return;
+  if (running || warning || project().locked) return;
+  sealing = true; renderWorkspace();
   const current = project();
-  const payload = { format: 'codego-web-submission-v1', platform: 'browser', student: state.student, email: user.email, project: structuredClone(current), telemetry: telemetry.getReport(), createdAt: new Date().toISOString(), verification: 'SHA-256 detecta cambios; no acredita autoría ni equivale al sello Ed25519 de escritorio.' };
-  const canonical = JSON.stringify(payload);
-  const envelope = { payload, sha256: await SDK.computeSHA256(canonical) };
-  download(current.name + '.entrega-web.json', JSON.stringify(envelope, null, 2));
-  current.locked = true; markChanged(); await save(); renderWorkspace();
-  toast('Entrega descargada. Conserva el archivo y envíalo a tu profesor.');
+  try {
+    if (!await save()) return;
+    await evidence.checkpoint(current);
+    record('submission', { mode: current.mode });
+    const snapshot = structuredClone(current); snapshot.locked = true; delete snapshot.sealedExport;
+    const envelope = await evidence.seal({ format: 'codego-web-submission-v2', platform: 'browser', student: structuredClone(state.student), email: user.email, project: snapshot, telemetry: telemetry.getReport(), createdAt: new Date().toISOString() });
+    current.sealedExport = JSON.stringify(envelope, null, 2);
+    current.locked = true; markChanged();
+    if (!await save()) { current.locked = false; delete current.sealedExport; markChanged(); return; }
+    download(current.name + '.entrega-web.json', current.sealedExport);
+    stopAlarm();
+    if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
+    toast('Entrega sellada. Conserva la descarga y envíala a tu profesor. Puedes descargarla otra vez desde Cuenta.');
+  } catch (error) { toast('No se completó la entrega: ' + error.message); }
+  finally { sealing = false; renderWorkspace(); }
 };
+let alarmContext, alarmTimer, titleTimer, fullscreenRequested = false;
+const originalTitle = document.title;
+function prepareSupervision(mode) {
+  try {
+    alarmContext ||= new (window.AudioContext || window.webkitAudioContext)();
+    alarmContext.resume().catch(() => toast('Activa el sonido del navegador para oír los avisos.'));
+  } catch (_) { toast('Este navegador no permite la alarma sonora. El aviso visual y el registro siguen activos.'); }
+  if (mode === 'exam' && document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().then(() => { fullscreenRequested = true; }).catch(() => { record('capability', { fullscreen: false }); toast('No se pudo activar pantalla completa. El examen web seguirá registrando salidas de la ventana.'); });
+  }
+}
+$('enable-alert-sound').onclick = async () => {
+  try { alarmContext ||= new (window.AudioContext || window.webkitAudioContext)(); await alarmContext.resume(); alarmTone(); toast('Aviso sonoro activado. Comprueba también el volumen del equipo.'); }
+  catch (_) { toast('Este navegador no permite activar el sonido.'); }
+};
+function alarmTone() {
+  if (!alarmContext || alarmContext.state !== 'running') return;
+  const now = alarmContext.currentTime;
+  [660, 880].forEach((frequency, index) => {
+    const oscillator = alarmContext.createOscillator(), gain = alarmContext.createGain();
+    oscillator.frequency.value = frequency; oscillator.type = 'sine';
+    gain.gain.setValueAtTime(0, now + index * .18); gain.gain.linearRampToValueAtTime(.22, now + index * .18 + .015); gain.gain.exponentialRampToValueAtTime(.001, now + index * .18 + .16);
+    oscillator.connect(gain); gain.connect(alarmContext.destination); oscillator.start(now + index * .18); oscillator.stop(now + index * .18 + .18);
+    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+  });
+}
+function startAlarm() {
+  if (alarmTimer) return;
+  document.body.classList.add('supervision-alert');
+  alarmTone(); alarmTimer = setInterval(alarmTone, 1200);
+  let visible = true;
+  document.title = '⚠ Regresa a CodeGO';
+  titleTimer = setInterval(() => { visible = !visible; document.title = visible ? '⚠ Regresa a CodeGO' : originalTitle; }, 1000);
+}
+function stopAlarm() {
+  clearInterval(alarmTimer); clearInterval(titleTimer); alarmTimer = null; titleTimer = null;
+  document.body.classList.remove('supervision-alert'); document.title = originalTitle;
+}
+document.addEventListener('fullscreenchange', () => {
+  if (fullscreenRequested && !document.fullscreenElement) { fullscreenRequested = false; leaveWorkspace('fullscreen-exit'); resumeCountdown(); }
+});
 // A deadline based on wall-clock time survives background timer throttling on mobile.
 function supervised() { return state && project().mode !== 'activity' && !project().locked && !$('session-dialog').open; }
-function leaveWorkspace() {
-  if (!supervised() || warning || document.querySelector('dialog[open]')) return;
+function leaveWorkspace(reason = 'focus-loss') {
+  if (!supervised() || warning || sealing) return;
   warning = true; returnDeadline = 0; telemetry.recordBlur();
-  project().incidents = (project().incidents || 0) + 1; markChanged();
+  project().incidents = (project().incidents || 0) + 1; project().pendingIncident = true; record('incident', { reason }); markChanged(); void save(); startAlarm();
   editor.readOnly = true;
   $('focus-dialog').showModal();
   renderWorkspace();
@@ -470,7 +580,7 @@ function resumeCountdown() {
 $('focus-dialog').addEventListener('cancel', event => event.preventDefault());
 $('resume').onclick = () => {
   if (!warning || !returnDeadline || Date.now() < returnDeadline || document.hidden || !document.hasFocus()) return;
-  warning = false; returnDeadline = 0; clearInterval(warningTimer); $('focus-dialog').close(); renderWorkspace();
+  warning = false; returnDeadline = 0; clearInterval(warningTimer); project().pendingIncident = false; record('incident-resumed', { waitedSeconds: 12 }); markChanged(); stopAlarm(); $('focus-dialog').close(); renderWorkspace();
 };
 window.addEventListener('blur', () => {
   if (warning) { returnDeadline = 0; clearInterval(warningTimer); $('resume').disabled = true; $('resume').textContent = 'Espera 12 s'; }
@@ -506,6 +616,34 @@ const learningUI = window.createCodeGOLearning({
   }
 });
 function renderCourse() { learningUI.render(); }
+$('verify-delivery').onclick = () => {
+  if (running || warning || sealing || project().mode !== 'activity' && !project().locked) return toast('Termina tu actividad antes de revisar una entrega.');
+  $('verify-input').click();
+};
+$('verify-input').onchange = async event => {
+  const file = event.target.files[0]; event.target.value = '';
+  if (!file || file.size > 30000000) return toast('El archivo de entrega debe ocupar menos de 30 MB.');
+  const container = $('verify-result'); container.replaceChildren();
+  try {
+    const envelope = JSON.parse(await file.text());
+    if (!['codego-web-submission-v2', 'codego-project-v2'].includes(envelope.payload?.format) || !await window.CodeGOEvidence.verify(envelope)) throw new Error('La firma no coincide: el archivo fue modificado o no es una entrega firmada de CodeGO Web.');
+    const payload = envelope.payload;
+    const files = validateFiles(payload.project?.files);
+    const add = (tag, text) => { const el = document.createElement(tag); el.textContent = text; container.append(el); return el; };
+    add('strong', 'Firma e integridad comprobadas');
+    add('p', `${payload.student?.name || 'Sin nombre'} · ${payload.student?.id || 'Sin matrícula'} · ${payload.email || ''}`);
+    add('p', `${modeLabels[payload.project.mode] || 'Proyecto'} · ${payload.createdAt} · ${Object.keys(files).length} archivos`);
+    add('p', `Instalación: ${envelope.seal.fingerprint}`);
+    add('p', payload.note);
+    const events = payload.project.evidence;
+    add('p', `${events?.events?.length || 0} registros conservados · ${events?.omitted || 0} registros antiguos resumidos. No se identifica la aplicación de origen del portapapeles.`);
+    const select = add('select', ''); select.setAttribute('aria-label', 'Archivo de la entrega');
+    for (const name of Object.keys(files)) { const option = document.createElement('option'); option.value = name; option.textContent = name; select.append(option); }
+    const preview = add('pre', files[select.value]); preview.className = 'verified-source'; select.onchange = () => { preview.textContent = files[select.value]; };
+    const details = add('details', ''); const summary = document.createElement('summary'); summary.textContent = 'Ver actividad registrada'; const pre = document.createElement('pre'); pre.textContent = JSON.stringify(events || {}, null, 2); details.append(summary, pre);
+  } catch (error) { const message = document.createElement('p'); message.textContent = error.message; message.setAttribute('role', 'alert'); container.append(message); }
+  $('verify-dialog').showModal();
+};
 $('teacher').onclick = () => {
   if (running || warning || project().mode !== 'activity') return toast('Abre el modo libre para preparar una actividad.');
   $('teacher-dialog').showModal(); $('teacher-name').focus();
@@ -538,6 +676,7 @@ $('activity-input').onchange = async event => {
     const activity = course.validateAssignment(JSON.parse(await file.text()));
     if (state.projects.filter(item => !item.learningGroup).length >= 20) throw new Error('Se alcanzó el límite de 20 proyectos.');
     if (!await confirmAction(activity.title, activity.prompt + '\n\nLas pruebas ejecutan Python del autor. Abre solo actividades de tu profesor.')) return;
+    prepareSupervision(activity.mode);
     const next = freshProject(activity.title); next.files = { 'main.py': activity.starter }; next.mode = activity.mode; next.assignment = activity;
     state.projects.push(next); state.currentProject = next.id;
     markChanged(); renderWorkspace(); setPane('editor');
@@ -561,9 +700,15 @@ async function importFiles(event) {
     let next;
     if (files.length === 1 && files[0].name.endsWith('.codego-web.json')) {
       const backup = JSON.parse(await files[0].text());
+      if (backup.payload) {
+        if (!await window.CodeGOEvidence.verify(backup)) throw new Error('La firma de la copia no coincide. El archivo fue modificado o no es válido.');
+        if (backup.payload.project?.locked || backup.payload.format === 'codego-web-submission-v2') throw new Error('Una entrega sellada se consulta como entrega; no se puede reabrir para editar.');
+        backup.format = 'codego-project-v1'; backup.project = backup.payload.project;
+      }
       if (backup.format !== 'codego-project-v1') throw new Error('No es una copia de proyecto CodeGO Web.');
       next = freshProject(String(backup.project?.name || 'Proyecto recuperado').slice(0, 120));
       next.files = validateFiles(backup.project?.files);
+      if (backup.project?.mode === 'task') { next.mode = 'task'; beginTaskReferences(next); prepareSupervision('task'); }
     } else {
       next = freshProject(files[0].webkitRelativePath?.split('/')[0] || 'Archivos importados');
       const entries = await Promise.all(files.filter(file => /\.(py|js|txt|json|csv|md)$/i.test(file.name)).map(async file => [file.webkitRelativePath?.split('/').slice(1).join('/') || file.name, await file.text()]));
@@ -571,8 +716,8 @@ async function importFiles(event) {
       next.files = validateFiles(Object.fromEntries(entries));
     }
     if (state.projects.filter(item => !item.learningGroup).length >= 20) throw new Error('Se alcanzó el límite de 20 proyectos.');
-    next.activeFile = Object.keys(next.files).find(path => path.endsWith('.py')) || Object.keys(next.files)[0];
-    state.projects.push(next); state.currentProject = next.id; markChanged(); renderWorkspace(); setPane('editor');
+    if (next.mode !== 'task') next.activeFile = Object.keys(next.files).find(path => path.endsWith('.py')) || Object.keys(next.files)[0];
+    state.projects.push(next); state.currentProject = next.id; record('import', { files: Object.keys(next.files), note: 'Contenido previo a esta sesión; no acredita que se haya escrito aquí.' }); markChanged(); renderWorkspace(); setPane('editor');
   } catch (error) { toast(error.message); }
 }
 $('file-input').onchange = importFiles;
@@ -584,7 +729,7 @@ function updateConnection() {
 window.addEventListener('online', updateConnection);
 window.addEventListener('offline', updateConnection);
 window.addEventListener('pagehide', () => { save(); engine.stop(); });
-window.addEventListener('beforeunload', event => { if (change !== savedChange) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('beforeunload', event => { if (change !== savedChange || supervised()) { event.preventDefault(); event.returnValue = ''; } });
 const splitter = $('pane-splitter');
 function resizeEditor(clientX) {
   const workspace = document.querySelector('.workspace').getBoundingClientRect();
@@ -632,9 +777,10 @@ async function initializeAuth() {
         $('account-email').textContent = account.email;
         $('welcome').hidden = true; $('app').hidden = false;
         renderWorkspace(); updateConnection();
+        if (project().mode !== 'activity' && !project().locked && !project().pendingIncident) { leaveWorkspace('session-recovered'); resumeCountdown(); }
         state.progress ||= {};
         state.learning ||= { version: 2, quiz: {}, exercises: {}, assessments: {} };
-        if (!state.profileConfirmed || state.lastView === 'home') showHome();
+        if ((!state.profileConfirmed || state.lastView === 'home') && !project().pendingIncident && (project().mode === 'activity' || project().locked)) showHome();
       } catch (error) { $('auth-status').textContent = 'No se pudo abrir el almacenamiento local. Permite el almacenamiento del sitio y vuelve a cargar.'; }
     }, error => { $('auth-status').textContent = 'No se pudo comprobar la sesión. Comprueba la conexión.'; });
     $('google-signin').onclick = async () => {

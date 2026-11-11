@@ -17,10 +17,10 @@ El guardado nativo escribe un temporal junto al destino, sincroniza los datos y 
 | Modalidad | Escritorio | Navegador |
 |---|---|---|
 | Libre | Carpeta local, copiar/pegar, sin supervisión ni entregas | Proyecto por cuenta en IndexedDB, copiar/pegar, sin supervisión ni entregas |
-| Tarea | Carpeta como en libre; sin copiar/cortar/pegar en el espacio de trabajo; foco supervisado; entrega Ed25519 | Proyecto local; escritura directa; registro de salidas y espera de 12 s; descarga JSON con SHA-256 |
+| Tarea | Carpeta como en libre; sin copiar/cortar/pegar en el espacio de trabajo; foco supervisado; entrega Ed25519 | Proyecto local; escritura directa; registro de salidas y espera de 12 s; descarga JSON con firma ECDSA P-256 y SHA-256 |
 | Examen | Workspace limpio; controles nativos existentes de kiosk, audio y red; entrega auditada | Proyecto/actividad web; escritura directa; registro de salidas y espera de 12 s; sin control del SO |
 
-El navegador no puede cerrar aplicaciones ajenas, bloquear cambios de aplicación, apagar Wi-Fi ni comprobar todas las pantallas. Los resultados y la telemetría web son información local modificable por quien controla el navegador. SHA-256 comprueba contenido, no autoría. El reporte web se identifica como `codego-web-submission-v1` y no se presenta como una entrega `.codego` Ed25519.
+El navegador no puede cerrar aplicaciones ajenas, bloquear cambios de aplicación, apagar Wi-Fi ni comprobar todas las pantallas. Los resultados y la telemetría web son información local modificable por quien controla el navegador. SHA-256 y la firma ECDSA P-256 comprueban integridad y vinculan la entrega a una instalación del navegador, sin demostrar autoría. El reporte web nuevo se identifica como `codego-web-submission-v2`; el verificador nativo puede comprobarlo. Las entregas nativas usan Ed25519.
 
 El comportamiento web es una alternativa de práctica/evaluación orientativa. No ofrece paridad con el examen blindado nativo. Las ventanas de Pygame, Tkinter y otras bibliotecas de escritorio requieren la aplicación instalada. La web ejecuta Python y JavaScript; ya no anuncia como exitosas ejecuciones simuladas de C++, Java o R. `input()` web usa respuestas preparadas, una por línea, en la consola antes de ejecutar; la terminal nativa conserva su entrada interactiva junto al prompt.
 
@@ -90,4 +90,12 @@ Los 40 ejemplos se recorren con escritura progresiva, resaltado de la línea act
 
 La animación tiene pausa, avance/retroceso, repetición, velocidad, barra de pasos y salto al resultado completo. Solo un ejemplo se reproduce a la vez. Se pausa al salir de la vista, desplazarlo fuera de pantalla, ocultar la pestaña o perder el foco; los temporizadores se liberan al cambiar de lección. Con movimiento reducido, el código se presenta completo y el recorrido manual sigue disponible. La escritura no envía avisos al lector de pantalla por carácter y la reproducción automática evita acumular narraciones habladas.
 
-La explicación es una ejecución grabada del ejemplo incluido, no un depurador general de cualquier código del alumno. Cambiar el ejemplo exige regenerar la traza; sus pruebas verifican el SHA-256 del código, la salida real, la acumulación de bucles, el alcance de variables, las referencias compartidas y los retornos. Esta entrega modifica el curso web; el instalable accede al mismo curso desde su enlace y no requiere otro paquete nativo.
+La explicación es una ejecución grabada del ejemplo incluido, no un depurador general de cualquier código del alumno. Cambiar el ejemplo exige regenerar la traza; sus pruebas verifican el SHA-256 del código, la salida real, la acumulación de bucles, el alcance de variables, las referencias compartidas y los retornos. El instalable accede al curso desde su enlace. La versión 1.6.16 también actualiza el instalable para compartir las ayudas de error animadas, la procedencia de los archivos y las reglas de tarea.
+
+### Comprobaciones de 1.6.16
+
+Las misiones requieren sus preguntas y retos de código; repetir o repasar no multiplica XP ni borra el mejor logro. En tarea se protegen archivos previos y sus carpetas contra guardar, renombrar, mover o borrar desde el editor y el proceso principal. Se abre una solución nueva. Si Python u otra aplicación cambia una referencia en disco, el reporte nativo enumera `baselineChanges`; esto no constituye un aislamiento del sistema de archivos a nivel del SO.
+
+Cada copia exportada incluye identidad de instalación, fechas locales, nombre y registro de actividad acotado. Las entregas de examen nuevas firman también esa procedencia con Ed25519. El JSON web firma el proyecto completo, su evidencia y los datos del alumno con ECDSA P-256. La firma no autentica físicamente al alumno ni el hardware. El portapapeles registra intentos y cantidades; no se espían otras aplicaciones ni se capturan contraseñas fuera del editor.
+
+Se probaron 88 casos unitarios, 32 combinaciones de interfaz nativa, Electron con Python real, Chromium a 320/390/768/1280 px, generación de archivos, tarea con referencias, entrega irreversible y repetición exacta de descarga. La prueba sin conexión incluye recargar con un aviso pendiente y volver a abrir una entrega sellada. La autenticación en estas pruebas se simula en perfiles temporales; el almacenamiento, Python, Service Worker y las firmas son reales.

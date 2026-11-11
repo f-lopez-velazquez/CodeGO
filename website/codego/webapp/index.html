@@ -9,6 +9,7 @@
   <link rel="icon" href="icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="error-coach.css">
 </head>
 <body>
   <section id="welcome" class="welcome">
@@ -48,7 +49,7 @@
         <details class="account-menu"><summary aria-label="Cuenta y herramientas">Cuenta</summary><div>
           <span id="account-email"></span>
           <button id="backup">Descargar proyecto</button>
-          <button id="teacher">Crear actividad</button>
+          <button id="teacher">Crear actividad</button><button id="verify-delivery">Revisar entrega firmada</button>
           <button id="import-activity">Abrir actividad</button>
           <button id="signout">Cerrar sesión</button>
         </div></details>
@@ -80,13 +81,14 @@
         <details class="stdin-options"><summary>Entradas para input()</summary><label for="stdin">Escribe cada respuesta en una línea antes de ejecutar.</label><textarea id="stdin" rows="3" placeholder="Ana&#10;18" aria-label="Respuestas del programa" autocapitalize="off"></textarea></details>
         <div id="terminal-output" class="terminal-output" tabindex="0" aria-label="Salida del programa"><span id="terminal-transcript">Tu resultado aparecerá aquí.
 </span></div>
-        <section id="error-guide" class="error-guide" hidden aria-label="Ayuda para corregir"><strong id="error-title"></strong><p id="error-message"></p><pre id="error-example"></pre><button id="goto-error">Ir a la línea</button></section>
+        <section id="error-guide" class="error-guide" hidden aria-label="Ayuda para corregir"><strong id="error-title"></strong><p id="error-message"></p><div id="error-example"></div><button id="goto-error">Ir a la línea</button></section>
         <div id="evaluation" class="evaluation" hidden role="status"></div>
       </section>
       <section id="course-pane" class="course-pane" hidden aria-label="Curso express de Python">
         <div class="pane-heading"><h2>Aprender Python</h2><button id="close-course">Volver al editor</button></div>
-        <div class="learning-overview"><div><p class="eyebrow">DE LA PRIMERA LÍNEA A TU PROYECTO</p><h2>Comprende. Practica. Compruébalo.</h2><p>20 lecciones · 40 ejemplos · 40 ejercicios · 4 evaluaciones</p></div><div class="learning-progress"><strong id="course-progress-label">0 de 20 lecciones</strong><progress id="course-progress" max="20" value="0" aria-label="Lecciones dominadas"></progress><small>Una lección requiere comprensión y práctica.</small></div></div>
-        <nav class="learning-navigation" aria-label="Área de aprendizaje"><button id="learning-lessons" aria-pressed="true">Lecciones</button><button id="learning-assessments" aria-pressed="false">Evaluaciones</button><button id="learning-report">Descargar mi progreso</button></nav>
+        <div class="learning-overview"><div><p class="eyebrow">DE LA PRIMERA LÍNEA A TU PROYECTO</p><h2>Tu próxima aventura: Python.</h2><p>20 lecciones · 40 ejemplos · 40 ejercicios · 4 evaluaciones</p></div><div class="learning-progress"><strong id="course-progress-label">0 de 20 lecciones</strong><progress id="course-progress" max="20" value="0" aria-label="Lecciones dominadas"></progress><small>Desbloquea misiones. Equivocarse también cuenta para aprender.</small></div></div>
+        <div class="journey-score" role="group" aria-label="Tu nivel"><strong id="journey-level">Nivel 1</strong><span id="journey-xp">0 XP</span><progress id="journey-meter" max="200" value="0" aria-label="Experiencia del nivel"></progress><small id="journey-next"></small></div>
+        <nav class="learning-navigation" aria-label="Área de aprendizaje"><button id="learning-lessons" aria-pressed="true">Lecciones</button><button id="learning-assessments" aria-pressed="false">Evaluaciones</button><button id="learning-review" aria-pressed="false">Repasar</button><button id="learning-report">Descargar mi progreso</button></nav>
         <label class="mobile-lesson-picker" for="mobile-lesson-select">Ir a la lección<select id="mobile-lesson-select"></select></label>
         <div class="course-layout"><nav id="lesson-list" aria-label="Lecciones"></nav><article id="lesson-content"></article></div>
         <small>Ejercicios de CodeGO basados en temas del <a href="https://github.com/freeCodeCamp/freeCodeCamp" target="_blank" rel="noopener">currículo de freeCodeCamp</a>. Sin afiliación ni certificación de freeCodeCamp. <a href="licenses/freeCodeCamp.txt">Licencia de referencia</a>.</small>
@@ -109,7 +111,9 @@
   </dialog>
   <dialog id="text-dialog" aria-labelledby="text-dialog-title"><form id="text-form"><h2 id="text-dialog-title"></h2><label id="text-label" for="text-input">Nombre</label><input id="text-input" required maxlength="180"><p id="text-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close="text-dialog">Cancelar</button><button type="submit" class="primary">Aceptar</button></div></form></dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><form method="dialog"><h2 id="confirm-title"></h2><p id="confirm-message"></p><div class="dialog-actions"><button value="cancel">Cancelar</button><button value="confirm" class="primary">Continuar</button></div></form></dialog>
-  <dialog id="focus-dialog" aria-labelledby="focus-title"><h2 id="focus-title">Vuelve a tu actividad</h2><p>Se registró una salida de la ventana.</p><button id="resume" class="primary" disabled>Espera 12 s</button></dialog>
+  <dialog id="focus-dialog" aria-labelledby="focus-title"><h2 id="focus-title">Vuelve a tu actividad</h2><p>Se registró una salida. El aviso termina al completar la espera y reanudar.</p><button id="enable-alert-sound">Activar aviso sonoro</button><button id="resume" class="primary" disabled>Espera 12 s</button></dialog>
+  <dialog id="verify-dialog" aria-labelledby="verify-title"><div class="dialog-heading"><h2 id="verify-title">Revisar entrega</h2><button data-close="verify-dialog" aria-label="Cerrar">×</button></div><div id="verify-result"></div></dialog>
+  <input id="verify-input" type="file" accept=".json" hidden>
   <dialog id="teacher-dialog" aria-labelledby="teacher-title"><form id="teacher-form"><div class="dialog-heading"><h2 id="teacher-title">Crear una actividad</h2><button type="button" data-close="teacher-dialog" aria-label="Cerrar">×</button></div>
     <label>Partir de una evaluación<select id="teacher-template"><option value="">Actividad personalizada</option></select></label>
     <label>Título<input id="teacher-name" required maxlength="120" value="Suma de dos números"></label>
@@ -125,7 +129,7 @@
   <input id="activity-input" type="file" accept=".json" hidden>
   <div id="toast" role="status" hidden></div>
   <script src="codego-sdk.js"></script>
-  <script src="store.js"></script>
+  <script src="error-coach.js"></script><script src="evidence.js"></script><script src="store.js"></script>
   <script src="course-content.js"></script>
   <script src="course.js"></script>
   <script src="editor.js"></script>

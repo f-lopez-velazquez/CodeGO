@@ -1,5 +1,6 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const url = process.env.CODEGO_WEB_URL || 'https://codego-python.web.app/';
 // Identity is simulated in an ephemeral browser profile. Shell, SW, storage and Python are real.
 const fixture = `export const browserLocalPersistence={};
@@ -38,7 +39,31 @@ export const signInWithPopup=async()=>{}; export const signOut=async()=>{};`;
     const example = page.locator('.example-demo').first();
     await example.locator('[data-demo-action=finish]').click();
     assert.equal((await example.locator('.demo-console pre').textContent()).trim(), require('../webapp/course').lessons[0].examples[0].output.trim());
-    console.log('Offline: shell, project recovery, real Python and animated teaching examples work after disabling network and reloading.');
+    await page.locator('#close-course').click();
+    await page.locator('#open-session').click();
+    await page.locator('input[name=mode][value=task]').check();
+    await page.locator('#session-form button[type=submit]').click();
+    await page.locator('#code-editor').fill('print("Entrega sin red")');
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await page.locator('#focus-dialog').waitFor();
+    await page.waitForFunction(() => document.getElementById('save-status').textContent === 'Guardado en este equipo');
+    await page.reload();
+    await page.locator('#focus-dialog').waitFor();
+    assert(await page.locator('#code-editor').evaluate(el => el.readOnly), 'Offline reload keeps the incident locked');
+    await page.clock.install(); await page.clock.pauseAt(new Date(Date.now() + 1000));
+    await page.evaluate(() => { window.dispatchEvent(new Event('blur')); window.dispatchEvent(new Event('focus')); });
+    await page.clock.runFor(11999); assert(await page.locator('#resume').isDisabled());
+    await page.clock.runFor(201); await page.locator('#resume').click();
+    const downloaded = page.waitForEvent('download');
+    await page.locator('#submit').click(); await page.locator('#confirm-dialog button[value=confirm]').click();
+    const signedText = fs.readFileSync(await (await downloaded).path(), 'utf8');
+    assert(await page.evaluate(value => CodeGOEvidence.verify(value), JSON.parse(signedText)));
+    assert(await page.locator('#code-editor').evaluate(el => el.readOnly));
+    const reopened = await context.newPage(); await reopened.goto(url); await reopened.locator('#app').waitFor();
+    assert(await reopened.locator('#code-editor').evaluate(el => el.readOnly), 'Sealed state survives offline restart');
+    assert.equal(await reopened.locator('#code-editor').inputValue(), 'print("Entrega sin red")');
+    await reopened.close();
+    console.log('Offline: shell, project recovery, real Python and animated teaching examples work after disabling network and reloading; pending incidents survive reload and signed deliveries remain locked after offline restart.');
   } catch (error) { console.error(error); process.exitCode = 1; }
   finally { await browser?.close(); }
 })();

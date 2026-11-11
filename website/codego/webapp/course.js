@@ -16,13 +16,24 @@
     return { correct, total: questions.length, percent: questions.length ? Math.round(correct / questions.length * 100) : 0, results };
   }
   function lessonProgress(lesson, learning = {}) {
-    const quiz = lesson.quiz.filter((question,index) => learning.quiz?.[`${lesson.id}:${index}`]?.correct).length;
-    const exercises = lesson.exercises.filter(exercise => learning.exercises?.[exercise.id]?.passed).length;
+    const quiz = lesson.quiz.filter((question,index) => { const answer = learning.quiz?.[`${lesson.id}:${index}`]; return answer?.correct || answer?.bestCorrect; }).length;
+    const exercises = lesson.exercises.filter(exercise => { const result = learning.exercises?.[exercise.id]; return result?.passed || result?.bestPassed; }).length;
     return { quiz, exercises, mastered: quiz === lesson.quiz.length && exercises === lesson.exercises.length };
   }
   function assessmentQuestions(assessment) {
     return assessment.questionIds.map(key => { const [id,index] = key.split(':'); const lesson = content.lessons.find(item => item.id === id); return { ...lesson.quiz[Number(index)], key, lessonTitle: lesson.title }; });
   }
-  const course = { ...content, validateAssignment, scoreQuiz, lessonProgress, assessmentQuestions };
+  function journey(learning = {}, now = Date.now()) {
+    let xp = 0;
+    const missions = content.lessons.map((lesson, index) => {
+      const progress = lessonProgress(lesson, learning);
+      xp += progress.quiz * 10 + progress.exercises * 30 + (progress.mastered ? 50 : 0);
+      const answers = lesson.quiz.map((_, i) => learning.quiz?.[`${lesson.id}:${i}`]).filter(Boolean);
+      const needsReview = answers.some(answer => !answer.correct) || progress.mastered && answers.some(answer => now - Date.parse(answer.at) >= 86400000);
+      return { id: lesson.id, ...progress, needsReview, unlocked: index === 0 || content.lessons.slice(0, index).every(previous => lessonProgress(previous, learning).mastered) };
+    });
+    return { xp, level: 1 + Math.floor(xp / 200), levelXP: xp % 200, missions };
+  }
+  const course = { ...content, validateAssignment, scoreQuiz, lessonProgress, assessmentQuestions, journey };
   if (typeof module !== 'undefined' && module.exports) module.exports = course; else root.CodeGOCourse = course;
 })(globalThis);

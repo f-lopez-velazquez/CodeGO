@@ -1,0 +1,72 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const crypto = require('node:crypto');
+const AdmZip = require('adm-zip');
+const course = require('../webapp/course');
+const evidenceAPI = require('../webapp/evidence');
+const { WorkspaceEvidence } = require('../src/main/workspace-evidence');
+const { createSubmission, verifySubmission, extractSubmissionFiles, ensureSigningIdentity } = require('../src/main/submission');
+function fixture(t) { const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-evidence-')); t.after(() => fs.rmSync(root, { recursive: true, force: true })); return root; }
+test('Journey unlocks actual mastery, preserves earned XP during review and cannot farm points', () => {
+  const learning = { quiz: {}, exercises: {} }, lesson = course.lessons[0];
+  assert.equal(course.journey(learning).missions[1].unlocked, false);
+  lesson.quiz.forEach((question, index) => { learning.quiz[`${lesson.id}:${index}`] = { correct: true, bestCorrect: true, at: '2026-01-01' }; });
+  lesson.exercises.forEach(exercise => { learning.exercises[exercise.id] = { passed: true, bestPassed: true }; });
+  const profile = course.journey(learning);
+  assert.equal(profile.xp, 140); assert.equal(profile.missions[1].unlocked, true); assert.equal(profile.missions[2].unlocked, false); assert.equal(profile.missions[0].needsReview, true);
+  learning.quiz[`${lesson.id}:0`].correct = false; learning.exercises[lesson.exercises[0].id].passed = false;
+  assert.equal(course.journey(learning).xp, 140); assert.equal(course.lessonProgress(lesson, learning).mastered, true);
+  learning.quiz[`${lesson.id}:0`].attempts = 999; assert.equal(course.journey(learning).xp, 140);
+});
+test('Browser signature is stable for one installation, works in desktop verifier and detects tampering', async t => {
+  let identity;
+  const store = { loadIdentity: async () => identity, saveIdentity: async pair => identity ||= pair };
+  const app = evidenceAPI.create(store);
+  const project = { mode: 'task', files: { 'main.py': 'print("Hola")' }, locked: true };
+  evidenceAPI.record(project, 'clipboard', { blocked: true, length: 90 }); await app.checkpoint(project);
+  const payload = { format: 'codego-web-submission-v2', student: { name: 'Ana' }, project, createdAt: new Date().toISOString() };
+  const signed = await app.seal(payload);
+  assert(await evidenceAPI.verify(signed));
+  assert.equal((await evidenceAPI.create(store).identity()).fingerprint, signed.seal.fingerprint);
+  assert.notEqual((await evidenceAPI.create({ loadIdentity: async () => null, saveIdentity: async pair => pair }).identity()).fingerprint, signed.seal.fingerprint);
+  const file = path.join(fixture(t), 'entrega.json'); fs.writeFileSync(file, JSON.stringify(signed));
+  const extracted = path.join(path.dirname(file), 'extracted');
+  assert.equal(extractSubmissionFiles(file, extracted).extractedCount, 1);
+  assert.equal(fs.readFileSync(path.join(extracted, 'main.py'), 'utf8'), project.files['main.py']);
+  const result = verifySubmission(file); assert.equal(result.officialSealValid, true); assert.equal(result.fileList[0].content, project.files['main.py']);
+  signed.payload.project.files['main.py'] += '\nprint("alterado")';
+  assert.equal(await evidenceAPI.verify(signed), false);
+  fs.writeFileSync(file, JSON.stringify(signed)); assert.throws(() => verifySubmission(file), /huella/);
+});
+test('Browser evidence bounds history and identifies checkpoints without copying blocked clipboard text', async () => {
+  const project = { files: { 'a.py': '' } };
+  for (let i = 0; i < 600; i++) evidenceAPI.record(project, 'clipboard', { blocked: true, length: 10 });
+  assert.equal(project.evidence.events.length, evidenceAPI.MAX_EVENTS); assert.equal(project.evidence.omitted, 100);
+  await evidenceAPI.create({}).checkpoint(project);
+  assert.equal(project.evidence.fileHashes['a.py'], crypto.createHash('sha256').update('').digest('hex'));
+});
+test('Task protects prior files and ancestors, permits new solutions, reports outside modifications and recovers history', async t => {
+  const root = fixture(t), workspace = path.join(root, 'project'); fs.mkdirSync(path.join(workspace, 'old'), { recursive: true });
+  fs.writeFileSync(path.join(workspace, 'old/a.py'), 'print(1)');
+  const evidence = new WorkspaceEvidence(workspace, path.join(root, 'evidence')); await evidence.begin('task', { name: 'Ana' });
+  assert(evidence.protects('old/a.py')); assert(evidence.protects('old')); assert(!evidence.protects('solucion.py'));
+  evidence.changed('solucion.py', '', 'print(2)'); await evidence.persist();
+  fs.writeFileSync(path.join(workspace, 'old/a.py'), 'print(9)');
+  assert.deepEqual((await evidence.report()).baselineChanges, ['old/a.py']);
+  const recovered = new WorkspaceEvidence(workspace, path.join(root, 'evidence')); assert.equal(recovered.data.events.at(-1).type, 'save');
+  await evidence.begin('activity', {}); assert(!evidence.protects('old/a.py'));
+});
+test('New exam archive signs audit and device provenance, including a valid checksum forgery', t => {
+  const root = fixture(t), workspace = path.join(root, 'code'); fs.mkdirSync(workspace); fs.writeFileSync(path.join(workspace, 'main.py'), 'print(1)');
+  const result = createSubmission({ workspace, outputDirectory: root, student: { name: 'Ana', id: '1' }, auditLog: [], version: '1.6.16', provenance: { events: [{ type: 'save' }] }, signingIdentity: ensureSigningIdentity(path.join(root, 'identity')) });
+  assert.equal(verifySubmission(result.zipPath).officialSealValid, true);
+  const zip = new AdmZip(result.zipPath), name = 'REPORTE_SEGURIDAD_EXAMEN.json', manifest = JSON.parse(zip.readAsText(name));
+  manifest.estudiante.name = 'Otra persona';
+  const { checksum, signatureHMAC, officialSeal, ...metadata } = manifest;
+  manifest.checksum = crypto.createHash('sha256').update(JSON.stringify(metadata)).digest('hex');
+  zip.updateFile(name, Buffer.from(JSON.stringify(manifest))); zip.writeZip(result.zipPath); fs.rmSync(result.zipPath + '.sha256');
+  assert.throws(() => verifySubmission(result.zipPath), /firma/);
+});
