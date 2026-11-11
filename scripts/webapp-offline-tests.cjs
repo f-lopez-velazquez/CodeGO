@@ -24,7 +24,7 @@ export const signInWithPopup=async()=>{}; export const signOut=async()=>{};`;
     async function execute() {
       await page.locator('#run').click();
       await page.locator('#stop').waitFor({ state: 'visible' });
-      await page.waitForFunction(() => document.getElementById('stop').hidden, { timeout: 120000 });
+      await page.waitForFunction(() => document.getElementById('stop').hidden, null, { timeout: 120000 });
       assert.match(await page.locator('#terminal-transcript').textContent(), /Python sin red/);
     }
     await execute();
