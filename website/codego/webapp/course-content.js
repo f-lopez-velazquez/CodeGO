@@ -237,7 +237,7 @@
       "source": "https://github.com/freeCodeCamp/freeCodeCamp/tree/main/curriculum/challenges/english/blocks/lecture-working-with-numbers-and-arithmetic-operators",
       "explanation": [
         "+ y - suman y restan; * y / multiplican y dividen. // calcula división entera y % obtiene el residuo. Los paréntesis hacen explícito el orden de una cuenta.",
-        "input() devuelve texto. int() y float() convierten datos, pero pueden fallar si el texto no representa un número. En la web prepara las respuestas en Entradas para input(); en el escritorio escríbelas junto al prompt."
+        "input() devuelve texto. int() y float() convierten datos, pero pueden fallar si el texto no representa un número. Ejecuta, escribe tu respuesta junto a la pregunta en la consola y pulsa Enter, tanto en la web como en la app."
       ],
       "keyPoints": [
         "Usa float para cantidades con decimales.",

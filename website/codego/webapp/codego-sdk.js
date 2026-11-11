@@ -166,45 +166,98 @@
    * Motor de ejecución en el navegador (WebAssembly & JS Sandbox).
    */
   class WebExecutionEngine {
-    constructor({ onOutput, onFinished, workerURL, timeoutMs = 120000 } = {}) {
+    constructor({ onOutput, onFinished, onInput, workerURL, timeoutMs = 120000 } = {}) {
       this.onOutput = onOutput || (() => {});
       this.onFinished = onFinished || (() => {});
+      this.onInput = onInput || (() => {});
       const base = typeof document !== 'undefined' ? document.currentScript?.src || document.baseURI : undefined;
       this.workerURL = workerURL || (base ? new URL('execution-worker.js', base).href : 'execution-worker.js');
       this.timeoutMs = timeoutMs;
       this.pending = null;
+      this.inputURL = base ? new URL('__codego_stdin__/', this.workerURL).href : null;
+    }
+    async prepareInput() {
+      if (!navigator.serviceWorker) throw new Error('Este navegador no permite la consola interactiva. Abre CodeGO con HTTPS y permite su almacenamiento.');
+      let timeout;
+      try { await Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('No se preparó la consola. Recarga CodeGO y vuelve a ejecutar.')), 10000); })]); }
+      finally { clearTimeout(timeout); }
+      if (!navigator.serviceWorker.controller) {
+        await new Promise((resolve, reject) => {
+          const ready = () => { if (navigator.serviceWorker.controller) { clearTimeout(timer); navigator.serviceWorker.removeEventListener('controllerchange', ready); resolve(); } };
+          const timer = setTimeout(() => { navigator.serviceWorker.removeEventListener('controllerchange', ready); reject(new Error('Recarga CodeGO para activar la consola interactiva.')); }, 10000);
+          navigator.serviceWorker.addEventListener('controllerchange', ready); ready();
+        });
+      }
+      const response = await fetch(this.inputURL + 'ready', { cache: 'no-store' });
+      const protocol = response.ok ? await response.json().catch(() => null) : null;
+      if (protocol?.protocol !== 1) throw new Error('Hay una actualización de la consola. Recarga CodeGO para usarla.');
+    }
+    pauseBudget() {
+      clearTimeout(this.timer);
+      if (this.budgetStarted != null) this.remainingMs = Math.max(0, this.remainingMs - (performance.now() - this.budgetStarted));
+      this.budgetStarted = null;
+    }
+    resumeBudget() {
+      this.pauseBudget();
+      this.budgetStarted = performance.now();
+      this.timer = setTimeout(() => this.stop('Tiempo máximo de ejecución alcanzado.'), this.remainingMs);
     }
     run(code, language = 'python', options = {}) {
       if (this.pending) return Promise.reject(new Error('Ya hay un programa en ejecución.'));
-      return new Promise((resolve, reject) => {
-        try {
+      const runId = crypto.randomUUID();
+      const completion = new Promise((resolve, reject) => { this.pending = { resolve, reject, runId }; });
+      void (async () => { try {
+          await this.prepareInput();
+          if (this.pending?.runId !== runId) return;
           // Reuse the warm interpreter. Globals and mounted files reset on each run.
           if (!this.worker) this.worker = new Worker(this.workerURL);
-          this.pending = { resolve, reject };
-          this.timer = setTimeout(() => this.stop('Tiempo máximo de ejecución alcanzado.'), this.timeoutMs);
+          this.remainingMs = this.timeoutMs;
+          this.resumeBudget();
           this.worker.onmessage = ({ data }) => {
+            if (this.pending?.runId !== runId) return;
             if (data.type === 'output') this.onOutput(data.text, data.stream);
             else if (data.type === 'status') this.onOutput(data.text + '\n', 'system');
+            else if (data.type === 'input') {
+              this.pauseBudget(); this.waiting = { sequence: data.sequence, runId }; this.inputSending = false; this.onInput(this.waiting);
+            } else if (data.type === 'input-consumed') {
+              if (this.waiting?.sequence === data.sequence) { this.waiting = null; this.inputSending = false; this.onInput(null); this.resumeBudget(); }
+            }
             else if (data.type === 'finished') this.finish(data);
           };
           this.worker.onerror = () => {
             this.onOutput('No se pudo cargar el motor. Comprueba la conexión y vuelve a ejecutar.\n', 'stderr');
             this.finish({ exitCode: 1, duration: 0 });
           };
-          this.worker.postMessage({ ...options, type: 'run', code, language });
-        } catch (error) {
+          this.worker.postMessage({ ...options, type: 'run', code, language, runId, inputURL: this.inputURL });
+      } catch (error) {
+          if (this.pending?.runId !== runId) return;
           this.worker?.terminate();
+          this.worker = null;
           clearTimeout(this.timer);
+          const { reject } = this.pending;
           this.pending = null;
           reject(error);
-        }
-      });
+      } })();
+      return completion;
+    }
+    async sendInput(value, eof = false) {
+      const waiting = this.waiting;
+      if (!waiting || this.inputSending || !this.pending) return false;
+      if (typeof value !== 'string' || value.length > 65536) throw new Error('La respuesta debe tener como máximo 65 536 caracteres.');
+      this.inputSending = true;
+      try {
+        const response = await fetch(`${this.inputURL}${waiting.runId}/${waiting.sequence}`, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value, eof }) });
+        if (!response.ok) throw new Error('No se pudo enviar la respuesta. Inténtalo otra vez.');
+        return true;
+      } catch (error) { if (this.waiting === waiting) this.inputSending = false; throw error; }
     }
     finish(result) {
       if (!this.pending) return;
-      const { resolve } = this.pending;
+      const { resolve, runId } = this.pending;
       this.pending = null;
-      clearTimeout(this.timer);
+      this.pauseBudget();
+      this.waiting = null; this.inputSending = false; this.onInput(null);
+      void fetch(`${this.inputURL}${runId}/cancel`, { method: 'POST', cache: 'no-store' }).catch(() => {});
       if (result.stopped || result.exitCode === 1) { this.worker?.terminate(); this.worker = null; }
       this.onFinished(result);
       resolve(result);

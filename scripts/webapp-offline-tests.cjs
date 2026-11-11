@@ -71,7 +71,20 @@ export const signInWithPopup=async()=>{}; export const signOut=async()=>{};`;
     const signedText = fs.readFileSync(await (await downloaded).path(), 'utf8');
     assert(await page.evaluate(value => CodeGOEvidence.verify(value), JSON.parse(signedText)));
     assert(await page.locator('#code-editor').evaluate(el => el.readOnly));
-    const reopened = await context.newPage(); await reopened.goto(url); await reopened.locator('#app').waitFor();
+    // Playwright's clock is shared by this context; let the new tab's auth
+    // fixture and startup timers run normally after the deadline assertions.
+    await page.clock.resume();
+    const reopened = await context.newPage();
+    reopened.on('pageerror', error => console.error('Offline restart:', error.message));
+    await reopened.goto(url);
+    await reopened.locator('#app').waitFor().catch(async error => {
+      console.error('Offline restart state:', await reopened.evaluate(async () => ({
+        status: document.getElementById('auth-status').textContent,
+        home: !document.getElementById('home-screen').hidden,
+        snapshot: await CodeGOStore.load('offline-test').then(state => ({ confirmed: state?.profileConfirmed, view: state?.lastView, projects: state?.projects.map(project => ({ id: project.id, mode: project.mode, locked: project.locked })) }))
+      })));
+      throw error;
+    });
     assert(await reopened.locator('#code-editor').evaluate(el => el.readOnly), 'Sealed state survives offline restart');
     assert.equal(await reopened.locator('#code-editor').inputValue(), 'print("Entrega sin red")');
     await reopened.close();

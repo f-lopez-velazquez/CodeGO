@@ -198,3 +198,10 @@ Cambiar el código local o publicar Firebase no actualiza la aplicación instala
 - El ID del examen es opcional tanto en el formulario como en el IPC nativo. Sin ID, el proceso principal crea igualmente una carpeta única con un archivo vacío; no reutilizar carpetas de otros exámenes.
 - Los campos de examen pertenecen a `#session-setup-dialog`, fuera de `#view-lobby`. En examen se muestra el ID opcional y se ocultan Continuar, carpetas y recientes, incluido `#btn-resume-project` del lobby.
 - Abrir la configuración de examen no restaura proyectos ni consulta la carpeta anterior. Al elegir examen se descarta cualquier restauración de pestañas pendiente. Libre y tarea conservan la recuperación de trabajos.
+
+## 11. Entrada interactiva web
+
+- `webapp/execution-worker.js` conecta `setStdin` de Pyodide con `terminal-input-sw.js`, cargado por `sw.js`. El worker espera con XHR síncrono y el Service Worker responde localmente; el hilo de interfaz permanece libre. No enviar estas respuestas a Hosting ni guardarlas en caché. Mantener los identificadores aleatorios por ejecución, caducidad y limpieza de canales.
+- `#terminal-stdin-input` está inmediatamente después de la transcripción dentro de la única superficie desplazable. Enter envía una línea, incluida una vacía; Ctrl+D vacío envía EOF. No restaurar la barra de respuestas preparadas ni reejecutar el código para simular una pausa.
+- La espera de stdin pausa el presupuesto de ejecución; al recibir una respuesta vuelve a contar. Detener cancela y termina el worker, incluso mientras espera. Las incidencias bloquean el control hasta reanudar y conservan las restricciones de portapapeles de tarea/examen.
+- `npm run test:webapp:input` usa Python, SW y almacenamiento reales con identidad simulada. Admite `CODEGO_WEB_ENGINE=firefox|webkit`, `CODEGO_BROWSER_BINARY` y `CODEGO_WEB_URL` para comprobar otros motores o el despliegue.

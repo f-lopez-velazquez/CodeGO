@@ -30,7 +30,7 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const url = `http://127.0.0.1:${server.address().port}`;
     browser = await chromium.launch({ headless: true, executablePath: process.env.CODEGO_BROWSER_BINARY || undefined });
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block' });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     await context.route('https://www.gstatic.com/firebasejs/**', route => route.fulfill({ contentType: 'text/javascript', body: route.request().url().endsWith('firebase-app.js') ? 'export const initializeApp = config => config;' : authFixture }));
     const page = await context.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
@@ -48,13 +48,24 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     assert(await page.locator('#submit').isHidden(), 'Free mode must hide delivery');
     assert(await page.locator('#submit').isDisabled());
     await page.locator('#code-editor').fill('nombre = input("Nombre: ")\nprint("Hola", nombre)\n');
-    await page.locator('#stdin').evaluate(el => { el.parentElement.open = true; });
-    await page.locator('#stdin').fill('Ana');
     await page.waitForFunction(() => document.getElementById('save-status').textContent === 'Guardado en este equipo');
+    // Pin only the test identity in this ephemeral profile before reloading;
+    // Service Worker fetches bypass Playwright's identity-provider route.
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+    await page.evaluate(async authSource => {
+      const cache = await caches.open('codego-runtime-py0277-firebase1270');
+      const response = source => new Response(source, { headers: { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin': '*' } });
+      await cache.put('https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js', response('export const initializeApp = config => config;'));
+      await cache.put('https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js', response(authSource));
+    }, authFixture);
     await page.reload();
     await page.locator('#app').waitFor();
     assert.equal(await page.locator('#code-editor').inputValue(), 'nombre = input("Nombre: ")\nprint("Hola", nombre)\n');
     await page.locator('#run').click();
+    await page.locator('#terminal-stdin-input').waitFor({ state: 'visible', timeout: 120000 });
+    assert.match(await page.locator('#terminal-transcript').textContent(), /Nombre: /);
+    await page.locator('#terminal-stdin-input').fill('Ana');
+    await page.locator('#terminal-stdin-input').press('Enter');
     await page.waitForFunction(() => document.getElementById('stop').hidden, { timeout: 120000 });
     assert.match(await page.locator('#terminal-transcript').textContent(), /Hola Ana/);
     await page.locator('#code-editor').fill('with open("resultado.txt", "w") as archivo:\n    archivo.write("¡Listo!")\n');
@@ -190,6 +201,13 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     assert.equal(await page.locator('#enable-alert-sound').count(), 0, 'Audio is mandatory, not an optional action');
     const pasteAllowed = await page.locator('#code-editor').evaluate(el => el.dispatchEvent(new Event('paste', { bubbles: true, cancelable: true })));
     assert.equal(pasteAllowed, false, 'Task must block paste');
+    await page.locator('#code-editor').fill('print("Tarea:", input("Respuesta de tarea: "))');
+    await page.locator('#run').click();
+    await page.locator('#terminal-stdin-input').waitFor({ state: 'visible', timeout: 120000 });
+    assert.equal(await page.locator('#terminal-stdin-input').evaluate(el => el.dispatchEvent(new Event('paste', { bubbles: true, cancelable: true }))), false, 'Task stdin must also block paste');
+    await page.locator('#terminal-stdin-input').fill('escrita'); await page.locator('#terminal-stdin-input').press('Enter');
+    await page.locator('#stop').waitFor({ state: 'hidden' });
+    assert.match(await page.locator('#terminal-transcript').textContent(), /Tarea: escrita/);
     // Deadline tests use controlled page time, independent of background browser throttling.
     await page.clock.install();
     await page.clock.pauseAt(new Date(Date.now() + 1000));
@@ -271,6 +289,14 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     await page.clock.runFor(29999); assert(await page.locator('#resume').isDisabled());
     await page.clock.runFor(201); await page.locator('#resume').click();
     assert(!await page.evaluate(() => document.body.classList.contains('supervision-alert')));
+    await page.clock.resume();
+    await page.locator('#code-editor').fill('print("Examen:", input("Respuesta de examen: "))');
+    await page.locator('#run').click();
+    await page.locator('#terminal-stdin-input').waitFor({ state: 'visible', timeout: 120000 });
+    await page.locator('#terminal-stdin-input').fill('correcta'); await page.locator('#terminal-stdin-input').press('Enter');
+    await page.locator('#stop').waitFor({ state: 'hidden' });
+    assert.match(await page.locator('#terminal-transcript').textContent(), /Examen: correcta/);
+    await page.locator('#code-editor').fill('print("Mi examen")');
     await page.locator('.account-menu summary').click(); await page.locator('#backup').click();
     await page.locator('#confirm-dialog').waitFor();
     assert.match(await page.locator('#confirm-message').textContent(), /Ya no podrás editar/);

@@ -79,9 +79,9 @@
       <div id="pane-splitter" role="separator" aria-label="Ancho del editor" aria-orientation="vertical" tabindex="0"></div>
       <section id="terminal-pane" class="terminal-pane" aria-label="Consola">
         <div class="pane-heading"><h2>Consola Python</h2><button id="clear-terminal">Limpiar</button></div>
-        <details class="stdin-options"><summary>Entradas para input()</summary><label for="stdin">Escribe cada respuesta en una línea antes de ejecutar.</label><textarea id="stdin" rows="3" placeholder="Ana&#10;18" aria-label="Respuestas del programa" autocapitalize="off"></textarea></details>
-        <div id="terminal-output" class="terminal-output" tabindex="0" aria-label="Salida del programa"><span id="terminal-transcript">Tu resultado aparecerá aquí.
-</span></div>
+        <div id="terminal-output" class="terminal-output" tabindex="0" aria-label="Salida del programa"><span id="terminal-transcript">Ejecuta con F5. Cuando Python pida datos, escribe aquí y pulsa Enter.
+</span><input id="terminal-stdin-input" type="text" aria-label="Respuesta para Python" aria-describedby="terminal-input-status" hidden disabled spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" enterkeyhint="send" maxlength="65536"></div>
+        <span id="terminal-input-status" class="sr-only" role="status" aria-live="polite"></span>
         <section id="error-guide" class="error-guide" hidden aria-label="Ayuda para corregir"><strong id="error-title"></strong><p id="error-message"></p><div id="error-example"></div><button id="goto-error">Ir a la línea</button></section>
         <div id="evaluation" class="evaluation" hidden role="status"></div>
       </section>

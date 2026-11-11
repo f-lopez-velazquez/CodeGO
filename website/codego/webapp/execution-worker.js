@@ -2,12 +2,13 @@
 'use strict';
 let python;
 let outputBudget = 200000;
-let pending = { stdout: '', stderr: '' };
+let pending = { stdout: '', stderr: '', stdin: '' };
 let pendingCount = 0;
 let flushTimer;
 function flush() {
   clearTimeout(flushTimer);
-  for (const type of ['stdout', 'stderr']) {
+  flushTimer = null;
+  for (const type of ['stdout', 'stderr', 'stdin']) {
     if (pending[type]) postMessage({ type: 'output', stream: type, text: pending[type] });
     pending[type] = '';
   }
@@ -28,6 +29,29 @@ onmessage = async ({ data }) => {
   const started = Date.now();
   outputBudget = 200000;
   const inputs = [...(data.stdin || [])];
+  let inputSequence = 0;
+  let inputEnded = false;
+  function readInput() {
+    flush();
+    if (inputEnded) return undefined;
+    if (inputs.length) { const value = String(inputs.shift()); output(value + '\n', 'stdin'); flush(); return value; }
+    if (!data.inputURL || !data.runId) return undefined;
+    const sequence = ++inputSequence;
+    postMessage({ type: 'input', sequence });
+    for (;;) {
+      const request = new XMLHttpRequest();
+      request.open('GET', `${data.inputURL}${data.runId}/${sequence}`, false);
+      request.send();
+      if (request.status !== 200) throw new Error('No se pudo recibir la respuesta. Detén y vuelve a ejecutar; si continúa, recarga CodeGO.');
+      const response = JSON.parse(request.responseText);
+      if (response.pending) continue;
+      inputEnded = response.eof;
+      postMessage({ type: 'input-consumed', sequence });
+      if (inputEnded) return undefined;
+      output(response.value + '\n', 'stdin'); flush();
+      return response.value;
+    }
+  }
   let exitCode = 0;
   let result;
   let generatedFiles = {}, readOnlyChanges = [], omittedFiles = 0;
@@ -42,7 +66,7 @@ onmessage = async ({ data }) => {
       const decoderErr = new TextDecoder();
       python.setStdout({ write: bytes => { output(decoderOut.decode(bytes, { stream: true })); return bytes.length; } });
       python.setStderr({ write: bytes => { output(decoderErr.decode(bytes, { stream: true }), 'stderr'); return bytes.length; } });
-      python.setStdin({ stdin: () => inputs.shift() });
+      python.setStdin({ stdin: readInput, isatty: true });
       const globals = python.toPy({ __name__: '__main__' });
       try {
         if (data.files) {
@@ -71,7 +95,7 @@ onmessage = async ({ data }) => {
     } else if (data.language === 'javascript') {
       const consoleProxy = Object.fromEntries(['log', 'warn', 'error'].map(name => [name, (...values) => output(values.map(value => typeof value === 'object' ? JSON.stringify(value) : String(value)).join(' ') + '\n', name === 'error' ? 'stderr' : 'stdout')]));
       const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-      await new AsyncFunction('console', 'prompt', data.code)(consoleProxy, () => inputs.shift() ?? null);
+      await new AsyncFunction('console', 'prompt', data.code)(consoleProxy, message => { if (message != null) output(String(message)); return readInput() ?? null; });
     } else {
       throw new Error('Este lenguaje necesita el motor nativo de CodeGO. Descarga la aplicación de escritorio.');
     }

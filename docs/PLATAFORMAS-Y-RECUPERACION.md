@@ -22,7 +22,7 @@ El guardado nativo escribe un temporal junto al destino, sincroniza los datos y 
 
 El navegador no puede cerrar aplicaciones ajenas, bloquear cambios de aplicación, apagar Wi-Fi ni comprobar todas las pantallas. Los resultados y la telemetría web son información local modificable por quien controla el navegador. SHA-256 y la firma ECDSA P-256 comprueban integridad y vinculan la entrega a una instalación del navegador, sin demostrar autoría. El reporte web nuevo se identifica como `codego-web-submission-v2`; el verificador nativo puede comprobarlo. Las entregas nativas usan Ed25519.
 
-El comportamiento web es una alternativa de práctica/evaluación orientativa. No ofrece paridad con el examen blindado nativo. Las ventanas de Pygame, Tkinter y otras bibliotecas de escritorio requieren la aplicación instalada. La web ejecuta Python y JavaScript; ya no anuncia como exitosas ejecuciones simuladas de C++, Java o R. `input()` web usa respuestas preparadas, una por línea, en la consola antes de ejecutar; la terminal nativa conserva su entrada interactiva junto al prompt.
+El comportamiento web es una alternativa de práctica/evaluación orientativa. No ofrece paridad con el examen blindado nativo. Las ventanas de Pygame, Tkinter y otras bibliotecas de escritorio requieren la aplicación instalada. La web ejecuta Python y JavaScript; ya no anuncia como exitosas ejecuciones simuladas de C++, Java o R. `input()` permite responder dentro de la consola, junto al prompt y con Enter, tanto en web como en escritorio. La web también admite `sys.stdin`, respuestas vacías y Unicode, sin preparar respuestas antes de ejecutar.
 
 ## Cuenta, publicación y datos
 
@@ -57,7 +57,7 @@ Cada ejercicio ejecuta pruebas reales de Python y devuelve pistas por caso falli
 | Red vuelve | Puede reintentarse la ejecución; no se envía automáticamente una entrega al profesor |
 | Caché incompleta o eliminada por el SO | El motor puede requerir red de nuevo; no se promete disponibilidad offline permanente |
 | Bucle infinito / salida masiva | Worker terminable y salida acotada a 200 000 caracteres; límite de ejecución de 120 s |
-| Respuestas insuficientes para input() | EOFError explicado con un ejemplo y la ubicación de Entradas |
+| Python pide datos | La consola muestra la pregunta y espera Enter sin consumir el límite de ejecución; Detener cancela la espera |
 | Código con error | Explicación en español, ejemplo y salto a la línea; traceback original disponible |
 | Cambio de app en tarea/examen web | Incidencia y cuenta de 30 s desde el regreso, reiniciada al salir de nuevo |
 | Teclado móvil, rotación o pantalla angosta | Un panel por vez, navegación inferior, altura del viewport visual y teclas de símbolos/sangría |
@@ -113,3 +113,9 @@ La URL principal es https://codego-ide.web.app/; el sitio anterior sigue operati
 El encabezado muestra proyecto, modo y acciones de ejecución/entrega. El menú del proyecto conserva nombre y actividad completos, ID de examen, ruta, lenguaje y red; Herramientas reúne proyectos, librerías, revisión, apariencia, escala, ayuda y salida. La consola y el explorador tienen menús propios para reducir iconos simultáneos. Las ayudas de cursor y los menús se acotan al área visible y compensan zoom.
 
 Las pruebas de navegador incluyen 30 combinaciones de los tres modos y anchos de 390, 768, 1024 y 1440 px, con zoom de 100 %, 140 % y 180 % cuando corresponde, además de las 32 combinaciones generales existentes. Se comprueban solapamientos, lectura de etiquetas, apariencia, datos completos de sesión, avisos de sintaxis, entrega sellada y tooltips. Electron comprueba también menús con zoom nativo. Esto no equivale a una validación física de todos los monitores y escalas de cada SO.
+
+### Entrada interactiva de Python en la web
+
+La consola recibe respuestas junto a la pregunta, con Enter, sin precargar datos ni repetir el programa. Se verifican `input()` consecutivos, cadenas vacías, tildes y emojis, conversión numérica, funciones, comprensiones, `sys.stdin.readline()`, `sys.stdin.read()` y EOF. Limpiar conserva el control activo, Detener también cancela la preparación y la espera, y una nueva ejecución recibe un canal independiente. El límite de tiempo cuenta la ejecución, excluyendo la espera humana. Tarea y examen mantienen las restricciones de portapapeles y supervisión.
+
+`npm run test:webapp` incluye las pruebas de entrada real. La misma batería se ejecuta con Chromium, Firefox y WebKit; incluye vista móvil de 390 px y altura reducida para el teclado, dos pestañas simultáneas y recuperación desde caché. Chromium deshabilita la red mediante el navegador; en las pruebas locales de Firefox/WebKit se corta el servidor de origen y se bloquean peticiones de página al CDN para evitar limitaciones de la emulación de red de Playwright. Las respuestas de consola se resuelven localmente en el Service Worker y no llegan al servidor. Estas comprobaciones de motores no sustituyen pruebas físicas de teclados y dispositivos iOS/Android.

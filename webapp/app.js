@@ -79,9 +79,9 @@ $('go-home').onclick = async () => {
   state.lastView = 'home'; markChanged(); showHome();
 };
 $('home-signout').onclick = () => $('signout').click();
-document.querySelectorAll('[data-web-version]').forEach(element => { element.textContent = 'v1.6.18'; });
+document.querySelectorAll('[data-web-version]').forEach(element => { element.textContent = 'v1.6.19'; });
 function freshProject(name = 'Mi proyecto') {
-  return { id: uuid(), name, files: { 'main.py': '# Tu primer programa\nprint("Hola, Python")\n' }, activeFile: 'main.py', mode: 'activity', stdin: '', locked: false };
+  return { id: uuid(), name, files: { 'main.py': '# Tu primer programa\nprint("Hola, Python")\n' }, activeFile: 'main.py', mode: 'activity', locked: false };
 }
 function markChanged() {
   if (!state || !user) return;
@@ -252,7 +252,7 @@ function renderWorkspace() {
   editor.readOnly = Boolean(fileReadOnly());
   document.body.dataset.mode = current.mode;
   $('filename').textContent = current.activeFile + (current.mode === 'task' && current.readOnlyFiles?.includes(current.activeFile) ? ' · Solo lectura' : '');
-  $('stdin').value = current.stdin || '';
+  updateTerminalInput();
 
   $('workspace-project-label').textContent = current.name;
   $('workspace-language').textContent = current.activeFile.endsWith('.js') ? 'JavaScript' : current.activeFile.endsWith('.py') ? 'Python' : 'Texto';
@@ -340,7 +340,6 @@ for (const type of ['copy', 'cut', 'paste', 'drop']) editor.addEventListener(typ
 editor.addEventListener('beforeinput', event => {
   if (editor.readOnly || (project()?.mode !== 'activity' && /insertFromPaste|insertFromDrop|deleteByCut/.test(event.inputType))) event.preventDefault();
 });
-$('stdin').addEventListener('input', () => { project().stdin = $('stdin').value; markChanged(); });
 $('new-file').onclick = async () => {
   if (project().locked || warning || running) return;
   const path = await askText('Nuevo archivo o subcarpeta', 'ejercicios/main.py');
@@ -436,10 +435,46 @@ function appendOutput(text, type = 'stdout') {
   if (atBottom) scroller.scrollTop = scroller.scrollHeight;
 }
 let errorOutput = '';
+const terminalInput = $('terminal-stdin-input');
+let inputRequest = null;
+function updateTerminalInput(focus = false) {
+  terminalInput.hidden = !inputRequest;
+  terminalInput.disabled = !inputRequest || warning || sealing || Boolean(project()?.locked) || Boolean(engine?.inputSending);
+  terminalInput.style.width = `${Math.min(60, Math.max(12, [...terminalInput.value].length + 2))}ch`;
+  if (focus && !terminalInput.disabled) {
+    terminalInput.focus({ preventScroll: true });
+    terminalInput.scrollIntoView({ block: 'nearest' });
+  }
+}
 const engine = new SDK.WebExecutionEngine({
   workerURL: new URL('execution-worker.js', import.meta.url).href,
   onOutput: (text, type) => { appendOutput(text, type); if (type === 'stderr') errorOutput = (errorOutput + text).slice(-16000); },
+  onInput: request => {
+    inputRequest = request; terminalInput.value = '';
+    $('terminal-input-status').textContent = request ? 'Python espera tu respuesta. Escribe en la consola y pulsa Enter.' : '';
+    if (request) setPane('terminal');
+    updateTerminalInput(Boolean(request));
+  },
   onFinished: result => { appendOutput(`\n${result.stopped ? 'Detenido' : result.exitCode === 0 ? 'Terminado' : 'Revisa tu código'} · ${result.duration} s\n`, 'system'); }
+});
+terminalInput.addEventListener('input', () => updateTerminalInput());
+terminalInput.addEventListener('keydown', async event => {
+  if (event.isComposing || event.keyCode === 229) return;
+  const eof = event.ctrlKey && event.key.toLowerCase() === 'd' && !terminalInput.value;
+  if (event.key !== 'Enter' && !eof) return;
+  event.preventDefault();
+  if (terminalInput.disabled || !inputRequest || warning || project().locked) return;
+  try {
+    const sent = engine.sendInput(terminalInput.value, eof);
+    updateTerminalInput();
+    await sent;
+  } catch (error) { toast(error.message); updateTerminalInput(true); }
+});
+$('terminal-output').addEventListener('click', () => {
+  if (!getSelection()?.toString()) updateTerminalInput(true);
+});
+terminalInput.addEventListener('beforeinput', event => {
+  if (state && project().mode !== 'activity' && /insertFrom(Paste|Drop)|deleteByCut/.test(event.inputType)) event.preventDefault();
 });
 function explainError(raw) {
   const definitions = [
@@ -451,7 +486,7 @@ function explainError(raw) {
     [/ZeroDivisionError/, 'El divisor es cero', 'Comprueba el divisor antes de dividir.', 'total, divisor = 10, 2\nif divisor != 0:\n    print(total / divisor)'],
     [/IndexError/, 'Esa posición no existe', 'Los índices empiezan en 0 y llegan hasta len(lista) - 1.', 'datos = [10, 20]\nprint(datos[0])  # 10'],
     [/KeyError/, 'No existe esa clave', 'Comprueba la clave o usa get() con un valor alternativo.', 'datos = {"nombre": "Ana"}\nprint(datos.get("edad", 0))'],
-    [/EOFError/, 'Falta una respuesta para input()', 'Abre Entradas para input(), escribe una respuesta por línea y vuelve a ejecutar.', 'nombre = input("Nombre: ")\n# En Entradas escribe: Ana'],
+    [/EOFError/, 'La entrada terminó antes de tiempo', 'Vuelve a ejecutar y responde en la consola cuando Python lo pida. Enter también permite enviar una respuesta vacía.', 'nombre = input("Nombre: ")\nprint("Hola", nombre)'],
     [/ModuleNotFoundError|ImportError/, 'Falta un módulo', 'La web incluye Python básico. Las bibliotecas de escritorio y ventanas gráficas necesitan la app nativa.', 'import math\nprint(math.sqrt(16))']
   ];
   const [, title, message, example] = definitions.find(([pattern]) => pattern.test(raw)) || [null, 'El programa necesita un ajuste', 'Lee la última línea de la consola, corrige una causa y vuelve a ejecutar.', ''];
@@ -484,7 +519,7 @@ async function run(tests = null) {
   $('terminal-transcript').replaceChildren(); errorOutput = '';
   setPane('terminal'); telemetry.recordRun();
   try {
-    const result = await engine.run(executedSource, language, { filename, files: executedFiles, readOnlyFiles: current.mode === 'task' ? current.readOnlyFiles : [], stdin: current.stdin ? current.stdin.split('\n') : [], tests });
+    const result = await engine.run(executedSource, language, { filename, files: executedFiles, readOnlyFiles: current.mode === 'task' ? current.readOnlyFiles : [], tests });
     for (const [file, source] of Object.entries(result.generatedFiles || {})) {
       if (!safePath(file) || typeof source !== 'string' || source.length > 1000000) continue;
       if (current.files[file] !== executedFiles[file]) { appendOutput(`No se reemplazó ${file}: lo editaste durante la ejecución.\n`, 'system'); continue; }
@@ -525,7 +560,7 @@ async function run(tests = null) {
 }
 $('run').onclick = () => run(project().assignment?.tests || null);
 $('stop').onclick = () => engine.stop();
-$('clear-terminal').onclick = () => { $('terminal-transcript').replaceChildren(); };
+$('clear-terminal').onclick = () => { $('terminal-transcript').replaceChildren(); updateTerminalInput(true); };
 window.addEventListener('keydown', event => {
   if (state && ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r' || event.key === 'F5' && (event.ctrlKey || event.shiftKey))) { event.preventDefault(); void guardedNavigation('reload'); return; }
   if (event.key === 'F5' && state && !$('welcome').checkVisibility()) { event.preventDefault(); run(project().assignment?.tests || null); }
@@ -637,7 +672,7 @@ function resumeCountdown() {
 $('focus-dialog').addEventListener('cancel', event => event.preventDefault());
 $('resume').onclick = () => {
   if (!warning || !returnDeadline || Date.now() < returnDeadline || document.hidden || !document.hasFocus() || !protectionReady()) return;
-  warning = false; returnDeadline = 0; clearInterval(warningTimer); project().pendingIncident = false; record('incident-resumed', { waitedSeconds: WEB_RETURN_WAIT / 1000 }); markChanged(); stopAlarm(); $('focus-dialog').close(); renderWorkspace();
+  warning = false; returnDeadline = 0; clearInterval(warningTimer); project().pendingIncident = false; record('incident-resumed', { waitedSeconds: WEB_RETURN_WAIT / 1000 }); markChanged(); stopAlarm(); $('focus-dialog').close(); renderWorkspace(); updateTerminalInput(Boolean(inputRequest));
 };
 window.addEventListener('blur', () => {
   if (warning) { returnDeadline = 0; clearInterval(warningTimer); $('resume').disabled = true; $('resume').textContent = 'Espera 30 s'; }
