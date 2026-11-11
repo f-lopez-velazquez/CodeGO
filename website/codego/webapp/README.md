@@ -5,9 +5,9 @@ HTML/CSS/JavaScript sin compilación. Registro Google con Firebase Auth; proyect
 - Desarrollo: `python3 -m http.server 8080`, abrir `/webapp/`.
 - Validación: `npm run check`, `npm test`, `npm run test:webapp`, `npm run test:examples`.
 - Copia para el sitio corporativo: `node scripts/sync-webapp.cjs`.
-- Publicación: `npx firebase-tools deploy --only hosting:codego-python --project zolvek-mx`.
+- Publicación: `npx firebase-tools deploy --only hosting:codego-ide,hosting:codego-python --project zolvek-mx`.
 
-El modo libre permite copiar y pegar y oculta/deshabilita Entregar. Tarea y examen web bloquean copiar, cortar, pegar y arrastrar texto y registran salidas con espera de 12 s. La web no controla aplicaciones o red del sistema. Las entregas web v2 llevan SHA-256 y firma ECDSA P-256 con una clave privada no exportable conservada en IndexedDB; las nativas usan Ed25519. Ambas detectan cambios, sin demostrar autoría. Entradas para `input()` se preparan en consola antes de ejecutar.
+El modo libre permite copiar y pegar y oculta/deshabilita Entregar. Tarea y examen web bloquean copiar, cortar, pegar y arrastrar texto y registran salidas con espera de 30 s. La web no controla aplicaciones o red del sistema. Las entregas web v2 llevan SHA-256 y firma ECDSA P-256 con una clave privada no exportable conservada en IndexedDB; las nativas usan Ed25519. Ambas detectan cambios, sin demostrar autoría. Entradas para `input()` se preparan en consola antes de ejecutar.
 
 El curso incluye 20 lecciones, 40 ejemplos, 60 preguntas, 40 ejercicios con pruebas y pistas, y cuatro evaluaciones integradoras. Cuenta → Crear actividad permite al docente compartir ejercicios en JSON. Cuenta → Abrir actividad permite resolverlos. La evaluación es local y orientativa; no hay calificación institucional en servidor.
 
@@ -22,4 +22,10 @@ El curso tiene misiones consecutivas, XP por logros únicos, niveles y una zona 
 
 La evidencia contiene nombre registrado, correo de la cuenta, fecha local, modo, hashes de archivos, eventos de edición y acciones de portapapeles (permitidas o bloqueadas). Conserva hasta 500 eventos, indicando los omitidos. La identidad identifica esta instalación del navegador; borrar sus datos la reinicia. No identifica el número de serie del equipo ni la app desde la que se copió.
 
-Sin red funcionan proyectos, curso, Python previamente cargado, firma, verificación y entrega. La primera autenticación y descarga de Python necesitan internet. Las incidencias pendientes sobreviven una recarga y exigen 12 segundos completos al regresar. Las librerías fijadas se conservan al actualizar la interfaz. El navegador o el SO pueden eliminar caché por falta de espacio. Los archivos de texto generados por Python se añaden al proyecto dentro de sus límites; imágenes, audio y resultados de mayor tamaño requieren la app nativa.
+Sin red funcionan proyectos, curso, Python previamente cargado, firma, verificación y entrega. La primera autenticación y descarga de Python necesitan internet. Las incidencias pendientes sobreviven una recarga y exigen 30 segundos completos al regresar. Las librerías fijadas se conservan al actualizar la interfaz. El navegador o el SO pueden eliminar caché por falta de espacio. Los archivos de texto generados por Python se añaden al proyecto dentro de sus límites; imágenes, audio y resultados de mayor tamaño requieren la app nativa.
+
+Desde 1.6.17 la dirección principal es https://codego-ide.web.app/. La anterior sigue operativa para recuperar trabajo del almacenamiento de aquel dominio; cambiar de dirección no transfiere IndexedDB ni la identidad de instalación. Descargar las copias antes de migrar.
+
+Tarea y examen exigen comprobar audio y pantalla completa al iniciar. Un rechazo bloquea el inicio; si se pierden después, el proyecto queda bloqueado hasta restablecer ambos y completar 30 segundos desde el regreso. No existe permiso web para controlar el volumen del sistema. Se usa señal roja/blanca de pantalla completa, limitada a 2 destellos/s y desactivada si el SO solicita movimiento reducido. La app no ofrece un botón opcional de audio. El clic derecho abre acciones propias, y los menús se ajustan al viewport.
+
+El guardado continúa en IndexedDB; un borrador síncrono de emergencia protege la edición activa al recargar o abandonar. Se valida revisión, fecha y bloqueo antes de recuperarlo. No se sobreescribe una entrega ni un archivo de consulta con el borrador.

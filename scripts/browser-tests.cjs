@@ -12,7 +12,7 @@ const server = http.createServer((request,response) => {
   fs.readFile(file,(error,data)=> {
     if(error) { response.writeHead(404).end(); return; }
     response.setHeader('Cache-Control','no-store');
-    response.setHeader('Content-Type', ({'.js':'text/javascript','.css':'text/css','.html':'text/html','.png':'image/png'})[path.extname(file)] || 'application/octet-stream');
+    response.setHeader('Content-Type', ({'.js':'text/javascript','.css':'text/css','.html':'text/html','.png':'image/png','.svg':'image/svg+xml'})[path.extname(file)] || 'application/octet-stream');
     response.end(data);
   });
 });

@@ -1548,7 +1548,7 @@ function setupIpcHandlers() {
   });
   handle('system:open-learning-course', async () => {
     if (isKioskActive || (activeSessionMode && activeSessionMode !== 'activity')) return { success: false, error: 'El curso está disponible fuera de una evaluación.' };
-    await shell.openExternal('https://codego-python.web.app/');
+    await shell.openExternal('https://codego-ide.web.app/');
     return { success: true };
   });
   handle('system:open-support-page', async () => {

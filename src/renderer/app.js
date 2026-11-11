@@ -2004,7 +2004,7 @@ function setupEventListeners() {
   DOM.btnStartExam.addEventListener('click', openSessionSetup);
   document.getElementById('btn-online-course')?.addEventListener('click', async () => {
     const result = await window.electronAPI?.openLearningCourse?.();
-    if (!result?.success) showToast(result?.error || 'Abre codego-python.web.app para acceder al curso con Google.', 'info');
+    if (!result?.success) showToast(result?.error || 'Abre codego-ide.web.app para acceder al curso con Google.', 'info');
   });
   document.getElementById('btn-resume-project')?.addEventListener('click', openSessionSetup);
   document.getElementById('btn-close-session-setup')?.addEventListener('click', () => document.getElementById('session-setup-dialog').close());
@@ -5648,3 +5648,20 @@ async function handleStartUpdate() {
 
 // Start Application on Load
 document.addEventListener('DOMContentLoaded', initApp);
+
+window.CodeGOViewportMenus.installContext(() => {
+  if (DOM.modalFocusWarning && !DOM.modalFocusWarning.classList.contains('hidden')) return [{ label: 'Actividad en pausa · completa el aviso', disabled: true }];
+  if (!state.workspaceSessionActive) return [{ label: 'Abrir herramientas', run: () => { const details = document.querySelector('.lobby-tools-menu'); if (details) details.open = true; } }];
+  const actions = [
+    { label: 'Ejecutar archivo', disabled: state.isRunning || state.isSubmitting, run: runCurrentPythonCode },
+    { label: 'Guardar cambios', disabled: isWorkspaceLocked(), run: () => saveAllFiles() },
+    { label: 'Guardar copia con huella', disabled: state.isRunning || state.isSubmitting, run: () => document.getElementById('btn-export-workspace')?.click() }
+  ];
+  if (state.appMode === 'activity') actions.unshift(
+    { label: 'Seleccionar todo el código', run: () => { DOM.codeTextarea.focus(); DOM.codeTextarea.select(); } },
+    { label: 'Copiar selección', run: () => navigator.clipboard.writeText(DOM.codeTextarea.value.slice(DOM.codeTextarea.selectionStart, DOM.codeTextarea.selectionEnd)) }
+  );
+  return actions;
+}, message => showToast(message, 'info'));
+
+window.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r' || event.altKey && event.key === 'ArrowLeft' || event.key === 'BrowserBack') { event.preventDefault(); if (state.workspaceSessionActive) void saveAllFiles(); showToast('Tus cambios se guardan automáticamente. Usa los controles de codeGO para salir.', 'info'); } }, true);

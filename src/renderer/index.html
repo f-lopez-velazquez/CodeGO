@@ -10,6 +10,7 @@
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="error-coach.css">
+  <link rel="stylesheet" href="viewport-menu.css">
 </head>
 <body class="theme-obsidian">
 
@@ -42,7 +43,7 @@
         <div class="lobby-brand-row">
           <h1 class="lobby-title">code<span class="highlight">GO</span></h1>
         </div>
-        <p class="lobby-subtitle">Tu espacio para aprender Python con claridad.</p>
+        <p class="lobby-subtitle">Tu espacio para aprender a programar con claridad.</p>
         <p class="lobby-value">Un mismo entorno en cada equipo, desde el primer ejercicio hasta una evaluación formal.</p>
       </div>
 
@@ -88,7 +89,7 @@
         <button type="button" id="btn-online-course" class="btn-text-action">Curso express de Python ↗</button>
         <button type="button" id="btn-resume-project" class="btn-text-action hidden">Continuar trabajo anterior</button>
       </div>
-      <div class="app-credits"><span>codeGO <strong id="lobby-app-version" class="app-version">v1.6.16</strong> · Programado por <strong>Francisco López Velázquez</strong> · <strong>zolvek.com.mx</strong></span><span class="automatic-update-note">Actualizaciones automáticas verificadas</span><button type="button" class="support-link" data-support-link>Apoyar el desarrollo</button></div>
+      <div class="app-credits"><span>codeGO <strong id="lobby-app-version" class="app-version">v1.6.17</strong> · Programado por <strong>Francisco López Velázquez</strong> · <strong>zolvek.com.mx</strong></span><span class="automatic-update-note">Actualizaciones automáticas verificadas</span><button type="button" class="support-link" data-support-link>Apoyar el desarrollo</button></div>
     </div>
   </section>
 
@@ -1384,6 +1385,7 @@ with serial.Serial(puertos[0].device, 9600, timeout=2) as placa:
     </div>
   </dialog>
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="viewport-menu.js"></script>
   <script src="error-coach.js"></script>
   <script src="app.js"></script>
 </body>

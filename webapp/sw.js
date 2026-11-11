@@ -1,7 +1,7 @@
 /* Cache only this app and pinned runtime libraries. Never cache auth API responses. */
-const CACHE = 'codego-shell-v1.6.16-journey-1';
+const CACHE = 'codego-shell-v1.6.17-supervision-2';
 const RUNTIME_CACHE = 'codego-runtime-py0277-firebase1270';
-const FILES = ['./', 'index.html', 'site.css', 'app.js', 'store.js', 'evidence.js', 'error-coach.js', 'error-coach.css', 'course.js', 'course-content.js', 'learning.js', 'example-traces.js', 'example-player.js', 'editor.js', 'codego-mark.svg', 'codego-sdk.js', 'execution-worker.js', 'firebase-config.js', 'icon.png', 'manifest.webmanifest', 'licenses/freeCodeCamp.txt'];
+const FILES = ['./', 'index.html', 'site.css', 'app.js', 'store.js', 'evidence.js', 'error-coach.js', 'error-coach.css', 'viewport-menu.js', 'viewport-menu.css', 'course.js', 'course-content.js', 'learning.js', 'example-traces.js', 'example-player.js', 'editor.js', 'codego-mark.svg', 'codego-sdk.js', 'execution-worker.js', 'firebase-config.js', 'icon.png', 'manifest.webmanifest', 'licenses/freeCodeCamp.txt'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {

@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.6.17 · Menús visibles e inicio web supervisado
+
+- Menús de herramientas, opciones y cuenta en la capa superior, acotados al viewport y desplazables; elimina recortes por el contenedor del inicio.
+- Dirección canónica `codego-ide.web.app`; mantiene la anterior para recuperar datos de aquel origen y actualiza los enlaces de acceso.
+- Inicio de tarea/examen web condicionado a audio y pantalla completa, sin botón opcional para activar sonido. Si se pierden, se exige restablecerlos antes de continuar.
+- Aviso web de pantalla completa rojo/blanco con transiciones bruscas, máximo 2 destellos/s, movimiento reducido y espera real de 30 segundos. La app nativa conserva sus 12 segundos.
+- Menú contextual propio; confirmación al recargar o volver atrás y borrador de emergencia con recuperación protegida por cuenta, pestaña, revisión y fecha.
+
 ## 1.6.16 · Misiones, ayudas animadas y entregas con procedencia
 
 - Curso con XP por logros únicos, niveles, desbloqueo de misiones y repaso sin perder el progreso.

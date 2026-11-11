@@ -1,17 +1,104 @@
 {
-  "hosting": {
-    "site": "codego-python",
-    "public": "webapp",
-    "ignore": ["**/.*", "**/node_modules/**", "README.md"],
-    "headers": [
-      {"source":"**", "headers":[
-        {"key":"X-Content-Type-Options","value":"nosniff"},
-        {"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"},
-        {"key":"Cross-Origin-Opener-Policy","value":"same-origin-allow-popups"},
-        {"key":"Content-Security-Policy","value":"default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lh3.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://cdn.jsdelivr.net https://www.gstatic.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"}
-      ]},
-      {"source":"**/*.@(js|css|html|webmanifest)","headers":[{"key":"Cache-Control","value":"no-cache"}]},
-      {"source":"/sw.js","headers":[{"key":"Cache-Control","value":"no-store"}]}
-    ]
-  }
+  "hosting": [
+    {
+      "site": "codego-ide",
+      "public": "webapp",
+      "ignore": [
+        "**/.*",
+        "**/node_modules/**",
+        "README.md"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "strict-origin-when-cross-origin"
+            },
+            {
+              "key": "Cross-Origin-Opener-Policy",
+              "value": "same-origin-allow-popups"
+            },
+            {
+              "key": "Content-Security-Policy",
+              "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lh3.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://cdn.jsdelivr.net https://www.gstatic.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(js|css|html|webmanifest)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "/sw.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-store"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "site": "codego-python",
+      "public": "webapp",
+      "ignore": [
+        "**/.*",
+        "**/node_modules/**",
+        "README.md"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "strict-origin-when-cross-origin"
+            },
+            {
+              "key": "Cross-Origin-Opener-Policy",
+              "value": "same-origin-allow-popups"
+            },
+            {
+              "key": "Content-Security-Policy",
+              "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lh3.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://cdn.jsdelivr.net https://www.gstatic.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(js|css|html|webmanifest)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "/sw.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-store"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

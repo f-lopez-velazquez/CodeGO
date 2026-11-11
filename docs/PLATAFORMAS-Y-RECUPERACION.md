@@ -17,8 +17,8 @@ El guardado nativo escribe un temporal junto al destino, sincroniza los datos y 
 | Modalidad | Escritorio | Navegador |
 |---|---|---|
 | Libre | Carpeta local, copiar/pegar, sin supervisión ni entregas | Proyecto por cuenta en IndexedDB, copiar/pegar, sin supervisión ni entregas |
-| Tarea | Carpeta como en libre; sin copiar/cortar/pegar en el espacio de trabajo; foco supervisado; entrega Ed25519 | Proyecto local; escritura directa; registro de salidas y espera de 12 s; descarga JSON con firma ECDSA P-256 y SHA-256 |
-| Examen | Workspace limpio; controles nativos existentes de kiosk, audio y red; entrega auditada | Proyecto/actividad web; escritura directa; registro de salidas y espera de 12 s; sin control del SO |
+| Tarea | Carpeta como en libre; sin copiar/cortar/pegar en el espacio de trabajo; foco supervisado; entrega Ed25519 | Proyecto local; escritura directa; registro de salidas y espera de 30 s; descarga JSON con firma ECDSA P-256 y SHA-256 |
+| Examen | Workspace limpio; controles nativos existentes de kiosk, audio y red; entrega auditada | Proyecto/actividad web; escritura directa; registro de salidas y espera de 30 s; sin control del SO |
 
 El navegador no puede cerrar aplicaciones ajenas, bloquear cambios de aplicación, apagar Wi-Fi ni comprobar todas las pantallas. Los resultados y la telemetría web son información local modificable por quien controla el navegador. SHA-256 y la firma ECDSA P-256 comprueban integridad y vinculan la entrega a una instalación del navegador, sin demostrar autoría. El reporte web nuevo se identifica como `codego-web-submission-v2`; el verificador nativo puede comprobarlo. Las entregas nativas usan Ed25519.
 
@@ -59,7 +59,7 @@ Cada ejercicio ejecuta pruebas reales de Python y devuelve pistas por caso falli
 | Bucle infinito / salida masiva | Worker terminable y salida acotada a 200 000 caracteres; límite de ejecución de 120 s |
 | Respuestas insuficientes para input() | EOFError explicado con un ejemplo y la ubicación de Entradas |
 | Código con error | Explicación en español, ejemplo y salto a la línea; traceback original disponible |
-| Cambio de app en tarea/examen web | Incidencia y cuenta de 12 s desde el regreso, reiniciada al salir de nuevo |
+| Cambio de app en tarea/examen web | Incidencia y cuenta de 30 s desde el regreso, reiniciada al salir de nuevo |
 | Teclado móvil, rotación o pantalla angosta | Un panel por vez, navegación inferior, altura del viewport visual y teclas de símbolos/sangría |
 | Entrega descargada | Proyecto sellado localmente; el alumno conserva y envía el archivo al docente |
 | Descargas bloqueadas o canceladas por el usuario | No hay confirmación de recepción del docente. Una descarga local no equivale a envío ni a aceptación |
@@ -99,3 +99,11 @@ Las misiones requieren sus preguntas y retos de código; repetir o repasar no mu
 Cada copia exportada incluye identidad de instalación, fechas locales, nombre y registro de actividad acotado. Las entregas de examen nuevas firman también esa procedencia con Ed25519. El JSON web firma el proyecto completo, su evidencia y los datos del alumno con ECDSA P-256. La firma no autentica físicamente al alumno ni el hardware. El portapapeles registra intentos y cantidades; no se espían otras aplicaciones ni se capturan contraseñas fuera del editor.
 
 Se probaron 88 casos unitarios, 32 combinaciones de interfaz nativa, Electron con Python real, Chromium a 320/390/768/1280 px, generación de archivos, tarea con referencias, entrega irreversible y repetición exacta de descarga. La prueba sin conexión incluye recargar con un aviso pendiente y volver a abrir una entrega sellada. La autenticación en estas pruebas se simula en perfiles temporales; el almacenamiento, Python, Service Worker y las firmas son reales.
+
+### Comprobaciones de 1.6.17
+
+El inicio de tarea/examen web requiere audio en ejecución y pantalla completa; si el navegador deniega una capacidad, no entra en la sesión. No se solicita micrófono ni se inventa un permiso para el volumen del SO. El aviso es de pantalla completa y tiene una espera web de 30 segundos, tras restablecer las capacidades. En escritorio permanecen los 12 segundos. La señal roja/blanca usa dos destellos por segundo y respeta movimiento reducido, siguiendo el umbral de [WCAG](https://www.w3.org/WAI/WCAG21/Techniques/general/G19).
+
+Los menús flotantes se posicionan en la capa superior y se acotan a la ventana; el menú contextual reemplaza el del navegador con acciones de CodeGO. La recarga y Atrás se protegen con confirmación y guardado. Se probó interrumpir el guardado principal, recargar y recuperar la última edición mediante el borrador de emergencia, sin modificar entregas selladas ni referencias de tarea.
+
+La URL principal es https://codego-ide.web.app/; el sitio anterior sigue operativo para los datos del origen anterior. La migración de URL no transfiere automáticamente cuentas persistidas, proyectos ni huellas entre orígenes. Las versiones web de ambos dominios se mantienen alineadas y autorizadas en Google.

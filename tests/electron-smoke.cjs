@@ -37,6 +37,7 @@ app.whenReady().then(async () => {
       'system:prepare-environment': () => ({success:true,command:python}),
       'wifi:get-status': () => ({disabled:false}),
       'system:check-full-environment': () => ({hasPython:true,python:{command:python,version:'Python 3',isVenv:false},platform:process.platform,displaysCount:1,missingCount:0,packages:{}}),
+      'workspace:record-event': () => ({success:true}),
       'fs:list-workspace': () => ({success:true,tree:[{name:'main.py',path:'main.py',type:'file'}]}),
       'fs:read-file': (_, name) => ({success:true,content:fs.readFileSync(path.join(dir,name),'utf8')}),
       'fs:save-file': (_, data) => { fs.writeFileSync(path.join(dir,data.relativePath),data.content); return {success:true}; },

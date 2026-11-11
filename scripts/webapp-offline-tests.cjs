@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const url = process.env.CODEGO_WEB_URL || 'https://codego-python.web.app/';
+const url = process.env.CODEGO_WEB_URL || 'https://codego-ide.web.app/';
 // Identity is simulated in an ephemeral browser profile. Shell, SW, storage and Python are real.
 const fixture = `export const browserLocalPersistence={};
 export const getAuth=()=>({}); export const setPersistence=async()=>{};
@@ -59,10 +59,12 @@ export const signInWithPopup=async()=>{}; export const signOut=async()=>{};`;
     await page.waitForFunction(() => document.getElementById('save-status').textContent === 'Guardado en este equipo');
     await page.reload();
     await page.locator('#focus-dialog').waitFor();
+    await page.locator('#restore-protection').click();
+    await page.waitForFunction(() => document.fullscreenElement !== null);
     assert(await page.locator('#code-editor').evaluate(el => el.readOnly), 'Offline reload keeps the incident locked');
     await page.clock.install(); await page.clock.pauseAt(new Date(Date.now() + 1000));
     await page.evaluate(() => { window.dispatchEvent(new Event('blur')); window.dispatchEvent(new Event('focus')); });
-    await page.clock.runFor(11999); assert(await page.locator('#resume').isDisabled());
+    await page.clock.runFor(29999); assert(await page.locator('#resume').isDisabled());
     await page.clock.runFor(201); await page.locator('#resume').click();
     const downloaded = page.waitForEvent('download');
     await page.locator('#submit').click(); await page.locator('#confirm-dialog button[value=confirm]').click();

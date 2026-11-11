@@ -10,13 +10,14 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="site.css">
 <link rel="stylesheet" href="error-coach.css">
+  <link rel="stylesheet" href="viewport-menu.css">
 </head>
 <body>
   <section id="welcome" class="welcome">
     <div class="welcome-card">
       <img src="codego-mark.svg" width="96" height="96" alt="">
       <h1>code<span>GO</span></h1>
-      <p class="welcome-title">Tu espacio para aprender Python con claridad.</p>
+      <p class="welcome-title">Tu espacio para aprender a programar con claridad.</p>
       <p class="muted">Practica a tu ritmo, continúa tus proyectos o resuelve una actividad de tu profesor.</p>
       <button id="google-signin" class="primary" disabled>Preparando acceso con Google…</button>
       <p id="auth-status" role="status">Comprobando tu sesión.</p>
@@ -26,13 +27,13 @@
 
   <section id="home-screen" class="home-screen" hidden aria-label="Inicio de CodeGO">
     <div class="home-card">
-      <div class="home-brand"><img src="codego-mark.svg" width="96" height="96" alt=""><h1>code<span>GO</span></h1><p>Tu espacio para aprender Python con claridad.</p></div>
+      <div class="home-brand"><img src="codego-mark.svg" width="96" height="96" alt=""><h1>code<span>GO</span></h1><p>Tu espacio para aprender a programar con claridad.</p></div>
       <div class="home-modes" role="group" aria-label="Modalidad">
         <button data-home-mode="activity" aria-pressed="true"><span class="mode-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22V5.5Z"/><path d="M4 5.5V22"/></svg></span><span><strong>Modo libre</strong><small>Practica y continúa tus proyectos</small></span></button>
         <button data-home-mode="task" aria-pressed="false"><span class="mode-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10l-8 4-8-4V7Z"/><path d="m4 7 8 4 8-4M12 11v10"/></svg></span><span><strong>Tarea</strong><small>Escritura directa y entrega</small></span></button>
         <button data-home-mode="exam" aria-pressed="false"><span class="mode-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.8 2.8 8 7 10 4.2-2 7-5.2 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-5"/></svg></span><span><strong>Examen web</strong><small>Evaluación con registro de actividad</small></span></button>
       </div>
-      <div class="home-launch"><p class="eyebrow">TU ESPACIO DE TRABAJO</p><h2>Continúa desde donde lo dejaste.</h2><p id="home-project-name"></p><button id="home-start" class="primary">Abrir modo libre</button><button id="home-course" class="course-link">Aprender Python · curso y evaluaciones →</button><p class="small muted">Los proyectos se guardan en este navegador. Descarga una copia para cambiar de equipo.</p></div>
+      <div class="home-launch"><p class="eyebrow">TU ESPACIO DE TRABAJO</p><h2>Continúa desde donde lo dejaste.</h2><p id="home-project-name"></p><p data-legacy-address class="small notice" hidden>Nueva dirección: <a href="https://codego-ide.web.app/">codego-ide.web.app</a>. Descarga tu proyecto desde Cuenta antes de cambiar; tus trabajos siguen guardados aquí.</p><button id="home-start" class="primary">Abrir modo libre</button><button id="home-course" class="course-link">Aprender Python · curso y evaluaciones →</button><p class="small muted">Los proyectos se guardan en este navegador. Descarga una copia para cambiar de equipo.</p></div>
       <footer class="home-footer"><span id="home-account"></span><span>codeGO <span data-web-version></span> · Web</span><button id="home-signout">Cerrar sesión</button></footer>
     </div>
   </section>
@@ -47,7 +48,7 @@
         <button id="stop" hidden>Detener</button>
         <button id="submit" hidden disabled>Entregar</button>
         <details class="account-menu"><summary aria-label="Cuenta y herramientas">Cuenta</summary><div>
-          <span id="account-email"></span>
+          <span id="account-email"></span><a data-legacy-address href="https://codego-ide.web.app/" hidden>Abrir la nueva dirección</a>
           <button id="backup">Descargar proyecto</button>
           <button id="teacher">Crear actividad</button><button id="verify-delivery">Revisar entrega firmada</button>
           <button id="import-activity">Abrir actividad</button>
@@ -55,7 +56,7 @@
         </div></details>
       </div>
     </header>
-    <div class="workspace-context"><span id="workspace-project-label">Mi proyecto</span><span class="small muted">Python · <span data-web-version></span></span></div>
+    <div class="workspace-context"><span id="workspace-project-label">Mi proyecto</span><span class="small muted"><span id="workspace-language">Python</span> · <span data-web-version></span></span></div>
     <main class="workspace" data-pane="editor">
       <aside id="files-pane" class="files-pane" aria-label="Archivos del proyecto">
         <div class="pane-heading"><h2>Archivos</h2><button id="new-file" aria-label="Crear archivo">+</button></div>
@@ -111,7 +112,7 @@
   </dialog>
   <dialog id="text-dialog" aria-labelledby="text-dialog-title"><form id="text-form"><h2 id="text-dialog-title"></h2><label id="text-label" for="text-input">Nombre</label><input id="text-input" required maxlength="180"><p id="text-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close="text-dialog">Cancelar</button><button type="submit" class="primary">Aceptar</button></div></form></dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><form method="dialog"><h2 id="confirm-title"></h2><p id="confirm-message"></p><div class="dialog-actions"><button value="cancel">Cancelar</button><button value="confirm" class="primary">Continuar</button></div></form></dialog>
-  <dialog id="focus-dialog" aria-labelledby="focus-title"><h2 id="focus-title">Vuelve a tu actividad</h2><p>Se registró una salida. El aviso termina al completar la espera y reanudar.</p><button id="enable-alert-sound">Activar aviso sonoro</button><button id="resume" class="primary" disabled>Espera 12 s</button></dialog>
+  <dialog id="focus-dialog" aria-labelledby="focus-title"><div class="focus-sheet"><p class="focus-eyebrow">SALIDA REGISTRADA</p><h2 id="focus-title">Vuelve a tu actividad</h2><p id="focus-student"></p><p>Regresa a pantalla completa y espera 30 segundos para continuar.</p><button id="restore-protection" hidden>Volver a pantalla completa</button><button id="resume" class="primary" disabled>Espera 30 s</button></div></dialog>
   <dialog id="verify-dialog" aria-labelledby="verify-title"><div class="dialog-heading"><h2 id="verify-title">Revisar entrega</h2><button data-close="verify-dialog" aria-label="Cerrar">×</button></div><div id="verify-result"></div></dialog>
   <input id="verify-input" type="file" accept=".json" hidden>
   <dialog id="teacher-dialog" aria-labelledby="teacher-title"><form id="teacher-form"><div class="dialog-heading"><h2 id="teacher-title">Crear una actividad</h2><button type="button" data-close="teacher-dialog" aria-label="Cerrar">×</button></div>
@@ -129,6 +130,7 @@
   <input id="activity-input" type="file" accept=".json" hidden>
   <div id="toast" role="status" hidden></div>
   <script src="codego-sdk.js"></script>
+  <script src="viewport-menu.js"></script>
   <script src="error-coach.js"></script><script src="evidence.js"></script><script src="store.js"></script>
   <script src="course-content.js"></script>
   <script src="course.js"></script>

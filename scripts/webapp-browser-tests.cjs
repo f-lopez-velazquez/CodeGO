@@ -71,6 +71,24 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     await page.locator('#run').click();
     await page.locator('#stop').click();
     await page.locator('#stop').waitFor({ state: 'hidden' });
+    await page.waitForFunction(() => document.getElementById('save-status').textContent === 'Guardado en este equipo');
+    await page.evaluate(() => { CodeGOStore.save = async () => { throw new Error('Fallo de guardado simulado'); }; });
+    await page.locator('#code-editor').fill('print("Recuperado tras recarga")');
+    page.once('dialog', dialog => dialog.accept());
+    await page.reload();
+    await page.locator('#app').waitFor();
+    assert.equal(await page.locator('#code-editor').inputValue(), 'print("Recuperado tras recarga")', 'The emergency journal recovers input when the primary save was interrupted');
+    await page.locator('#code-editor').click({ button: 'right', position: { x: 10, y: 10 } });
+    await page.getByRole('menuitem', { name: 'Seleccionar todo el código' }).click();
+    assert(await page.locator('#code-editor').evaluate(el => el.selectionStart === 0 && el.selectionEnd === el.value.length));
+    await page.locator('#code-editor').press('Control+r');
+    await page.locator('#confirm-dialog').waitFor();
+    assert.match(await page.locator('#confirm-title').textContent(), /recargar/);
+    await page.locator('#confirm-dialog button[value=cancel]').click();
+    await page.locator('#code-editor').click();
+    await page.evaluate(() => history.back());
+    await page.locator('#confirm-dialog').waitFor();
+    await page.locator('#confirm-dialog button[value=cancel]').click();
     await page.locator('#open-course').click();
     await page.screenshot({ path: 'output/playwright/webapp-journey-desktop.png' });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -151,7 +169,25 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     await page.locator('#close-course').click();
     await page.locator('#open-session').click();
     await page.locator('input[name=mode][value=task]').check();
+    await page.evaluate(() => { window.originalFullscreenRequest = document.documentElement.requestFullscreen; document.documentElement.requestFullscreen = () => Promise.reject(new Error('Test denied')); });
     await page.locator('#session-form button[type=submit]').click();
+    await page.waitForFunction(() => document.getElementById('session-error').textContent.includes('Permite pantalla completa'));
+    assert(await page.locator('#session-dialog').isVisible(), 'Denied permissions must block session start');
+    assert.equal(await page.evaluate(() => document.body.dataset.mode), 'activity');
+    await page.evaluate(() => { document.documentElement.requestFullscreen = function (...args) { return window.originalFullscreenRequest.apply(this, args).then(() => new Promise(resolve => { window.releasePreflight = resolve; })); }; });
+    await page.locator('#session-form button[type=submit]').click();
+    await page.waitForFunction(() => Boolean(window.releasePreflight));
+    await page.locator('[data-close=session-dialog]').click();
+    await page.evaluate(() => window.releasePreflight());
+    await page.waitForFunction(() => document.fullscreenElement === null);
+    assert.equal(await page.evaluate(() => document.body.dataset.mode), 'activity', 'Cancelling a pending preflight must not start a session');
+    await page.evaluate(() => { document.documentElement.requestFullscreen = window.originalFullscreenRequest; });
+    await page.locator('#open-session').click();
+    await page.locator('input[name=mode][value=task]').check();
+    await page.locator('#session-form button[type=submit]').click();
+    await page.locator('#session-dialog').waitFor({ state: 'hidden' });
+    assert(await page.evaluate(() => Boolean(document.fullscreenElement)), 'Task requires full screen before entering');
+    assert.equal(await page.locator('#enable-alert-sound').count(), 0, 'Audio is mandatory, not an optional action');
     const pasteAllowed = await page.locator('#code-editor').evaluate(el => el.dispatchEvent(new Event('paste', { bubbles: true, cancelable: true })));
     assert.equal(pasteAllowed, false, 'Task must block paste');
     // Deadline tests use controlled page time, independent of background browser throttling.
@@ -159,7 +195,7 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     await page.clock.pauseAt(new Date(Date.now() + 1000));
     await page.evaluate(() => { window.dispatchEvent(new Event('blur')); window.dispatchEvent(new Event('focus')); });
     await page.locator('#focus-dialog').waitFor();
-    await page.clock.runFor(11999);
+    await page.clock.runFor(29999);
     assert(await page.locator('#resume').isDisabled());
     await page.clock.runFor(201);
     assert(await page.locator('#resume').isEnabled());
@@ -195,6 +231,7 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     await page.locator('#backup').click();
     assert.equal(fs.readFileSync(await (await copied).path(), 'utf8'), signedText, 'Downloading again preserves the exact signed bytes');
 
+    await page.locator('.account-menu summary').click();
     await page.locator('#verify-delivery').click();
     await page.locator('#verify-input').setInputFiles({ name: 'tarea.entrega-web.json', mimeType: 'application/json', buffer: Buffer.from(signedText) });
     await page.locator('#verify-dialog').waitFor();
@@ -202,7 +239,6 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     await page.locator('#verify-result select').selectOption('solucion.py');
     assert.equal(await page.locator('#verify-result .verified-source').textContent(), 'print("Mi solución")');
     await page.locator('[data-close=verify-dialog]').click();
-    await page.locator('.account-menu summary').click();
     await page.evaluate(() => {
       const original = AudioContext.prototype.resume;
       AudioContext.prototype.resume = function (...args) { window.testAlarmContext = this; return original.apply(this, args); };
@@ -217,10 +253,22 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
     await page.locator('#code-editor').fill('print("Mi examen")');
     await page.evaluate(() => { window.dispatchEvent(new Event('blur')); window.dispatchEvent(new Event('focus')); });
     await page.locator('#focus-dialog').waitFor();
+    const alertSize = await page.locator('#focus-dialog').boundingBox();
+    const warningViewport = page.viewportSize();
+    assert(alertSize.width >= warningViewport.width - 2 && alertSize.height >= warningViewport.height - 2, 'The teacher warning fills the viewport');
+    assert.equal(await page.locator('#focus-dialog').evaluate(el => getComputedStyle(el).animationDuration), '0.5s');
+    await page.screenshot({ path: 'output/playwright/webapp-fullscreen-alert-1617.png' });
+    for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }]) {
+      await page.setViewportSize(viewport);
+      const resumeBox = await page.locator('#resume').boundingBox();
+      assert(resumeBox.y >= 0 && resumeBox.y + resumeBox.height <= viewport.height, 'The warning action is visible in mobile portrait and landscape');
+    }
+    await page.setViewportSize(warningViewport);
+
     assert(await page.evaluate(() => document.body.classList.contains('supervision-alert')));
     await page.emulateMedia({ reducedMotion: 'reduce' });
     assert.equal(await page.evaluate(() => getComputedStyle(document.body, '::after').animationName), 'none');
-    await page.clock.runFor(11999); assert(await page.locator('#resume').isDisabled());
+    await page.clock.runFor(29999); assert(await page.locator('#resume').isDisabled());
     await page.clock.runFor(201); await page.locator('#resume').click();
     assert(!await page.evaluate(() => document.body.classList.contains('supervision-alert')));
     await page.locator('.account-menu summary').click(); await page.locator('#backup').click();
@@ -240,8 +288,12 @@ export const signOut = async () => { localStorage.removeItem('test-auth'); obser
       catch (error) { return /Otra pestaña/.test(error.message); }
     });
     assert(revisionProtection, 'An old tab must not overwrite a newer revision');
+    await page.locator('.account-menu summary').click();
+    await page.locator('#signout').click();
+    await page.locator('#welcome').waitFor();
+    assert(!await page.evaluate(() => document.body.classList.contains('supervision-alert')), 'Leaving the account cleans up the alarm state');
     assert.deepEqual(errors, []);
-    console.log('Web: Google fixture, IndexedDB recovery, real Python input, stop, course assessment, mobile panes, clipboard, 12-second deadline, task references, signed immutable delivery, teacher verification, exam supervision and repeat download passed.');
+    console.log('Web: guarded navigation, emergency save recovery, denied preflight, context menu, full-screen mobile warning, Google fixture, IndexedDB recovery, real Python input, stop, course assessment, mobile panes, clipboard, 30-second deadline, task references, signed immutable delivery, teacher verification, exam supervision and repeat download passed.');
   } catch (error) { console.error(error); process.exitCode = 1; }
   finally { await browser?.close(); server.close(); }
 })();

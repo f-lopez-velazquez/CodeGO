@@ -18,12 +18,33 @@ const record = (type, detail) => { if (project() && !project().locked) window.Co
 const fileReadOnly = () => project()?.locked || sealing || warning || project()?.mode === 'task' && project()?.readOnlyFiles?.includes(project()?.activeFile);
 let returnDeadline = 0;
 let warningTimer;
+const WEB_RETURN_WAIT = 30000;
 let textResolver;
 let errorLine = 1;
 let errorCoach;
 let telemetry = new SDK.ForensicTelemetry();
 let telemetryProject = null;
 let toastTimer;
+let navigationAllowed = false;
+let navigationQuestion = false;
+const tabId = sessionStorage.getItem('codego-tab-id') || crypto.randomUUID();
+sessionStorage.setItem('codego-tab-id', tabId);
+const draftKey = () => user ? `codego-emergency:${user.uid}:${tabId}` : null;
+function preserveEmergencyDraft() {
+  if (!state || !user || project().locked) return;
+  try { localStorage.setItem(draftKey(), JSON.stringify({ project: project().id, path: project().activeFile, content: project().files[project().activeFile], revision, at: Date.now(), pendingIncident: project().pendingIncident || supervised() })); } catch (_) { /* IndexedDB remains the primary store. */ }
+}
+function recoverEmergencyDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(draftKey()) || 'null');
+    if (!draft || draft.revision < revision - 1 || draft.revision > revision || draft.at <= (state.savedAt || 0)) return;
+    const target = state.projects.find(item => item.id === draft.project);
+    if (!target || target.locked || typeof draft.content !== 'string' || draft.content.length > 1000000 || !Object.hasOwn(target.files, draft.path)) return;
+    if (!(target.mode === 'task' && target.readOnlyFiles?.includes(draft.path))) target.files[draft.path] = draft.content;
+    if (target.mode !== 'activity' && draft.pendingIncident) target.pendingIncident = true;
+    change++; toast('Se recuperaron los últimos cambios anteriores a la recarga.');
+  } catch (_) {}
+}
 const uuid = () => crypto.randomUUID();
 const project = () => state?.projects.find(item => item.id === state.currentProject);
 const modeLabels = { activity: 'Modo libre', task: 'Tarea', exam: 'Examen web' };
@@ -58,7 +79,7 @@ $('go-home').onclick = async () => {
   state.lastView = 'home'; markChanged(); showHome();
 };
 $('home-signout').onclick = () => $('signout').click();
-document.querySelectorAll('[data-web-version]').forEach(element => { element.textContent = 'v1.6.16'; });
+document.querySelectorAll('[data-web-version]').forEach(element => { element.textContent = 'v1.6.17'; });
 function freshProject(name = 'Mi proyecto') {
   return { id: uuid(), name, files: { 'main.py': '# Tu primer programa\nprint("Hola, Python")\n' }, activeFile: 'main.py', mode: 'activity', stdin: '', locked: false };
 }
@@ -82,8 +103,11 @@ async function save() {
       await evidence.checkpoint(project());
       const snapshot = structuredClone(state);
       snapshot.revision = revision;
+      snapshot.savedAt = Date.now();
       revision = await window.CodeGOStore.save(owner, snapshot);
       savedChange = version;
+      state.savedAt = snapshot.savedAt;
+      if (change === savedChange) { try { localStorage.removeItem(draftKey()); } catch (_) {} }
       $('save-status').classList.remove('error');
       $('save-status').textContent = change === savedChange ? 'Guardado en este equipo' : 'Guardando…';
       return true;
@@ -231,6 +255,7 @@ function renderWorkspace() {
   $('stdin').value = current.stdin || '';
 
   $('workspace-project-label').textContent = current.name;
+  $('workspace-language').textContent = current.activeFile.endsWith('.js') ? 'JavaScript' : current.activeFile.endsWith('.py') ? 'Python' : 'Texto';
   $('workspace-student').textContent = state.student.name;
   $('open-session').textContent = modeLabels[current.mode];
   $('submit').hidden = current.mode === 'activity';
@@ -353,16 +378,19 @@ function openSession(requestedMode = null) {
   renderProjects();
   document.querySelector(`input[name=mode][value="${typeof requestedMode === 'string' ? requestedMode : project().locked ? 'activity' : project().mode}"]`).checked = true;
   updateModeDescription();
+  $('session-error').textContent = '';
   $('session-dialog').showModal(); $('student-name').focus();
 }
 $('open-session').onclick = openSession;
 function updateModeDescription() {
   const mode = document.querySelector('input[name=mode]:checked').value;
-  $('mode-description').textContent = mode === 'activity' ? 'Práctica libre. Puedes copiar, pegar y cambiar de aplicación.' : mode === 'task' ? 'Archivos anteriores en lectura; escribe en una solución nueva. Sin copiar ni pegar. Salir activa un aviso y una espera de 12 s.' : 'Empiezas en blanco. Sin copiar ni pegar; salir activa un aviso y una espera de 12 s. La web no bloquea otras apps ni la red.';
+  $('mode-description').textContent = mode === 'activity' ? 'Práctica libre. Puedes copiar, pegar y cambiar de aplicación.' : mode === 'task' ? 'Archivos anteriores en lectura; escribe en una solución nueva. Sin copiar ni pegar. Salir activa un aviso y una espera de 30 s.' : 'Empiezas en blanco. Sin copiar ni pegar; salir activa un aviso y una espera de 30 s. La web no bloquea otras apps ni la red.';
 }
+let sessionStarting = false;
 document.querySelectorAll('input[name=mode]').forEach(input => input.addEventListener('change', updateModeDescription));
 $('session-form').addEventListener('submit', async event => {
   event.preventDefault();
+  if (sessionStarting) return;
   state.student = { name: $('student-name').value.trim(), id: $('student-id').value.trim() };
   if (!state.student.name) return;
   const selected = state.projects.find(item => item.id === $('session-project').value);
@@ -370,6 +398,17 @@ $('session-form').addEventListener('submit', async event => {
   if (mode === 'task' && Object.keys(selected.files).length >= 200) return void ($('session-error').textContent = 'Reduce el proyecto a menos de 200 archivos para crear tu solución.');
   if (mode === 'exam' && state.projects.filter(item => !item.learningGroup).length >= 20) return void ($('session-error').textContent = 'Descarga tus proyectos y elimina copias antiguas antes de crear más exámenes.');
   if (selected.locked) return void ($('session-error').textContent = 'Este proyecto ya se entregó. Crea uno nuevo o elige otro proyecto.');
+  if (mode !== 'activity') {
+    const wasFullscreen = Boolean(document.fullscreenElement);
+    const fields = [...$('session-form').querySelectorAll('input, select')];
+    sessionStarting = true; $('session-form').querySelector('button[type=submit]').disabled = true;
+    fields.forEach(field => { field.disabled = true; });
+    let ready;
+    try { ready = await prepareSupervision(mode); }
+    finally { sessionStarting = false; $('session-form').querySelector('button[type=submit]').disabled = false; fields.forEach(field => { field.disabled = false; }); }
+    if (!$('session-dialog').open) { if (!wasFullscreen && document.fullscreenElement) await document.exitFullscreen().catch(() => {}); return; }
+    if (!ready) return;
+  }
   state.profileConfirmed = true;
   state.lastView = 'workspace';
   $('home-screen').hidden = true; $('app').hidden = false;
@@ -381,8 +420,8 @@ $('session-form').addEventListener('submit', async event => {
   project().mode = mode;
   if (mode === 'task') beginTaskReferences(project());
   else project().readOnlyFiles = [];
-  record('session-start', { mode, readOnlyFiles: project().readOnlyFiles });
-  if (mode !== 'activity') prepareSupervision(mode);
+  record('session-start', { mode, readOnlyFiles: project().readOnlyFiles, fullscreen: Boolean(document.fullscreenElement), audio: alarmContext?.state || 'unused' });
+
   telemetry.reset(); telemetryProject = state.currentProject; project().telemetry = { ...telemetry };
   $('session-dialog').close(); markChanged(); renderWorkspace(); setPane('editor'); editor.focus();
 });
@@ -488,6 +527,7 @@ $('run').onclick = () => run(project().assignment?.tests || null);
 $('stop').onclick = () => engine.stop();
 $('clear-terminal').onclick = () => { $('terminal-transcript').replaceChildren(); };
 window.addEventListener('keydown', event => {
+  if (state && ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r' || event.key === 'F5' && (event.ctrlKey || event.shiftKey))) { event.preventDefault(); void guardedNavigation('reload'); return; }
   if (event.key === 'F5' && state && !$('welcome').checkVisibility()) { event.preventDefault(); run(project().assignment?.tests || null); }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && state) { event.preventDefault(); save(); }
 });
@@ -516,25 +556,37 @@ $('submit').onclick = async () => {
 };
 let alarmContext, alarmTimer, titleTimer, fullscreenRequested = false;
 const originalTitle = document.title;
-function prepareSupervision(mode) {
+function protectionReady() { return Boolean(document.fullscreenElement && alarmContext?.state === 'running'); }
+async function prepareSupervision(mode) {
+  let audio, fullscreen;
   try {
+    if (!document.documentElement.requestFullscreen || !document.fullscreenEnabled) throw new Error('Este navegador no admite pantalla completa. Usa un navegador compatible para tarea o examen; el modo libre sigue disponible.');
+    // Both requests begin inside the same user gesture. There is no OS-volume permission on the web.
     alarmContext ||= new (window.AudioContext || window.webkitAudioContext)();
-    alarmContext.resume().catch(() => toast('Activa el sonido del navegador para oír los avisos.'));
-  } catch (_) { toast('Este navegador no permite la alarma sonora. El aviso visual y el registro siguen activos.'); }
-  if (mode === 'exam' && document.documentElement.requestFullscreen) {
-    document.documentElement.requestFullscreen().then(() => { fullscreenRequested = true; }).catch(() => { record('capability', { fullscreen: false }); toast('No se pudo activar pantalla completa. El examen web seguirá registrando salidas de la ventana.'); });
+    alarmContext.onstatechange = () => { if (supervised() && !protectionReady()) { leaveWorkspace('audio-interrupted'); resumeCountdown(); } };
+    audio = alarmContext.resume();
+    fullscreen = document.fullscreenElement ? Promise.resolve() : document.documentElement.requestFullscreen();
+    const outcomes = await Promise.race([Promise.allSettled([audio, fullscreen]), new Promise(resolve => setTimeout(() => resolve(null), 8000))]);
+    if (!outcomes || outcomes.some(result => result.status === 'rejected') || !protectionReady()) throw new Error('Permite pantalla completa y reproducción de sonido para iniciar. Comprueba también el volumen del equipo y vuelve a intentar.');
+    fullscreenRequested = true;
+    alarmTone();
+    if (project()) record('capability', { mode, fullscreen: true, audio: alarmContext.state, systemVolume: 'El navegador no puede comprobarlo ni modificarlo.' });
+    return true;
+  } catch (error) {
+    const message = error.message || 'No se pudieron preparar el sonido y la pantalla completa.';
+    if ($('session-dialog').open) $('session-error').textContent = message; else toast(message);
+    return false;
   }
 }
-$('enable-alert-sound').onclick = async () => {
-  try { alarmContext ||= new (window.AudioContext || window.webkitAudioContext)(); await alarmContext.resume(); alarmTone(); toast('Aviso sonoro activado. Comprueba también el volumen del equipo.'); }
-  catch (_) { toast('Este navegador no permite activar el sonido.'); }
+$('restore-protection').onclick = async () => {
+  if (await prepareSupervision(project().mode)) { startAlarm(); alarmTone(); resumeCountdown(); }
 };
 function alarmTone() {
   if (!alarmContext || alarmContext.state !== 'running') return;
   const now = alarmContext.currentTime;
   [660, 880].forEach((frequency, index) => {
     const oscillator = alarmContext.createOscillator(), gain = alarmContext.createGain();
-    oscillator.frequency.value = frequency; oscillator.type = 'sine';
+    oscillator.frequency.value = frequency; oscillator.type = 'triangle';
     gain.gain.setValueAtTime(0, now + index * .18); gain.gain.linearRampToValueAtTime(.22, now + index * .18 + .015); gain.gain.exponentialRampToValueAtTime(.001, now + index * .18 + .16);
     oscillator.connect(gain); gain.connect(alarmContext.destination); oscillator.start(now + index * .18); oscillator.stop(now + index * .18 + .18);
     oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
@@ -543,6 +595,8 @@ function alarmTone() {
 function startAlarm() {
   if (alarmTimer) return;
   document.body.classList.add('supervision-alert');
+  $('focus-student').textContent = state?.student?.name || '';
+  $('restore-protection').hidden = protectionReady();
   alarmTone(); alarmTimer = setInterval(alarmTone, 1200);
   let visible = true;
   document.title = '⚠ Regresa a CodeGO';
@@ -553,7 +607,7 @@ function stopAlarm() {
   document.body.classList.remove('supervision-alert'); document.title = originalTitle;
 }
 document.addEventListener('fullscreenchange', () => {
-  if (fullscreenRequested && !document.fullscreenElement) { fullscreenRequested = false; leaveWorkspace('fullscreen-exit'); resumeCountdown(); }
+  if (fullscreenRequested && !document.fullscreenElement) { fullscreenRequested = false; returnDeadline = 0; leaveWorkspace('fullscreen-exit'); resumeCountdown(); }
 });
 // A deadline based on wall-clock time survives background timer throttling on mobile.
 function supervised() { return state && project().mode !== 'activity' && !project().locked && !$('session-dialog').open; }
@@ -567,9 +621,12 @@ function leaveWorkspace(reason = 'focus-loss') {
 }
 function resumeCountdown() {
   if (!warning || document.hidden || !document.hasFocus()) return;
-  if (!returnDeadline) returnDeadline = Date.now() + 12000;
+  $('restore-protection').hidden = protectionReady();
+  if (!protectionReady()) { returnDeadline = 0; clearInterval(warningTimer); $('resume').disabled = true; $('resume').textContent = 'Primero restablece la supervisión'; return; }
+  if (!returnDeadline) returnDeadline = Date.now() + WEB_RETURN_WAIT;
   clearInterval(warningTimer);
   const tick = () => {
+    if (!protectionReady()) { returnDeadline = 0; clearInterval(warningTimer); $('resume').disabled = true; $('resume').textContent = 'Primero restablece la supervisión'; $('restore-protection').hidden = false; return; }
     const remaining = Math.max(0, Math.ceil((returnDeadline - Date.now()) / 1000));
     $('resume').textContent = remaining ? `Espera ${remaining} s` : 'Reanudar actividad';
     $('resume').disabled = remaining > 0;
@@ -579,16 +636,16 @@ function resumeCountdown() {
 }
 $('focus-dialog').addEventListener('cancel', event => event.preventDefault());
 $('resume').onclick = () => {
-  if (!warning || !returnDeadline || Date.now() < returnDeadline || document.hidden || !document.hasFocus()) return;
-  warning = false; returnDeadline = 0; clearInterval(warningTimer); project().pendingIncident = false; record('incident-resumed', { waitedSeconds: 12 }); markChanged(); stopAlarm(); $('focus-dialog').close(); renderWorkspace();
+  if (!warning || !returnDeadline || Date.now() < returnDeadline || document.hidden || !document.hasFocus() || !protectionReady()) return;
+  warning = false; returnDeadline = 0; clearInterval(warningTimer); project().pendingIncident = false; record('incident-resumed', { waitedSeconds: WEB_RETURN_WAIT / 1000 }); markChanged(); stopAlarm(); $('focus-dialog').close(); renderWorkspace();
 };
 window.addEventListener('blur', () => {
-  if (warning) { returnDeadline = 0; clearInterval(warningTimer); $('resume').disabled = true; $('resume').textContent = 'Espera 12 s'; }
+  if (warning) { returnDeadline = 0; clearInterval(warningTimer); $('resume').disabled = true; $('resume').textContent = 'Espera 30 s'; }
   else leaveWorkspace();
 });
 window.addEventListener('focus', resumeCountdown);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { save(); leaveWorkspace(); if (warning) { returnDeadline = 0; clearInterval(warningTimer); $('resume').disabled = true; $('resume').textContent = 'Espera 12 s'; } }
+  if (document.hidden) { preserveEmergencyDraft(); save(); leaveWorkspace(); if (warning) { returnDeadline = 0; clearInterval(warningTimer); $('resume').disabled = true; $('resume').textContent = 'Espera 30 s'; } }
   else resumeCountdown();
 });
 const learningUI = window.createCodeGOLearning({
@@ -676,7 +733,7 @@ $('activity-input').onchange = async event => {
     const activity = course.validateAssignment(JSON.parse(await file.text()));
     if (state.projects.filter(item => !item.learningGroup).length >= 20) throw new Error('Se alcanzó el límite de 20 proyectos.');
     if (!await confirmAction(activity.title, activity.prompt + '\n\nLas pruebas ejecutan Python del autor. Abre solo actividades de tu profesor.')) return;
-    prepareSupervision(activity.mode);
+    if (!await prepareSupervision(activity.mode)) return;
     const next = freshProject(activity.title); next.files = { 'main.py': activity.starter }; next.mode = activity.mode; next.assignment = activity;
     state.projects.push(next); state.currentProject = next.id;
     markChanged(); renderWorkspace(); setPane('editor');
@@ -708,7 +765,7 @@ async function importFiles(event) {
       if (backup.format !== 'codego-project-v1') throw new Error('No es una copia de proyecto CodeGO Web.');
       next = freshProject(String(backup.project?.name || 'Proyecto recuperado').slice(0, 120));
       next.files = validateFiles(backup.project?.files);
-      if (backup.project?.mode === 'task') { next.mode = 'task'; beginTaskReferences(next); prepareSupervision('task'); }
+      if (backup.project?.mode === 'task') { next.mode = 'task'; beginTaskReferences(next); if (!await prepareSupervision('task')) return; }
     } else {
       next = freshProject(files[0].webkitRelativePath?.split('/')[0] || 'Archivos importados');
       const entries = await Promise.all(files.filter(file => /\.(py|js|txt|json|csv|md)$/i.test(file.name)).map(async file => [file.webkitRelativePath?.split('/').slice(1).join('/') || file.name, await file.text()]));
@@ -728,8 +785,38 @@ function updateConnection() {
 }
 window.addEventListener('online', updateConnection);
 window.addEventListener('offline', updateConnection);
-window.addEventListener('pagehide', () => { save(); engine.stop(); });
-window.addEventListener('beforeunload', event => { if (change !== savedChange || supervised()) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('pagehide', () => { preserveEmergencyDraft(); void save(); engine.stop(); });
+window.addEventListener('beforeunload', event => {
+  if (navigationAllowed) return;
+  if (change !== savedChange || supervised()) {
+    if (supervised()) { project().pendingIncident = true; record('navigation-attempt', { action: 'browser-close-or-reload' }); markChanged(); }
+    preserveEmergencyDraft(); void save(); event.preventDefault(); event.returnValue = '';
+  }
+});
+async function guardedNavigation(action) {
+  if (!state || navigationQuestion || sealing || $('confirm-dialog').open) return;
+  navigationQuestion = true;
+  try {
+    preserveEmergencyDraft();
+    const message = supervised() ? 'Salir o recargar registra una incidencia. Al regresar deberás restablecer la supervisión y esperar 30 segundos. Tu trabajo se guardará antes de salir.' : 'Se guardarán tus cambios antes de continuar.';
+    if (!await confirmAction(action === 'reload' ? '¿Guardar y recargar?' : '¿Guardar y salir de CodeGO?', message)) return;
+    if (supervised()) { project().pendingIncident = true; record('navigation-confirmed', { action }); markChanged(); }
+    preserveEmergencyDraft();
+    if (!await save()) return;
+    navigationAllowed = true;
+    if (action === 'reload') location.reload(); else history.go(-2);
+  } finally { navigationQuestion = false; }
+}
+// One same-URL history entry catches ordinary Back/swipe gestures; beforeunload
+// remains the browser's final protection against jumps beyond that entry.
+history.replaceState({ codegoBase: true }, '', location.href);
+history.pushState({ codegoGuard: true }, '', location.href);
+window.addEventListener('popstate', () => {
+  if (navigationAllowed) return;
+  history.pushState({ codegoGuard: true }, '', location.href);
+  if (state) { preserveEmergencyDraft(); void save(); void guardedNavigation('back'); }
+});
+
 const splitter = $('pane-splitter');
 function resizeEditor(clientX) {
   const workspace = document.querySelector('.workspace').getBoundingClientRect();
@@ -759,7 +846,8 @@ async function initializeAuth() {
     await authSDK.setPersistence(auth, authSDK.browserLocalPersistence);
     const provider = new authSDK.GoogleAuthProvider(); provider.setCustomParameters({ prompt: 'select_account' });
     authSDK.onAuthStateChanged(auth, async account => {
-      engine.stop(); warning = false; clearInterval(warningTimer);
+      if (state && user) { preserveEmergencyDraft(); await save(); }
+      engine.stop(); warning = false; clearInterval(warningTimer); stopAlarm();
       document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
       if (!account || !account.emailVerified || !account.providerData.some(item => item.providerId === 'google.com')) {
         user = null; state = null; telemetryProject = null; $('app').hidden = true; $('home-screen').hidden = true; $('welcome').hidden = false;
@@ -773,10 +861,11 @@ async function initializeAuth() {
         if (!state) {
           const initial = freshProject(); state = { projects: [initial], currentProject: initial.id, student: { name: account.displayName || '', id: '' }, progress: {}, revision: 0 };
         }
-        revision = state.revision || 0; change = savedChange = 0;
+        revision = state.revision || 0; change = savedChange = 0; recoverEmergencyDraft();
         $('account-email').textContent = account.email;
         $('welcome').hidden = true; $('app').hidden = false;
         renderWorkspace(); updateConnection();
+        if (change !== savedChange) void save();
         if (project().mode !== 'activity' && !project().locked && !project().pendingIncident) { leaveWorkspace('session-recovered'); resumeCountdown(); }
         state.progress ||= {};
         state.learning ||= { version: 2, quiz: {}, exercises: {}, assessments: {} };
@@ -811,3 +900,22 @@ if ('serviceWorker' in navigator) {
   } catch (_) {}
 }
 initializeAuth();
+
+window.CodeGOViewportMenus.installContext(() => {
+  if (!state) return [{ label: 'CodeGO · inicia sesión para trabajar', disabled: true }];
+  if (warning || sealing) return [{ label: warning ? 'Actividad en pausa · completa el aviso' : 'Preparando tu entrega', disabled: true }];
+  const actions = [
+    { label: 'Ejecutar archivo', disabled: running || project().locked, run: () => run(project().assignment?.tests || null) },
+    { label: 'Guardar cambios', run: async () => { if (await save()) toast('Cambios guardados en este navegador.'); } },
+    { label: 'Ver archivos', run: () => setPane('files') },
+    { label: 'Ver consola', run: () => setPane('terminal') }
+  ];
+  if (project().mode === 'activity') actions.unshift(
+    { label: 'Seleccionar todo el código', run: () => { setPane('editor'); editor.focus(); editor.select(); } },
+    { label: 'Copiar selección', run: () => navigator.clipboard.writeText(editor.value.slice(editor.selectionStart, editor.selectionEnd)) },
+    { label: 'Pegar en el editor', disabled: editor.readOnly, run: async () => insertCode(await navigator.clipboard.readText()) }
+  );
+  return actions;
+}, toast);
+
+if (location.hostname === 'codego-python.web.app' || location.hostname === 'codego-python.firebaseapp.com') document.querySelectorAll('[data-legacy-address]').forEach(element => { element.hidden = false; });

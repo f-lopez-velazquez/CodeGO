@@ -55,6 +55,19 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     assert(await page.locator('#btn-start-exam').isVisible(), 'Entry action is missing');
     assert(/^v\d+\.\d+\.\d+$/.test(await page.locator('#lobby-app-version').textContent()), 'Version missing');
   }
+  for (const size of [{ width: 1920, height: 1080 }, { width: 1280, height: 600 }, { width: 850, height: 700 }]) {
+    await page.setViewportSize(size);
+    await page.locator('.lobby-tools-menu > summary').click();
+    const tools = page.locator('.lobby-tools-menu .status-tools');
+    await tools.waitFor({ state: 'visible' });
+    const box = await tools.boundingBox();
+    assert(box.x >= 0 && box.y >= 0 && box.x + box.width <= size.width && box.y + box.height <= size.height, 'Tools menu is clipped by the viewport');
+    await tools.locator('button:visible').last().focus();
+    if (size.width === 1920) await page.screenshot({ path: 'output/playwright/native-tools-1617.png' });
+    await page.keyboard.press('Escape');
+    await tools.waitFor({ state: 'hidden' });
+  }
+  await page.setViewportSize({ width: 850, height: 700 });
   await page.locator('#btn-start-exam').click();
   assert(await page.locator('#session-setup-dialog').isVisible(), 'Session setup must open in a centered dialog');
   assert(await page.locator('.recent-project-btn').count() === 2, 'Recent projects are not visible in the lobby');

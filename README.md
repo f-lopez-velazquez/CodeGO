@@ -20,7 +20,7 @@ La respuesta a `input()` se escribe directamente junto al prompt de Python dentr
 
 ## Descargar
 
-| Sistema | Instalador base autónomo (recibe v1.6.16) | Alternativa |
+| Sistema | Instalador base autónomo (recibe v1.6.17) | Alternativa |
 | --- | --- | --- |
 | Windows x64 | [Instalador EXE](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-setup-x64.exe) | [Portable](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-portable-x64.exe) |
 | Linux x64 | [AppImage](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.AppImage) | [tar.gz](https://github.com/f-lopez-velazquez/CodeGO/releases/download/v1.6.8/CodeGO-1.6.8-linux-x64.tar.gz) |
@@ -106,4 +106,4 @@ La distribución pública actual no tiene firma comercial ni notarización. Conf
 
 ### Aplicación web y curso de Python
 
-La web está publicada en [codego-python.web.app](https://codego-python.web.app), con acceso Google, proyectos locales por cuenta, edición móvil y un curso express con evaluación por pruebas. La fuente está en `webapp/`; ejecutar `node scripts/sync-webapp.cjs` para actualizar su copia en el sitio corporativo. Ver [plataformas, recuperación y límites](docs/PLATAFORMAS-Y-RECUPERACION.md). Los cambios de escritorio requieren distribuir una actualización; no se publican con el hosting web.
+La web está publicada en [codego-python.web.app](https://codego-ide.web.app), con acceso Google, proyectos locales por cuenta, edición móvil y un curso express con evaluación por pruebas. La fuente está en `webapp/`; ejecutar `node scripts/sync-webapp.cjs` para actualizar su copia en el sitio corporativo. Ver [plataformas, recuperación y límites](docs/PLATAFORMAS-Y-RECUPERACION.md). Los cambios de escritorio requieren distribuir una actualización; no se publican con el hosting web.

@@ -14,4 +14,4 @@ Abre `http://localhost:8080/codego/`. Los enlaces apuntan a archivos versionados
 
 Validación visual: 320, 390, 768, 1024 y 1440 píxeles; sin desbordamiento horizontal, recursos cargados, enlaces de sección y preguntas desplegables operables con teclado. Los enlaces de descarga se comprueban contra los activos publicados.
 
-La subcarpeta `codego/webapp/` contiene la app autenticada. Su fuente canónica es `../webapp/`; se sincroniza con `node scripts/sync-webapp.cjs`. La app independiente se publica también en https://codego-python.web.app mediante el `firebase.json` de la raíz. El sitio de descarga conserva su hosting anterior.
+La subcarpeta `codego/webapp/` contiene la app autenticada. Su fuente canónica es `../webapp/`; se sincroniza con `node scripts/sync-webapp.cjs`. La app independiente se publica también en https://codego-ide.web.app mediante el `firebase.json` de la raíz. El sitio de descarga conserva su hosting anterior.
