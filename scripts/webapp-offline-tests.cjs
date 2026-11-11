@@ -29,6 +29,16 @@ export const signInWithPopup=async()=>{}; export const signOut=async()=>{};`;
     }
     await execute();
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+    // Keep the simulated identity consistent in this ephemeral profile. Playwright
+    // routes do not intercept the Service Worker's own network/cache requests.
+    await page.evaluate(async authSource => {
+      const key = (await caches.keys()).find(name => name.startsWith('codego-runtime-'));
+      if (!key) throw new Error('Runtime cache was not created.');
+      const cache = await caches.open(key);
+      const response = source => new Response(source, { headers: { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin': '*' } });
+      await cache.put('https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js', response('export const initializeApp = config => config;'));
+      await cache.put('https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js', response(authSource));
+    }, fixture);
     await context.setOffline(true);
     await page.reload();
     await page.locator('#app').waitFor();
