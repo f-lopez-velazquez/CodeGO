@@ -159,3 +159,6 @@ body.workspace-sealed #view-ide #btn-submit-task { display: none !important; }
   #view-ide .terminal-header .term-title-box { gap: 6px; }
   #view-ide .terminal-header .term-badge { font-size: 9px; padding-inline: 4px; white-space: nowrap; }
 }
+body.theme-paper #view-ide .workspace-header .nav-mode-indicator.mode-activity { color: #126b46; }
+body.theme-paper #view-ide .workspace-header .nav-mode-indicator.mode-task { color: #875e00; }
+body.theme-paper #view-ide .workspace-header .nav-mode-indicator.mode-exam { color: #b42335; }
