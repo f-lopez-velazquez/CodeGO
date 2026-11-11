@@ -107,3 +107,9 @@ El inicio de tarea/examen web requiere audio en ejecución y pantalla completa; 
 Los menús flotantes se posicionan en la capa superior y se acotan a la ventana; el menú contextual reemplaza el del navegador con acciones de CodeGO. La recarga y Atrás se protegen con confirmación y guardado. Se probó interrumpir el guardado principal, recargar y recuperar la última edición mediante el borrador de emergencia, sin modificar entregas selladas ni referencias de tarea.
 
 La URL principal es https://codego-ide.web.app/; el sitio anterior sigue operativo para los datos del origen anterior. La migración de URL no transfiere automáticamente cuentas persistidas, proyectos ni huellas entre orígenes. Las versiones web de ambos dominios se mantienen alineadas y autorizadas en Google.
+
+### Interfaz de trabajo 1.6.18
+
+El encabezado muestra proyecto, modo y acciones de ejecución/entrega. El menú del proyecto conserva nombre y actividad completos, ID de examen, ruta, lenguaje y red; Herramientas reúne proyectos, librerías, revisión, apariencia, escala, ayuda y salida. La consola y el explorador tienen menús propios para reducir iconos simultáneos. Las ayudas de cursor y los menús se acotan al área visible y compensan zoom.
+
+Las pruebas de navegador incluyen 30 combinaciones de los tres modos y anchos de 390, 768, 1024 y 1440 px, con zoom de 100 %, 140 % y 180 % cuando corresponde, además de las 32 combinaciones generales existentes. Se comprueban solapamientos, lectura de etiquetas, apariencia, datos completos de sesión, avisos de sintaxis, entrega sellada y tooltips. Electron comprueba también menús con zoom nativo. Esto no equivale a una validación física de todos los monitores y escalas de cada SO.

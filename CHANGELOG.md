@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.6.18 · Un encabezado más claro
+
+- Barra principal centrada en proyecto, modalidad y ejecución. Datos completos de sesión y archivo en el menú del proyecto; herramientas secundarias, apariencia y escala en un menú con etiquetas legibles.
+- Consola y explorador agrupan acciones secundarias y evitan encabezados truncados. Detener solo aparece al ejecutar; guardar copia no duplica Entregar durante una evaluación activa.
+- Ajusta menús y avisos al espacio real disponible tras zoom. Corrige texto partido letra por letra en modo compacto y solapamientos a 180 %.
+- Ayudas de cursor propias, discretas y acotadas a la ventana, también por teclado. Conserva la lectura de los datos completos sin saturar la barra.
+- Los avisos de sintaxis distribuyen texto y botones según el ancho del editor; las entregas selladas mantienen sus acciones claras.
+- Añade 30 combinaciones de regresión de encabezado, modos, zoom, menús y estado sellado; Electron verifica los menús con zoom nativo.
+
 ## 1.6.17 · Menús visibles e inicio web supervisado
 
 - Menús de herramientas, opciones y cuenta en la capa superior, acotados al viewport y desplazables; elimina recortes por el contenedor del inicio.

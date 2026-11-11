@@ -288,6 +288,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.evaluate(() => { setAppZoom(1); state.termLayout = 'side'; updateTerminalLayout(); });
   assert(await page.locator('#btn-finish-exam').isHidden(), 'Submit visible in activity');
   assert(await page.locator('#btn-finish-exam').isDisabled(), 'Submit enabled in activity');
+  await page.locator('#workspace-tools-menu > summary').click();
   await page.locator('#btn-help-shortcuts').click();
   await page.locator('#help-search').fill('Arduino');
   assert(await page.locator('.help-topic:not([hidden])').count() >= 1, 'Help search cannot find Arduino guidance');
@@ -354,14 +355,17 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.evaluate(() => { appendTerminalOutput('Hola ', 'stdout'); appendTerminalOutput('mundo\n', 'stdout'); });
   assert(await page.locator('#code-textarea').evaluate(e => e === document.activeElement), 'stdout stole editor focus');
   assert((await page.locator('#terminal-output').innerText()).includes('Hola mundo'), 'Chunk boundaries created a line break');
+  await page.locator('.terminal-options-menu > summary').click();
   await page.locator('#btn-clear-term').click();
   assert(await page.locator('#term-status-badge').innerText() === 'Ejecutando', 'Clear reset running state');
   await page.locator('#btn-stop-code').click();
   await page.waitForFunction(() => document.querySelector('#terminal-stdin-input').disabled, null, { timeout: 5000 });
   assert(await page.locator('#terminal-stdin-input').isDisabled(), 'stdin enabled after stop');
   assert(await page.locator('#term-status-badge').innerText() === 'Detenido', 'Stop reported as error');
+  await page.locator('.terminal-options-menu > summary').click();
   await page.locator('#btn-maximize-term').click();
   assert(await page.locator('#editor-pane-box').isHidden(), 'Maximize failed');
+  await page.locator('.terminal-options-menu > summary').click();
   await page.locator('#btn-maximize-term').click();
   assert(await page.locator('#editor-pane-box').isVisible(), 'Restore failed');
   const before = await page.locator('#terminal-panel').boundingBox();
@@ -369,6 +373,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   await page.keyboard.press('ArrowLeft');
   const after = await page.locator('#terminal-panel').boundingBox();
   assert(after.width > before.width, 'Keyboard resize failed');
+  await page.locator('.terminal-options-menu > summary').click();
   await page.locator('#btn-toggle-term-pos').click();
   const bottomBefore = await page.locator('#terminal-panel').boundingBox();
   await page.locator('#splitter-horizontal').focus();

@@ -79,7 +79,7 @@ $('go-home').onclick = async () => {
   state.lastView = 'home'; markChanged(); showHome();
 };
 $('home-signout').onclick = () => $('signout').click();
-document.querySelectorAll('[data-web-version]').forEach(element => { element.textContent = 'v1.6.17'; });
+document.querySelectorAll('[data-web-version]').forEach(element => { element.textContent = 'v1.6.18'; });
 function freshProject(name = 'Mi proyecto') {
   return { id: uuid(), name, files: { 'main.py': '# Tu primer programa\nprint("Hola, Python")\n' }, activeFile: 'main.py', mode: 'activity', stdin: '', locked: false };
 }

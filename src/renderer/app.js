@@ -2710,6 +2710,7 @@ function isWorkspaceLocked() {
 let taskReferenceFiles = new Set();
 function isTaskReference(path = state.activeFilePath) { return state.appMode === 'task' && taskReferenceFiles.has(path); }
 function applyEditorLockState(locked = isWorkspaceLocked()) {
+  updateWorkspaceChrome();
   if (!DOM.codeTextarea) return;
   DOM.codeTextarea.readOnly = locked || isTaskReference() || Boolean(state.isSubmitting);
   DOM.codeTextarea.classList.toggle('code-locked', locked || isTaskReference());
@@ -2958,7 +2959,7 @@ function enterIdeWorkspace() {
       DOM.navModeIndicator.title = 'Sesión de Examen Supervisada con Auditoría de Integridad Activa';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = state.student.examId ? `Examen · ${state.student.examId}` : 'Examen supervisado';
+      DOM.navModeText.textContent = 'Examen';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.remove('hidden');
@@ -2979,7 +2980,7 @@ function enterIdeWorkspace() {
       DOM.activityActionsToolbar.style.display = 'none';
     }
     if (DOM.sidebarTitleLabel) {
-      DOM.sidebarTitleLabel.textContent = 'ESPACIO DE EXAMEN';
+      DOM.sidebarTitleLabel.textContent = 'Archivos';
     }
     if (DOM.workspaceHintLabel) {
       DOM.workspaceHintLabel.textContent = 'Entorno seguro de evaluación';
@@ -2997,7 +2998,7 @@ function enterIdeWorkspace() {
       DOM.navModeIndicator.title = 'Tarea con entrega firmada y registro de actividad';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = 'Tarea / actividad supervisada';
+      DOM.navModeText.textContent = 'Tarea';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.remove('hidden');
@@ -3018,7 +3019,7 @@ function enterIdeWorkspace() {
       DOM.activityActionsToolbar.style.display = 'inline-flex';
     }
     if (DOM.sidebarTitleLabel) {
-      DOM.sidebarTitleLabel.textContent = 'ESPACIO DE TAREA';
+      DOM.sidebarTitleLabel.textContent = 'Archivos';
     }
     if (DOM.workspaceHintLabel) {
       DOM.workspaceHintLabel.textContent = 'Sin copiar ni pegar · entrega verificable';
@@ -3038,7 +3039,7 @@ function enterIdeWorkspace() {
       DOM.navModeIndicator.title = 'Modo Práctica Libre: Sin bloqueos, proyectos y carpetas habilitados';
     }
     if (DOM.navModeText) {
-      DOM.navModeText.textContent = 'Actividad libre';
+      DOM.navModeText.textContent = 'Modo libre';
     }
     if (DOM.examTimerPill) {
       DOM.examTimerPill.classList.add('hidden'); // Sin contador
@@ -3059,7 +3060,7 @@ function enterIdeWorkspace() {
       DOM.activityActionsToolbar.style.display = 'inline-flex';
     }
     if (DOM.sidebarTitleLabel) {
-      DOM.sidebarTitleLabel.textContent = 'PROYECTO';
+      DOM.sidebarTitleLabel.textContent = 'Archivos';
     }
     if (DOM.workspaceHintLabel) {
       DOM.workspaceHintLabel.textContent = 'Carpetas y proyectos del estudiante';
@@ -3324,7 +3325,16 @@ function updateEditorEmptyState() {
   if (isEmpty) updateBreadcrumbs('');
 }
 
+function updateWorkspaceChrome() {
+  const label = document.getElementById('workspace-project-name');
+  if (label) { label.textContent = state.workspaceName || 'Proyecto'; label.title = state.workspaceName || 'Proyecto'; }
+  document.body.classList.toggle('workspace-sealed', isWorkspaceLocked());
+  const examId = document.getElementById('workspace-exam-id');
+  if (examId) { examId.textContent = state.student?.examId || 'Sin ID'; examId.closest('div').hidden = state.appMode !== 'exam'; }
+}
+
 function updateBreadcrumbs(relativePath) {
+  updateWorkspaceChrome();
   if (!DOM.navBreadcrumbs) return;
   const normalized = (relativePath || '').replace(/\\/g, '/');
   const parts = normalized.split('/').filter(Boolean);
@@ -4940,6 +4950,7 @@ function lockExamEnvironment() {
   if (taskDelivery) state.isTaskSubmitted = true;
   else state.isExamSubmitted = true;
   state.examSessionActive = false;
+  updateWorkspaceChrome();
   DOM.codeTextarea.readOnly = true;
   DOM.codeTextarea.classList.add('code-locked');
   const editorWrapper = document.querySelector('.editor-wrapper');

@@ -1,0 +1,161 @@
+/* Workspace hierarchy: project + mode + execution; tools stay in named menus. */
+#view-ide .workspace-header { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 18px; min-height: 58px; padding: 8px 16px; flex-wrap: nowrap; box-shadow: none; background: var(--bg-secondary); }
+#view-ide .workspace-header .nav-left { display: flex; flex: initial; min-width: 0; gap: 10px; }
+#view-ide .workspace-header .nav-center { display: flex; flex: initial; min-width: 0; gap: 10px; order: initial; }
+#view-ide .workspace-header .nav-right { display: flex; min-width: 0; gap: 8px; flex-wrap: nowrap; }
+#view-ide .workspace-header .nav-brand { padding: 0; min-height: 36px; gap: 7px; }
+#view-ide .workspace-header .nav-app-logo { width: 28px; height: 28px; }
+#view-ide .workspace-header .nav-brand-title { font-size: 15px; }
+#view-ide .workspace-header #btn-toggle-sidebar { width: 34px; height: 34px; padding: 0; border-color: transparent; flex: 0 0 auto; }
+#view-ide .workspace-header .nav-mode-indicator { min-height: 30px; padding: 3px 7px; font-size: 12px; font-weight: 650; letter-spacing: 0; border: 0; white-space: nowrap; background: transparent; }
+#view-ide .workspace-header .nav-mode-indicator.mode-activity { color: #64d5a0; }
+#view-ide .workspace-header .nav-mode-indicator.mode-task { color: #f0ce75; }
+#view-ide .workspace-header .nav-mode-indicator.mode-exam { color: #fa9fa9; }
+#view-ide .workspace-header .exam-timer-pill { padding: 0 8px; min-height: 28px; height: auto; border: 0; background: transparent; box-shadow: none; }
+#view-ide .workspace-header .timer-text { font: 12px/1.5 var(--font-mono); }
+#view-ide .workspace-header .timer-icon-wrap, #view-ide .workspace-header .timer-sublabel { display: none; }
+#view-ide .workspace-header .incidents-pill.clean { display: none; }
+#view-ide .workspace-header .incidents-pill { padding: 4px 8px; white-space: nowrap; font-size: 11px; }
+#view-ide .workspace-header .nav-waiting-review-badge { padding: 4px 8px; font-size: 10px; letter-spacing: 0; max-width: 180px; white-space: normal; }
+#view-ide .workspace-header .nav-right > .btn-action, #view-ide .workspace-header #btn-export-workspace { width: auto; min-height: 36px; height: 36px; padding: 0 12px; gap: 7px; flex: 0 0 auto; white-space: nowrap; font: 600 12px/1.2 var(--font-ui, system-ui); border-radius: 8px; }
+#view-ide .workspace-header .nav-right > button .action-label { display: inline; }
+#view-ide .workspace-header #btn-export-workspace { display: inline-flex; align-items: center; color: var(--text-secondary); border: 1px solid var(--border-medium); background: transparent; }
+#view-ide .workspace-header #btn-stop-code:disabled { display: none; }
+body.mode-exam-active:not(.workspace-sealed) #view-ide .workspace-header #btn-export-workspace,
+body.mode-task-active:not(.workspace-sealed) #view-ide .workspace-header #btn-export-workspace { display: none; }
+.workspace-session-menu { min-width: 0; max-width: 280px; flex: 0 1 auto; }
+.workspace-session-menu > summary, .workspace-tools-menu > summary, .explorer-options-menu > summary { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; cursor: pointer; list-style: none; color: var(--text-secondary); font: 500 12px/1.4 var(--font-ui, system-ui); }
+.workspace-session-menu > summary::-webkit-details-marker, .workspace-tools-menu > summary::-webkit-details-marker, .explorer-options-menu > summary::-webkit-details-marker { display: none; }
+.workspace-session-menu > summary:hover, .workspace-tools-menu > summary:hover, .explorer-options-menu > summary:hover { background: var(--bg-surface); color: var(--text-primary); }
+.workspace-session-menu[open] > summary, .workspace-tools-menu[open] > summary { border-color: var(--border-medium); background: var(--bg-surface); }
+.workspace-session-menu > summary > svg, .workspace-tools-menu > summary > svg { flex: 0 0 auto; }
+#workspace-project-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.menu-chevron { color: var(--text-muted); }
+.workspace-tools-menu { flex: 0 0 auto; }
+#workspace-tools-panel, #workspace-session-panel { font: 12px/1.5 var(--font-ui, system-ui); color: var(--text-primary); background: var(--bg-secondary); border-color: var(--border-medium); padding: 10px; }
+#workspace-session-panel h3 { font-size: 13px; margin: 4px 4px 12px; }
+#workspace-session-panel dl { margin: 0 4px; display: grid; gap: 12px; }
+#workspace-session-panel dt, .menu-section-title { font-size: 10px; font-weight: 600; color: var(--text-muted); letter-spacing: .04em; }
+#workspace-session-panel dd { margin: 3px 0 0; }
+#workspace-session-panel .nav-subject, #workspace-session-panel .nav-student { display: block; overflow: visible; white-space: normal; overflow-wrap: anywhere; color: var(--text-primary); font-size: 12px; }
+#workspace-session-panel .nav-breadcrumbs { display: flex; flex-wrap: wrap; width: auto; max-width: none; padding: 0 4px; background: transparent; border: 0; white-space: normal; overflow-wrap: anywhere; font-size: 11px; }
+#workspace-session-panel .nav-breadcrumbs > span { min-width: 0; overflow-wrap: anywhere; }
+#workspace-session-panel .session-status { display: grid; gap: 10px; margin: 14px 4px 4px; }
+#workspace-session-panel .nav-lang-badge, #workspace-session-panel .nav-wifi-badge, #workspace-session-panel .exam-locked-badge { display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 7px; padding: 0; border: 0; background: transparent; font-size: 11px; white-space: normal; }
+#workspace-session-panel .lang-badge-text { display: inline; }
+#workspace-session-panel .lang-badge-icon { display: none; }
+#workspace-tools-panel .menu-section-title, #workspace-session-panel .menu-section-title { margin: 12px 4px 7px; }
+#workspace-tools-panel .menu-section-title:first-child { margin-top: 3px; }
+#workspace-tools-panel button { display: flex; width: 100%; min-height: 36px; height: auto; padding: 9px 8px; justify-content: flex-start; align-items: center; gap: 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-secondary); font: 500 12px/1.4 var(--font-ui, system-ui); white-space: normal; text-align: left; box-shadow: none; }
+#workspace-tools-panel button:hover { background: var(--bg-surface); color: var(--text-primary); }
+#workspace-tools-panel button svg { flex: 0 0 auto; }
+#workspace-tools-panel.workspace-tools-panel button span { display: inline; }
+#workspace-tools-panel #activity-actions-toolbar, #workspace-tools-panel #post-submission-toolbar { flex-direction: column; align-items: stretch; width: 100%; gap: 2px; }
+#workspace-tools-panel .theme-selector-dropdown { width: 100%; }
+#workspace-tools-panel .theme-dropdown-menu { position: static; width: 100%; max-width: none; margin: 4px 0; border: 1px solid var(--border-subtle); background: var(--bg-primary); box-shadow: none; }
+#workspace-tools-panel .theme-menu-header { font-size: 9px; letter-spacing: .04em; padding: 8px 10px; }
+#workspace-tools-panel .theme-opt { min-height: 32px; padding: 6px 10px; font-size: 11px; }
+#workspace-tools-panel .font-size-row { display: flex; flex-wrap: wrap; gap: 3px; padding: 6px; }
+#workspace-tools-panel .font-size-row button { width: auto; min-height: 30px; flex: 1; padding: 4px; justify-content: center; font-size: 10px; }
+#workspace-tools-panel .workspace-zoom-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px; color: var(--text-secondary); }
+#workspace-tools-panel .zoom-controls-widget { display: flex; width: auto; height: 32px; gap: 2px; padding: 0; }
+#workspace-tools-panel .zoom-controls-widget button { width: 30px; min-height: 30px; padding: 0; justify-content: center; }
+#workspace-tools-panel .zoom-label { display: inline; font-size: 11px; }
+#workspace-tools-panel .workspace-menu-exit { border-top: 1px solid var(--border-subtle); padding-top: 7px; margin-top: 7px; }
+#workspace-tools-panel #btn-update-ide:not(.hidden) { color: var(--accent-cyan); }
+.workspace-tools-menu:has(#btn-update-ide:not(.hidden)) > summary { color: var(--accent-cyan); border-color: var(--border-medium); }
+#view-ide .sidebar-header { padding: 10px 12px; gap: 8px; min-height: 50px; }
+#view-ide .sidebar-title { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; min-width: 0; }
+#view-ide .sidebar-actions { display: flex; flex-wrap: nowrap; flex: 0 0 auto; gap: 2px; }
+#view-ide .sidebar-actions > .btn-icon-sm, .explorer-options-menu > summary { width: 30px; min-height: 30px; padding: 0; justify-content: center; }
+.explorer-quick-actions button { display: flex; width: 100%; gap: 10px; padding: 9px; align-items: center; text-align: left; font: 12px/1.4 system-ui, sans-serif; }
+#view-ide .sidebar-reveal-button { display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 30px; padding: 6px 3px; border: 0; background: transparent; border-radius: 4px; color: var(--text-secondary); font-size: 10px; font-weight: 500; white-space: nowrap; }
+#view-ide .sidebar-reveal-button span { overflow: hidden; text-overflow: ellipsis; }
+body.mode-exam-active #btn-reveal-workspace-sidebar { display: none; }
+#view-ide .explorer-drop-hint { font-size: 10px; padding: 7px 12px; border-top: 0; }
+#view-ide .editor-diagnostic { gap: 9px; padding: 9px 12px; }
+#view-ide #editor-diagnostic-title { font-size: 11px; line-height: 1.4; }
+#view-ide #editor-diagnostic-hint { font-size: 10px; line-height: 1.45; }
+#view-ide .editor-diagnostic-help, #view-ide .editor-diagnostic-line { min-height: 32px; padding: 6px 9px; font-size: 10px; white-space: nowrap; }
+#view-ide .terminal-header { min-height: 46px; gap: 8px; padding: 8px 12px; }
+@media (max-width: 1000px) {
+  #view-ide .workspace-header { gap: 10px; padding-inline: 12px; }
+  #view-ide .workspace-header .nav-brand-title { display: none; }
+  #view-ide .workspace-header .nav-right > button, #view-ide .workspace-header #btn-export-workspace { padding-inline: 10px; }
+  .workspace-session-menu { max-width: 180px; }
+  .workspace-tools-menu > summary > span { display: none; }
+  .workspace-tools-menu > summary { width: 36px; padding: 0; justify-content: center; }
+}
+@media (max-width: 760px) {
+  #view-ide .workspace-header { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; }
+  #view-ide .workspace-header .nav-center { grid-column: 1 / -1; gap: 12px; min-height: 24px; }
+  #view-ide .workspace-header .nav-right { grid-column: 2; grid-row: 1; gap: 5px; }
+  #view-ide .workspace-header .nav-right > button, #view-ide .workspace-header #btn-export-workspace { min-height: 34px; height: 34px; }
+  #view-ide .workspace-header #btn-export-workspace span { display: none; }
+  #view-ide .workspace-header .nav-waiting-review-badge { max-width: none; }
+}
+@media (max-width: 480px) {
+  .workspace-session-menu > summary { width: 32px; padding: 0; justify-content: center; }
+  #workspace-project-name, .workspace-session-menu .menu-chevron { display: none; }
+  #view-ide .workspace-header .nav-left { gap: 5px; }
+  #view-ide .workspace-header #btn-run-code .action-label { display: none; }
+  #view-ide .workspace-header #btn-run-code { padding-inline: 10px; }
+}
+#workspace-session-panel #workspace-exam-id { overflow-wrap: anywhere; }
+#workspace-tools-panel:has(#activity-actions-toolbar.hidden):has(#post-submission-toolbar.hidden) > .menu-section-title:first-child { display: none; }
+/* Labels remain words inside menus, including compact mode. */
+#workspace-tools-panel #btn-open-pkg-manager-ide { width: 100%; padding: 9px 8px; justify-content: flex-start; }
+#workspace-session-panel .nav-subject, #workspace-session-panel .nav-student { max-width: none; }
+#view-ide .terminal-header .term-title { display: inline; max-width: none; font: 600 12px/1.4 var(--font-ui, system-ui); letter-spacing: 0; }
+#view-ide .terminal-header .term-title-box { gap: 8px; }
+.terminal-options-menu { flex: 0 0 auto; }
+.terminal-options-menu > summary { list-style: none; cursor: pointer; min-height: 30px; width: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text-secondary); }
+.terminal-options-menu > summary::-webkit-details-marker { display: none; }
+.terminal-options-menu > summary:hover { background: var(--bg-surface); color: var(--text-primary); }
+.terminal-quick-actions { color: var(--text-primary); background: var(--bg-secondary); }
+.terminal-quick-actions button { display: flex; align-items: center; width: 100%; gap: 9px; padding: 9px; text-align: left; font: 12px/1.4 var(--font-ui, system-ui); border: 0; }
+#view-ide .terminal-quick-actions #btn-clear-term span { display: inline; }
+/* Container queries follow the usable width after app zoom, unlike viewport media queries. */
+#view-ide { container: ide-frame / inline-size; }
+@container ide-frame (max-width: 1000px) {
+  #view-ide .workspace-header { gap: 10px; padding-inline: 12px; }
+  #view-ide .workspace-header .nav-brand-title { display: none; }
+  .workspace-session-menu { max-width: 180px; }
+  .workspace-tools-menu > summary > span { display: none; }
+  .workspace-tools-menu > summary { width: 36px; padding: 0; justify-content: center; }
+}
+@container ide-frame (max-width: 760px) {
+  #view-ide .workspace-header { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; }
+  #view-ide .workspace-header .nav-center { grid-column: 1 / -1; grid-row: 2; gap: 12px; min-height: 24px; }
+  #view-ide .workspace-header .nav-right { grid-column: 2; grid-row: 1; gap: 5px; }
+  #view-ide .workspace-header .nav-right > button, #view-ide .workspace-header #btn-export-workspace { min-height: 34px; height: 34px; }
+  #view-ide .workspace-header #btn-export-workspace span { display: none; }
+  #view-ide .workspace-header .nav-waiting-review-badge { max-width: none; }
+}
+@container ide-frame (max-width: 480px) {
+  .workspace-session-menu > summary { width: 32px; padding: 0; justify-content: center; }
+  #workspace-project-name, .workspace-session-menu .menu-chevron { display: none; }
+  #view-ide .workspace-header .nav-left { gap: 5px; }
+  #view-ide .workspace-header #btn-run-code .action-label { display: none; }
+  #view-ide .workspace-header #btn-run-code { padding-inline: 10px; }
+}
+body.workspace-sealed #view-ide #btn-finish-exam,
+body.workspace-sealed #view-ide #btn-submit-task { display: none !important; }
+#editor-pane-box { container: editor-frame / inline-size; }
+#view-ide .editor-diagnostic { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; align-items: center; }
+#view-ide .editor-diagnostic .editor-diagnostic-copy span { white-space: normal; overflow: visible; text-overflow: clip; }
+#view-ide .editor-diagnostic-help { display: inline-flex; align-items: center; justify-content: center; }
+@container editor-frame (max-width: 460px) {
+  #view-ide .editor-diagnostic { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 7px; }
+  #view-ide .editor-diagnostic-copy { grid-column: 2 / -1; }
+  #view-ide .editor-diagnostic-help { grid-column: 2; grid-row: 2; justify-self: start; }
+  #view-ide .editor-diagnostic-line { grid-column: 3; grid-row: 2; }
+}
+#terminal-panel { container: terminal-frame / inline-size; }
+@container terminal-frame (max-width: 260px) {
+  #view-ide .terminal-header { padding-inline: 8px; gap: 5px; }
+  #view-ide .terminal-header .term-icon, #view-ide .terminal-header .term-exec-time { display: none; }
+  #view-ide .terminal-header .term-title { flex: 0 0 auto; font-size: 11px; }
+  #view-ide .terminal-header .term-title-box { gap: 6px; }
+  #view-ide .terminal-header .term-badge { font-size: 9px; padding-inline: 4px; white-space: nowrap; }
+}

@@ -65,6 +65,11 @@ app.whenReady().then(async () => {
     for (const zoom of [1,1.4,1.8]) {
       await evaluate(`setAppZoom(${zoom})`);
       await sleep(100);
+      await evaluate("document.getElementById('workspace-tools-menu').open = true;");
+      await waitFor("document.getElementById('workspace-tools-panel').matches(':popover-open')");
+      const menuBounds = await evaluate("(()=>{const r=document.getElementById('workspace-tools-panel').getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:innerWidth,height:innerHeight};})()");
+      assert(menuBounds.left >= 0 && menuBounds.top >= 0 && menuBounds.right <= menuBounds.width + 1 && menuBounds.bottom <= menuBounds.height + 1, JSON.stringify(menuBounds));
+      await evaluate("document.getElementById('workspace-tools-menu').open = false;");
       for (const layout of ['side','bottom']) {
         await evaluate(`state.termLayout='${layout}'; updateTerminalLayout();`);
         await evaluate('focusTerminalInput()');

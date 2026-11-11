@@ -7,3 +7,6 @@
 .context-commands button { display: block; width: 100%; text-align: left; border: 0; border-radius: 6px; padding: 10px; background: transparent; color: inherit; font: 13px/1.4 system-ui, sans-serif; }
 .context-commands button:hover { background: #24394b; }
 .context-commands button:disabled { opacity: .55; cursor: default; }
+
+.codego-tooltip[popover]:not(:popover-open) { display: none !important; }
+.codego-tooltip { position: fixed; inset: auto; margin: 0; width: max-content; max-width: 280px; padding: 7px 10px; border: 1px solid #4a6177; border-radius: 7px; background: #192b3b; color: #edf4fc; box-shadow: 0 6px 18px #0004; font: 11px/1.5 system-ui, sans-serif; overflow-wrap: anywhere; white-space: normal; pointer-events: none; overflow: hidden; z-index: 100001; }
