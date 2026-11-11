@@ -447,7 +447,7 @@ function updateTerminalInput(focus = false) {
   }
 }
 const engine = new SDK.WebExecutionEngine({
-  workerURL: new URL('execution-worker.js', import.meta.url).href,
+  workerURL: new URL('execution-worker.js?v=stdin-2', import.meta.url).href,
   onOutput: (text, type) => { appendOutput(text, type); if (type === 'stderr') errorOutput = (errorOutput + text).slice(-16000); },
   onInput: request => {
     inputRequest = request; terminalInput.value = '';
@@ -555,7 +555,15 @@ async function run(tests = null) {
       }
       $('evaluation').hidden = false; markChanged();
     }
-  } catch (error) { appendOutput(error.message + '\n', 'stderr'); explainError(error.message); }
+  } catch (error) {
+    appendOutput(error.message + '\n', error.code === 'CODEGO_RUNTIME_UNAVAILABLE' ? 'system' : 'stderr');
+    if (error.code === 'CODEGO_RUNTIME_UNAVAILABLE') {
+      $('error-title').textContent = 'La consola no pudo iniciarse';
+      $('error-message').textContent = 'Tu código se conserva. Reintenta con Ejecutar; si el navegador bloquea los datos del sitio, permite su almacenamiento.';
+      errorCoach?.destroy(); errorCoach = null; $('error-example').replaceChildren();
+      $('goto-error').hidden = true; $('error-guide').hidden = false;
+    } else explainError(error.message);
+  }
   finally { running = false; $('stop').hidden = true; $('run').hidden = false; renderWorkspace(); }
 }
 $('run').onclick = () => run(project().assignment?.tests || null);
@@ -930,7 +938,7 @@ async function initializeAuth() {
 }
 if ('serviceWorker' in navigator) {
   try {
-    await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
     await Promise.race([navigator.serviceWorker.ready, new Promise(resolve => setTimeout(resolve, 2500))]);
   } catch (_) {}
 }

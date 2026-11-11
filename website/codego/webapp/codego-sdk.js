@@ -171,26 +171,52 @@
       this.onFinished = onFinished || (() => {});
       this.onInput = onInput || (() => {});
       const base = typeof document !== 'undefined' ? document.currentScript?.src || document.baseURI : undefined;
-      this.workerURL = workerURL || (base ? new URL('execution-worker.js', base).href : 'execution-worker.js');
+      this.workerURL = workerURL || (base ? new URL('execution-worker.js?v=stdin-2', base).href : 'execution-worker.js?v=stdin-2');
       this.timeoutMs = timeoutMs;
       this.pending = null;
       this.inputURL = base ? new URL('__codego_stdin__/', this.workerURL).href : null;
     }
     async prepareInput() {
+      try { await this.connectInput(); }
+      catch (cause) {
+        const error = new Error(cause.message || 'No se pudo preparar la consola.');
+        error.code = 'CODEGO_RUNTIME_UNAVAILABLE'; error.cause = cause; throw error;
+      }
+    }
+    async connectInput() {
       if (!navigator.serviceWorker) throw new Error('Este navegador no permite la consola interactiva. Abre CodeGO con HTTPS y permite su almacenamiento.');
       let timeout;
-      try { await Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('No se preparó la consola. Recarga CodeGO y vuelve a ejecutar.')), 10000); })]); }
+      let registration;
+      try { registration = await Promise.race([
+        navigator.serviceWorker.register(new URL('sw.js', this.workerURL), { updateViaCache: 'none' }),
+        new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('No se pudo conectar el servicio de consola. Reintenta con Ejecutar.')), 15000); })
+      ]); } finally { clearTimeout(timeout); }
+      try { await Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('No se pudo preparar la consola. Reintenta con Ejecutar.')), 15000); })]); }
       finally { clearTimeout(timeout); }
-      if (!navigator.serviceWorker.controller) {
-        await new Promise((resolve, reject) => {
-          const ready = () => { if (navigator.serviceWorker.controller) { clearTimeout(timer); navigator.serviceWorker.removeEventListener('controllerchange', ready); resolve(); } };
-          const timer = setTimeout(() => { navigator.serviceWorker.removeEventListener('controllerchange', ready); reject(new Error('Recarga CodeGO para activar la consola interactiva.')); }, 10000);
-          navigator.serviceWorker.addEventListener('controllerchange', ready); ready();
-        });
+      const claim = worker => new Promise(resolve => {
+        if (!worker || worker.state !== 'activated') return resolve(false);
+        const channel = new MessageChannel();
+        const done = value => { clearTimeout(timer); channel.port1.close(); channel.port2.close(); resolve(value); };
+        const timer = setTimeout(() => done(false), 700);
+        channel.port1.onmessage = event => done(event.data?.protocol === 2);
+        try { worker.postMessage({ type: 'codego:connect-stdin' }, [channel.port2]); }
+        catch (_) { done(false); }
+      });
+      const deadline = performance.now() + 15000;
+      let updating = false;
+      for (;;) {
+        if (await claim(registration.active)) {
+          const response = await fetch(this.inputURL + 'ready', { cache: 'no-store' });
+          const protocol = response.ok ? await response.json().catch(() => null) : null;
+          if (navigator.serviceWorker.controller && protocol?.protocol === 2) return;
+        }
+        if (!updating) {
+          updating = true;
+          void registration.update().catch(() => {});
+        }
+        if (performance.now() >= deadline) throw new Error('No se pudo conectar la consola. Permite el almacenamiento de CodeGO y reintenta con Ejecutar.');
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
-      const response = await fetch(this.inputURL + 'ready', { cache: 'no-store' });
-      const protocol = response.ok ? await response.json().catch(() => null) : null;
-      if (protocol?.protocol !== 1) throw new Error('Hay una actualización de la consola. Recarga CodeGO para usarla.');
     }
     pauseBudget() {
       clearTimeout(this.timer);

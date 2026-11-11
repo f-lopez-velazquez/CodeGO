@@ -4,6 +4,14 @@
 (() => {
   const prefix = new URL('__codego_stdin__/', self.registration.scope).pathname;
   const slots = new Map();
+  // A force reload can leave a client uncontrolled even with an active SW.
+  // Reattach it explicitly, including when this version was already installed.
+  self.addEventListener('message', event => {
+    if (event.data?.type !== 'codego:connect-stdin') return;
+    event.waitUntil(self.clients.claim().then(() => {
+      event.ports[0]?.postMessage({ protocol: 2 });
+    }).catch(() => event.ports[0]?.postMessage({ protocol: 0 })));
+  });
   const reply = (value, status = 200) => new Response(JSON.stringify(value), {
     status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
   });
@@ -17,7 +25,7 @@
     if (url.origin !== self.location.origin || !url.pathname.startsWith(prefix)) return false;
     const key = url.pathname.slice(prefix.length);
     event.respondWith((async () => {
-      if (key === 'ready' && event.request.method === 'GET') return reply({ protocol: 1 });
+      if (key === 'ready' && event.request.method === 'GET') return reply({ protocol: 2 });
       if (!/^[a-f0-9-]{36}\/(?:[1-9]\d{0,8}|cancel)$/.test(key)) return reply({ error: 'Invalid input channel' }, 400);
       if (key.endsWith('/cancel') && event.request.method === 'POST') {
         const run = key.slice(0, -6);
