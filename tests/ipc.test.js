@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 
-test('IPC rejects escaped paths and protects sealed files without touching OS controls', async t => {
+test('IPC protects files and starts isolated exams with optional IDs without touching OS controls', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codego-ipc-'));
   t.after(() => fs.rmSync(dir, {recursive:true,force:true}));
   const handlers = new Map();
@@ -16,6 +16,7 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   const electron = {
     app: {getPath:()=>dir,whenReady:()=>({then:()=>{}}),on:()=>{},requestSingleInstanceLock:()=>true,quit:()=>{}},
     ipcMain: {handle:(name,fn)=>handlers.set(name,fn)},
+    globalShortcut: {registerAll:()=>{}},
     shell: {showItemInFolder:filePath=>revealed.push(filePath),openPath:async filePath=>{revealed.push(filePath);return '';}}
   };
   const context = vm.createContext({
@@ -95,4 +96,29 @@ test('IPC rejects escaped paths and protects sealed files without touching OS co
   const unavailable = await call('workspace:restore', path.join(dir, 'proyecto-inexistente'));
   assert.equal(unavailable.success, false);
   assert.equal(unavailable.missing, true);
+
+  // Exercise the real exam IPC handler, replacing only OS controls. Omitting
+  // the ID must work as well as leaving it empty or supplying a teacher's ID.
+  vm.runInContext(`
+    environmentReady = true;
+    browserGuard.closeAll = async () => ({ closed: [] });
+    notificationGuard.enable = async () => {};
+    disableSystemWifi = () => ({ success: true });
+    requestProtectedFullscreen = () => {};
+    restoreRendererKeyboardFocus = () => {};
+    mainWindow.setMenu = mainWindow.setMenuBarVisibility = mainWindow.setKiosk = mainWindow.setAlwaysOnTop = () => {};
+  `, context);
+  const examPaths = new Set();
+  for (const details of [{}, { examId: '' }, { examId: 'PARCIAL-1' }]) {
+    vm.runInContext('isKioskActive = false;', context);
+    const result = await call('security:start-kiosk', { name: 'Ana Torres', mode: 'exam', language: 'python', ...details });
+    assert.equal(result.success, true);
+    assert(!examPaths.has(result.workspacePath), 'Each exam must have its own new workspace');
+    examPaths.add(result.workspacePath);
+    assert.equal(path.relative(path.join(dir, 'exam_sessions'), result.workspacePath).startsWith('..'), false);
+    assert.deepEqual(fs.readdirSync(result.workspacePath), [result.initialFile]);
+    assert.equal(fs.readFileSync(path.join(result.workspacePath, result.initialFile), 'utf8'), '');
+    assert.equal(result.workspaceName, details.examId ? 'Examen PARCIAL-1' : 'Examen');
+    assert.equal(fs.readFileSync(path.join(workspace, 'main.py'), 'utf8'), 'print("safe")');
+  }
 });

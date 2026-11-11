@@ -192,3 +192,9 @@ Cambiar el código local o publicar Firebase no actualiza la aplicación instala
 - Las consultas de contenedor siguen el ancho disponible tras zoom; las media queries solas no cubren el zoom CSS del modo navegador. Probar 100 %, 140 % y 180 %, temas y los tres modos. El marco y las reglas de integridad no cambian.
 - `viewport-menu.js/css` controla menús y ayudas de cursor acotadas al viewport. Compensar el zoom real para posición y tamaño; no usar ayudas nativas gigantes ni dejar menús fuera de la ventana. Las selecciones de apariencia y zoom mantienen abierto su menú. Respetar Escape, foco y teclado.
 - `npm run test:browser` incluye `workspace-chrome-tests.cjs`: 30 combinaciones de modo/ancho/zoom, sin solapamientos, textos legibles, menús completos, estado sellado, avisos de sintaxis y ayudas acotadas. Electron comprueba además menús con el zoom nativo.
+
+## 10. Inicio de examen desde 1.6.19
+
+- El ID del examen es opcional tanto en el formulario como en el IPC nativo. Sin ID, el proceso principal crea igualmente una carpeta única con un archivo vacío; no reutilizar carpetas de otros exámenes.
+- Los campos de examen pertenecen a `#session-setup-dialog`, fuera de `#view-lobby`. En examen se muestra el ID opcional y se ocultan Continuar, carpetas y recientes, incluido `#btn-resume-project` del lobby.
+- Abrir la configuración de examen no restaura proyectos ni consulta la carpeta anterior. Al elegir examen se descarta cualquier restauración de pestañas pendiente. Libre y tarea conservan la recuperación de trabajos.

@@ -67,6 +67,31 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
     await page.keyboard.press('Escape');
     await tools.waitFor({ state: 'hidden' });
   }
+  await page.evaluate(() => {
+    state.workspaceSelected = false;
+    window.currentWorkspaceCalls = 0;
+    window.electronAPI.getCurrentWorkspace = async () => {
+      window.currentWorkspaceCalls++;
+      return { selected: true, workspacePath: '/proyectos/Computacion3A', workspaceName: 'Computacion3A' };
+    };
+  });
+  await page.locator('#mode-card-exam').click();
+  assert(await page.locator('#btn-resume-project').isHidden(), 'Exam lobby must not offer to continue a previous project');
+  await page.locator('#btn-start-exam').click();
+  for (const size of [{ width: 1440, height: 900 }, { width: 850, height: 700 }, { width: 1280, height: 600 }]) {
+    await page.setViewportSize(size);
+    assert(await page.locator('#exam-id').isVisible(), 'Optional exam ID must be visible in the setup dialog');
+    assert(await page.locator('#project-picker').isHidden(), 'Exams must not show previous folders or recent projects');
+    assert(await page.locator('#lobby-continue-card').isHidden(), 'Exams must not offer to continue a previous session');
+    const box = await page.locator('#exam-id').boundingBox();
+    assert(box.x >= 0 && box.y >= 0 && box.x + box.width <= size.width && box.y + box.height <= size.height, 'Exam ID is clipped');
+  }
+  assert(await page.evaluate(() => window.resumeCalls.length === 0 && window.currentWorkspaceCalls === 0), 'Opening exam setup must not restore any previous workspace');
+  await page.screenshot({ path: 'output/playwright/exam-setup-1619.png' });
+  await page.locator('#btn-close-session-setup').click();
+  await page.evaluate(() => { delete window.electronAPI.getCurrentWorkspace; });
+  await page.locator('#mode-card-activity').click();
+  assert(await page.locator('#btn-resume-project').isVisible(), 'Practice must still offer previous work after switching back');
   await page.setViewportSize({ width: 850, height: 700 });
   await page.locator('#btn-start-exam').click();
   assert(await page.locator('#session-setup-dialog').isVisible(), 'Session setup must open in a centered dialog');
@@ -88,6 +113,35 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   const resumeResult = await page.evaluate(() => ({ calls: window.resumeCalls, dialogs: window.folderDialogCalls, workspacePath: state.workspacePath }));
   assert(JSON.stringify(resumeResult.calls) === '["/proyectos/Robotica","/proyectos/Computacion3A"]', `Saved workspace was not restored: ${JSON.stringify(resumeResult)}`);
   assert(resumeResult.dialogs === 0 && resumeResult.workspacePath === '/proyectos/Computacion3A', `Resume opened a picker or lost the saved path: ${JSON.stringify(resumeResult)}`);
+  await page.evaluate(() => {
+    switchView('lobby');
+    state.workspaceSelected = false;
+    state.pendingProjectRestore = { activeFilePath: 'anterior.py' };
+    state.openTabs = [{ path: 'anterior.py', name: 'anterior.py', content: 'print("anterior")', isDirty: false }];
+    state.activeFilePath = 'anterior.py';
+    state.monitorsCount = 1;
+    window.examStarts = [];
+    window.electronAPI.startKiosk = async student => {
+      window.examStarts.push(student);
+      return { success: true, mode: 'exam', workspacePath: '/sesiones/nueva-aislada', workspaceName: 'Examen', initialFile: 'Ana_Examen.py' };
+    };
+    window.electronAPI.listWorkspace = async () => ({ success: true, tree: [{ name: 'Ana_Examen.py', path: 'Ana_Examen.py', type: 'file', editable: true }] });
+    window.electronAPI.readFile = async () => ({ success: true, content: '' });
+    setSessionMode('exam');
+  });
+  await page.locator('#btn-start-exam').click();
+  await page.locator('#exam-id').fill('');
+  assert(await page.locator('#exam-id').evaluate(input => !input.required), 'Exam ID must be optional');
+  await page.locator('#session-setup-form button[type="submit"]').click();
+  await page.locator('#app-dialog-confirm').waitFor({ state: 'visible' });
+  assert(await page.locator('#app-dialog-title').textContent() === 'Iniciar examen supervisado', 'An empty exam ID must reach the start confirmation');
+  await page.locator('#app-dialog-confirm').click();
+  await page.waitForFunction(() => window.examStarts.length === 1);
+  assert(await page.evaluate(() => window.examStarts[0].examId === '' && state.pendingProjectRestore === null), 'Start must accept an empty ID and discard pending project restoration');
+  await page.clock.runFor(10600);
+  await page.waitForFunction(() => state.activeFilePath === 'Ana_Examen.py');
+  assert(await page.evaluate(() => state.openTabs.length === 1 && state.openTabs[0].content === ''), 'Only the new blank exam file may be opened');
+  await page.evaluate(() => { clearInterval(state.examTimerInterval); state.examSessionActive = false; });
   await page.evaluate(() => localStorage.removeItem('codego_last_session'));
   await page.evaluate(() => {
     setSessionMode('activity');
@@ -427,7 +481,7 @@ async (page, baseUrl = 'http://127.0.0.1:8765') => {
   const colors = await page.evaluate(() => ({output:getComputedStyle(DOM.terminalOutput).backgroundColor,text:getComputedStyle(DOM.terminalOutput.querySelector('.stdout')).color}));
   assert(colors.output === 'rgb(248, 250, 252)' && colors.text === 'rgb(15, 23, 42)', 'Light terminal theme broken');
   // Freeze browser time so runner load cannot move the 11,999 ms assertion past 12 s.
-  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now()) + 1000));
   const modeSupervision = await page.evaluate(() => {
     setSessionMode('task');
     state.workspaceSessionActive = true;

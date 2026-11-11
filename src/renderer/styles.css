@@ -6526,9 +6526,10 @@ body.screen-short .sidebar-footer .workspace-hint { display: none; }
   .recent-project-btn:nth-child(n + 2) { display: none; }
 }
 .exam-only-field { display: none; }
-body.mode-exam-active #view-lobby .exam-only-field { display: flex; }
-body.mode-exam-active #view-lobby .project-picker,
-body.mode-exam-active #view-lobby .continue-session-card { display: none !important; }
+body.mode-exam-active #session-setup-dialog .exam-only-field { display: flex; }
+body.mode-exam-active #session-setup-dialog .project-picker,
+body.mode-exam-active #session-setup-dialog .continue-session-card,
+body.mode-exam-active #btn-resume-project { display: none !important; }
 
 .exam-only-field small {
   color: #8192a6;

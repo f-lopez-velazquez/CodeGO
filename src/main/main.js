@@ -641,7 +641,7 @@ function createFreshExamWorkspace(studentData = {}) {
   currentWorkspace = root;
   workspaceExplicitlySelected = true;
   workspaceSealed = false;
-  return { workspacePath: root, workspaceName: `Examen ${studentData.examId || examId}`, initialFile };
+  return { workspacePath: root, workspaceName: studentData.examId ? `Examen ${studentData.examId}` : 'Examen', initialFile };
 }
 
 // ==============================================================
@@ -2091,7 +2091,6 @@ except Exception:
       return { success: true, mode: 'task', readOnlyFiles: [...evidenceForWorkspace().readOnly], solutionFile };
     }
 
-    if (!studentData?.examId || !String(studentData.examId).trim()) return { success: false, error: 'Escribe el ID dictado por el profesor.' };
     const requestedTeacherPin = managedTeacherPin || String(studentData?.teacherPin || '').trim();
     if (requestedTeacherPin && !/^\d{4,12}$/.test(requestedTeacherPin)) {
       return { success: false, error: 'El PIN debe contener de 4 a 12 dígitos.' };

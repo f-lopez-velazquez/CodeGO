@@ -1792,13 +1792,14 @@ function setSessionMode(mode) {
   if (DOM.modeCardActivity) DOM.modeCardActivity.classList.toggle('active', mode === 'activity');
 
   if (mode === 'exam') {
+    state.pendingProjectRestore = null;
     document.body.classList.add('mode-exam-active');
     if (DOM.startBtnTitle) DOM.startBtnTitle.textContent = 'Iniciar examen';
     if (DOM.startBtnSubtitle) DOM.startBtnSubtitle.textContent = 'Modo seguro';
     if (DOM.lobbyRulesTitle) DOM.lobbyRulesTitle.textContent = 'Durante el examen';
     if (DOM.lobbyRulesList) {
       DOM.lobbyRulesList.innerHTML = `
-        <li><strong>Espacio limpio:</strong> codeGO crea un archivo vacío y aislado con tu nombre y el ID del examen.</li>
+        <li><strong>Espacio limpio:</strong> codeGO crea una carpeta nueva y un archivo vacío con tu nombre. El ID del examen es opcional.</li>
         <li><strong>Modo Kiosk & Pantalla Completa:</strong> Bloqueo del entorno y supervisión de conectividad.</li>
         <li><strong>Supervisión de Ventana:</strong> El cambio de aplicación o pérdida de foco registra aviso de 12 segundos.</li>
         <li><strong>Entrega Final:</strong> Al entregar, el código queda sellado contra modificación y se genera el archivo auditado.</li>
@@ -2761,6 +2762,9 @@ async function openSessionSetup() {
   if (!dialog || dialog.open) return;
   dialog.showModal();
   DOM.studentNameInput.focus();
+  // Exams are created by the main process only after confirmation. Never
+  // restore or mount a previous project while opening their setup dialog.
+  if (state.appMode === 'exam') return;
   if (!state.workspaceSelected && window.electronAPI?.getCurrentWorkspace) {
     try {
       const previous = readRecentProjects()[0];
@@ -2808,16 +2812,6 @@ async function handleStartExamClick() {
     }
     DOM.studentNameInput.focus();
     DOM.studentNameInput.select();
-    return;
-  }
-
-  if (state.appMode === 'exam' && !examId) {
-    DOM.examIdInput?.classList.add('input-field-error');
-    if (DOM.lobbyValidationBanner && DOM.lobbyValidationText) {
-      DOM.lobbyValidationText.textContent = 'Escribe el ID que el profesor dictó para este examen.';
-      DOM.lobbyValidationBanner.classList.remove('hidden');
-    }
-    DOM.examIdInput?.focus();
     return;
   }
 
