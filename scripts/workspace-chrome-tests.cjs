@@ -72,6 +72,7 @@ const server = http.createServer((request, response) => {
         }
         await page.keyboard.press('Escape');
         await page.locator('#workspace-tools-panel').waitFor({ state: 'hidden' });
+        assert.equal(await page.locator('#workspace-session-menu > summary').getAttribute('aria-label'), 'Ver proyecto y datos de la sesión');
         await page.locator('#workspace-session-menu > summary').click();
         await bounds('#workspace-session-panel');
         assert.match(await page.locator('#workspace-session-panel').textContent(), /Francisco López Velázquez/);
